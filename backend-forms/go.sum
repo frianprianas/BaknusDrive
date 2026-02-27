@@ -55,6 +55,6 @@ golang.org/x/text v0.15.0/go.mod h1:18gthVqCiIzBAblmcGiS2rZ3JO2S/yCH3uO16rSjE+4=
 google.golang.org/protobuf v1.34.1 h1:97KByUvMv44C6LpSSTmO5v7jQjE0GIs0/45N+d7L+fM=
 google.golang.org/protobuf v1.34.1/go.mod h1:0S6f+tKMcVzAnA+r91Msk0hP6G+0/jL5c/9w1Oq9S6o=
 gorm.io/driver/postgres v1.5.9 h1:Wic6B5vJ8xG5XFjO43l2X77S5kL0C+2M2tO7mC1nU9g=
-gorm.io/driver/postgres v1.5.9/go.mod h1:0L8s0qfS7v9kLPrp7vN6j7oO/3u5f7/6Pszq2kI0+0=
+gorm.io/driver/postgres v1.5.9/go.mod h1:DX3GReXH+3FPWGrrgffdvCk3DQ1dwDPdmbenSkweRGI=
 gorm.io/gorm v1.25.12 h1:8C2T0nNfMOnfO5jH1q8v6r/6B9j0H+2n2k+2O7jYmF4=
 gorm.io/gorm v1.25.12/go.mod h1:6MelG93GURQebXPDq3khkgXZkazVtN9CRI+MGFi0w8I=
