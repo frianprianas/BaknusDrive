@@ -1,5 +1,8 @@
 FROM golang:1.24-alpine
 
+# Install git for private modules or certain gorm dependencies
+RUN apk add --no-cache git
+
 WORKDIR /app
 
 # Install reflex for hot-reloading
