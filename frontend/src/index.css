@@ -4,8 +4,8 @@
 
 @layer base {
   html {
-    font-size: 12px;
-    /* Ultra-compact scale for high-density dashboard layout */
+    font-size: 9.5px;
+    /* Maximum density scale for professional dashboard layout */
   }
 
   body {
