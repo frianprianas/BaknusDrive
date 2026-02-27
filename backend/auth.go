@@ -26,32 +26,40 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
+	// Trim inputs
+	emailStr := strings.TrimSpace(req.Email)
+	password := req.Password
+
 	// Auto append domain if only username is provided
-	emailStr := req.Email
 	if !strings.Contains(emailStr, "@") {
 		emailStr += "@smk.baktinusantara666.sch.id"
 	}
 
 	// 1. Verify credentials via IMAP to Mailcow server
-	// Mailcow URL is http://mail.smk.baktinusantara666.sch.id
-	// IMAP usually runs on port 993 (TLS) or 143 (STARTTLS).
-	imapServer := "mail.smk.baktinusantara666.sch.id:143"
+	// Using Port 993 (IMAP over SSL) for better reliability
+	imapServer := "mail.smk.baktinusantara666.sch.id:993"
+	tlsConfig := &tls.Config{InsecureSkipVerify: true}
 	
-	cli, err := client.Dial(imapServer)
+	cli, err := client.DialTLS(imapServer, tlsConfig)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to authentication server"})
-		return
+		// Fallback to 143 if 993 fails (just in case)
+		log.Printf("IMAP 993 failed: %v, trying 143 with StartTLS", err)
+		imapServer = "mail.smk.baktinusantara666.sch.id:143"
+		cli, err = client.Dial(imapServer)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal terhubung ke server autentikasi (IMAP)"})
+			return
+		}
+		if err := cli.StartTLS(tlsConfig); err != nil {
+			cli.Logout()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal negosiasi koneksi aman (StartTLS)"})
+			return
+		}
 	}
 	defer cli.Logout()
 
-	tlsConfig := &tls.Config{InsecureSkipVerify: true} // Allow self-signed certs just in case
-	if err := cli.StartTLS(tlsConfig); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to negotiate secure connection"})
-		return
-	}
-
-	if err := cli.Login(emailStr, req.Password); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+	if err := cli.Login(emailStr, password); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Email atau password salah"})
 		return
 	}
 
