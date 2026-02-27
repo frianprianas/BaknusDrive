@@ -11,6 +11,7 @@ type Folder struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
 	Name      string         `gorm:"not null" json:"name"`
 	ParentID  *uint          `json:"parent_id"` // null if root
+	DeviceID  *uint          `json:"device_id"` // null if not part of a computer sync
 	UserID    string         `gorm:"not null" json:"user_id"`
 	User      User           `json:"-"`
 	OwnerName string         `gorm:"-" json:"owner_name,omitempty"`

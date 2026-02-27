@@ -40,7 +40,7 @@ func InitDB() {
 	log.Println("PostgreSQL connected successfully with optimized connection pool")
 
 	// Apply migrations
-	err = DB.AutoMigrate(&models.User{}, &models.Folder{}, &models.File{}, &models.Share{})
+	err = DB.AutoMigrate(&models.User{}, &models.Folder{}, &models.File{}, &models.Share{}, &models.Device{})
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}

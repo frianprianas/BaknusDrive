@@ -30,6 +30,8 @@ export default function Dashboard() {
 
     const [folders, setFolders] = useState<any[]>([]);
     const [files, setFiles] = useState<any[]>([]);
+    const [devices, setDevices] = useState<any[]>([]);
+    const [selectedDevice, setSelectedDevice] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
 
     const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
@@ -77,7 +79,7 @@ export default function Dashboard() {
         fetchUserProfile();
         fetchDriveData();
         fetchUsers();
-    }, [currentFolderId, currentView]);
+    }, [currentFolderId, currentView, selectedDevice]);
 
     const fetchUserProfile = async () => {
         try {
@@ -124,6 +126,16 @@ export default function Dashboard() {
         }
     };
 
+    const fetchDevices = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await axios.get('/api/drive/devices', { headers: { Authorization: `Bearer ${token}` } });
+            setDevices(resp.data || []);
+        } catch (error) {
+            console.error("Failed to fetch devices", error);
+        }
+    };
+
     const fetchDriveData = async () => {
         setLoading(true);
         try {
@@ -132,6 +144,26 @@ export default function Dashboard() {
                 const resp = await axios.get('/api/drive/trash', { headers: { Authorization: `Bearer ${token}` } });
                 setFolders(resp.data.folders || []);
                 setFiles(resp.data.files || []);
+            } else if (currentView === 'computers') {
+                if (currentFolderId) {
+                    const resp = await axios.get('/api/drive', {
+                        params: { parent_id: currentFolderId },
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setFolders(resp.data.folders || []);
+                    setFiles(resp.data.files || []);
+                } else if (selectedDevice) {
+                    const resp = await axios.get('/api/drive', {
+                        params: { device_id: selectedDevice.id },
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setFolders(resp.data.folders || []);
+                    setFiles(resp.data.files || []);
+                } else {
+                    await fetchDevices();
+                    setFolders([]);
+                    setFiles([]);
+                }
             } else if (currentView === 'shared') {
                 if (currentFolderId) {
                     const resp = await axios.get('/api/drive', {
@@ -179,12 +211,18 @@ export default function Dashboard() {
         const name = prompt("Enter folder name:");
         if (!name) return;
 
+        const payload: any = { name };
+        if (currentFolderId) {
+            payload.parent_id = currentFolderId;
+        } else if (currentView === 'computers' && selectedDevice) {
+            payload.device_id = selectedDevice.id;
+        }
+
         try {
             const token = localStorage.getItem('token');
-            await axios.post('/api/drive/folder',
-                { name, parent_id: currentFolderId },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            await axios.post('/api/drive/folder', payload, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             fetchDriveData();
         } catch (error) {
             alert("Failed to create folder");
@@ -200,6 +238,8 @@ export default function Dashboard() {
         formData.append('file', file);
         if (currentFolderId) {
             formData.append('folder_id', currentFolderId.toString());
+        } else if (currentView === 'computers' && selectedDevice) {
+            formData.append('device_id', selectedDevice.id.toString());
         }
 
         try {
@@ -429,9 +469,25 @@ export default function Dashboard() {
         setBreadcrumb([...breadcrumb, { id, name }]);
     };
 
+    const navigateToDevice = (device: any) => {
+        setSelectedDevice(device);
+        setCurrentFolderId(null);
+        setBreadcrumb([{ id: null, name: 'Computers' }, { id: 'device', name: device.name }]);
+    };
+
     const navigateToBreadcrumb = (index: number) => {
+        if (index === breadcrumb.length - 1) return;
         const target = breadcrumb[index];
-        setCurrentFolderId(target.id);
+
+        if (target.name === 'Computers' && target.id === null) {
+            setSelectedDevice(null);
+            setCurrentFolderId(null);
+        } else if (target.id === 'device') {
+            setCurrentFolderId(null);
+        } else {
+            setCurrentFolderId(target.id);
+        }
+
         setBreadcrumb(breadcrumb.slice(0, index + 1));
     };
 
@@ -539,6 +595,10 @@ export default function Dashboard() {
                                     if (item.id === 'drive') {
                                         setCurrentFolderId(null);
                                         setBreadcrumb([{ id: null, name: 'My Drive' }]);
+                                    } else if (item.id === 'computers') {
+                                        setCurrentFolderId(null);
+                                        setSelectedDevice(null);
+                                        setBreadcrumb([{ id: null, name: 'Computers' }]);
                                     } else if (item.id === 'trash') {
                                         setBreadcrumb([{ id: null, name: 'Trash' }]);
                                     } else if (item.id === 'shared') {
@@ -852,7 +912,50 @@ export default function Dashboard() {
                         </div>
                     ) : (
                         <>
-                            {!loading && folders.length === 0 && files.length === 0 && (
+                            {currentView === 'computers' && !selectedDevice && !currentFolderId && (
+                                <div className="p-6">
+                                    <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-slate-800 dark:text-slate-100">
+                                        <MonitorSmartphone className="text-blue-500" /> Computers
+                                    </h2>
+                                    {devices.length === 0 ? (
+                                        <div className="bg-blue-50 dark:bg-slate-900/50 border border-blue-100 dark:border-slate-700 rounded-3xl p-12 flex flex-col items-center text-center">
+                                            <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-sm mb-6">
+                                                <MonitorSmartphone size={40} className="text-[#1a73e8]" />
+                                            </div>
+                                            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">No computers syncing</h3>
+                                            <p className="text-slate-500 dark:text-slate-400 max-w-sm mb-8 text-[14px]">
+                                                Folders on your computer that you sync with BaknusDrive will appear here.
+                                            </p>
+                                            <button className="px-6 py-2.5 bg-[#1a73e8] text-white rounded-full font-medium hover:bg-blue-600 transition-colors shadow-sm text-sm">
+                                                Download BaknusDrive for Desktop
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            {devices.map((device: any) => (
+                                                <div key={device.id}
+                                                    onClick={() => navigateToDevice(device)}
+                                                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 hover:shadow-md transition-all cursor-pointer group">
+                                                    <div className="flex items-start justify-between mb-4">
+                                                        <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
+                                                            <MonitorSmartphone className="text-[#1a73e8] dark:text-blue-400" />
+                                                        </div>
+                                                        <span className="text-[12px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">Online</span>
+                                                    </div>
+                                                    <h4 className="font-semibold text-slate-800 dark:text-slate-100 mb-1">{device.name}</h4>
+                                                    <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-4">{device.os} • Last sync: {new Date(device.last_sync).toLocaleString()}</p>
+                                                    <div className="flex items-center gap-2 pt-4 border-t border-slate-100 dark:border-slate-700">
+                                                        <FolderIcon size={16} className="text-slate-400" />
+                                                        <span className="text-[13px] text-slate-600 dark:text-slate-300">Folders Synced</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {!loading && currentView !== 'computers' && folders.length === 0 && files.length === 0 && (
                                 <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
                                     <FolderIcon size={64} className="mb-4 text-slate-300" />
                                     <p>This folder is empty</p>

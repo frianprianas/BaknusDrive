@@ -18,6 +18,7 @@ import (
 type CreateFolderReq struct {
 	Name     string `json:"name" binding:"required"`
 	ParentID *uint  `json:"parent_id"` // Optional
+	DeviceID *uint  `json:"device_id"` // Optional (for computer sync)
 }
 
 func CreateFolder(c *gin.Context) {
@@ -45,6 +46,7 @@ func CreateFolder(c *gin.Context) {
 		Name:     req.Name,
 		ParentID: req.ParentID,
 		UserID:   userID,
+		DeviceID: req.DeviceID,
 	}
 
 	if err := DB.Create(&folder).Error; err != nil {
@@ -79,6 +81,7 @@ func HasAccessToFolder(userID string, folderID uint) bool {
 
 func ListDrive(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
+	deviceIDStr := c.Query("device_id")
 	parentIDStr := c.Query("parent_id")
 
 	var folders []models.Folder
@@ -104,9 +107,16 @@ func ListDrive(c *gin.Context) {
 				return
 			}
 		}
+	} else if deviceIDStr != "" && deviceIDStr != "null" {
+		deviceID, err := strconv.Atoi(deviceIDStr)
+		if err == nil {
+			did := uint(deviceID)
+			DB.Preload("User").Where("user_id = ? AND device_id = ? AND parent_id IS NULL", userID, did).Find(&folders)
+			DB.Preload("User").Where("user_id = ? AND device_id = ? AND folder_id IS NULL", userID, did).Find(&files)
+		}
 	} else {
-		DB.Preload("User").Where("user_id = ? AND parent_id IS NULL", userID).Find(&folders)
-		DB.Preload("User").Where("user_id = ? AND folder_id IS NULL", userID).Find(&files)
+		DB.Preload("User").Where("user_id = ? AND parent_id IS NULL AND device_id IS NULL", userID).Find(&folders)
+		DB.Preload("User").Where("user_id = ? AND folder_id IS NULL AND device_id IS NULL", userID).Find(&files)
 	}
 
 	for i := range folders {
@@ -142,12 +152,23 @@ func UploadFile(c *gin.Context) {
 	}
 
 	parentIDStr := c.PostForm("folder_id")
+	deviceIDStr := c.PostForm("device_id")
+	
 	var folderID *uint
 	if parentIDStr != "" && parentIDStr != "null" {
 		pid, err := strconv.Atoi(parentIDStr)
 		if err == nil {
 			val := uint(pid)
 			folderID = &val
+		}
+	}
+
+	var deviceID *uint
+	if deviceIDStr != "" && deviceIDStr != "null" {
+		did, err := strconv.Atoi(deviceIDStr)
+		if err == nil {
+			val := uint(did)
+			deviceID = &val
 		}
 	}
 
@@ -203,6 +224,7 @@ func UploadFile(c *gin.Context) {
 		Path:     savePath,
 		FolderID: folderID,
 		UserID:   userID,
+		DeviceID: deviceID,
 	}
 
 	if err := DB.Create(&fileRecord).Error; err != nil {
@@ -477,4 +499,52 @@ func GetStorageQuota(c *gin.Context) {
 		"used":  totalSize,
 		"quota": currentUser.Quota,
 	})
+}
+
+func ListDevices(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	var devices []models.Device
+	DB.Where("user_id = ?", userID).Find(&devices)
+	c.JSON(http.StatusOK, devices)
+}
+
+func RegisterDevice(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+
+	var req struct {
+		Name      string `json:"name" binding:"required"`
+		OS        string `json:"os"`
+		IPAddress string `json:"ip_address"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	var device models.Device
+	// Upsert based on Name and UserID (or could use a Hardware ID if available)
+	err := DB.Where("user_id = ? AND name = ?", userID, req.Name).First(&device).Error
+	if err != nil {
+		// New device
+		device = models.Device{
+			Name:      req.Name,
+			OS:        req.OS,
+			UserID:    userID,
+			IPAddress: req.IPAddress,
+			LastSync:  time.Now(),
+		}
+		if err := DB.Create(&device).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register device"})
+			return
+		}
+	} else {
+		// Update existing device
+		device.OS = req.OS
+		device.IPAddress = req.IPAddress
+		device.LastSync = time.Now()
+		DB.Save(&device)
+	}
+
+	c.JSON(http.StatusOK, device)
 }

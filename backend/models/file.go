@@ -14,6 +14,7 @@ type File struct {
 	Size      int64          `gorm:"not null" json:"size"`
 	Path      string         `gorm:"not null" json:"-"` // physical path on disk/S3
 	FolderID  *uint          `json:"folder_id"` // null if root
+	DeviceID  *uint          `json:"device_id"` // null if not part of a computer sync
 	UserID    string         `gorm:"not null" json:"user_id"`
 	User      User           `json:"-"`
 	OwnerName string         `gorm:"-" json:"owner_name,omitempty"`
