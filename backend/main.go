@@ -35,6 +35,8 @@ func main() {
 		AllowCredentials: true,
 	}))
 
+	r.Static("/downloads", "./static")
+
 	api := r.Group("/api")
 	{
 		api.GET("/ping", func(c *gin.Context) {

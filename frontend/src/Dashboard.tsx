@@ -926,7 +926,10 @@ export default function Dashboard() {
                                             <p className="text-slate-500 dark:text-slate-400 max-w-sm mb-8 text-[14px]">
                                                 Folders on your computer that you sync with BaknusDrive will appear here.
                                             </p>
-                                            <button className="px-6 py-2.5 bg-[#1a73e8] text-white rounded-full font-medium hover:bg-blue-600 transition-colors shadow-sm text-sm">
+                                            <button
+                                                onClick={() => window.open(`${window.location.origin}/downloads/clients/BaknusDrive-Setup.exe`, '_blank')}
+                                                className="px-6 py-2.5 bg-[#1a73e8] text-white rounded-full font-medium hover:bg-blue-600 transition-colors shadow-sm text-sm"
+                                            >
                                                 Download BaknusDrive for Desktop
                                             </button>
                                         </div>
