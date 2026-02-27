@@ -1,0 +1,13 @@
+{
+    "name": "BaknusDrive Desktop",
+    "assetdir": "frontend/dist",
+    "reload_worker_dir": "",
+    "frontend:install": "npm install",
+    "frontend:build": "npm run build",
+    "frontend:dev:watcher": "npm run dev",
+    "frontend:dev:server_url": "http://localhost:5173",
+    "author": {
+        "name": "Baknus",
+        "email": "admin@baknus.com"
+    }
+}

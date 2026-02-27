@@ -1,0 +1,7 @@
+# Wails
+build/bin/*
+frontend/dist/
+frontend/node_modules/
+wails.exe
+desktop-app
+.DS_Store
