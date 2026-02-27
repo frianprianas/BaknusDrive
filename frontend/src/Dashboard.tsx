@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import logo from './assets/logo.png';
+import FormBuilder from './FormBuilder';
 import {
     Search, Menu, X, Filter, LayoutGrid, Clock, Users, Database,
     User, Settings, LogOut, ChevronRight, MoreVertical,
@@ -8,7 +9,7 @@ import {
     Star, Trash2, Folder as FolderIcon, File as FileIcon, Image as ImageIcon, FileText,
     Cloud, Plus, Download, FolderPlus, Upload, FileUp, Check,
     Edit2, Copy, Trash, RotateCcw, Share2, Sun, Moon, Eye, Shield, Lock, Unlock,
-    HelpCircle, Grip, UserX, Loader2, ExternalLink
+    HelpCircle, Grip, UserX, Loader2, ExternalLink, ClipboardList
 } from 'lucide-react';
 
 const isImageFile = (f: any) => f?.mime_type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(f?.name || '');
@@ -33,6 +34,8 @@ export default function Dashboard() {
     const [devices, setDevices] = useState<any[]>([]);
     const [selectedDevice, setSelectedDevice] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
+    const [myForms, setMyForms] = useState<any[]>([]);
+    const [showFormBuilder, setShowFormBuilder] = useState(false);
 
     const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
     const [currentView, setCurrentView] = useState('drive');
@@ -140,7 +143,13 @@ export default function Dashboard() {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            if (currentView === 'trash') {
+            if (currentView === 'forms') {
+                const resp = await axios.get('https://baknusdrive.smkbn666.sch.id/api/forms', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setMyForms(resp.data || []);
+                setBreadcrumb([{ id: null, name: 'Baknus Form' }]);
+            } else if (currentView === 'trash') {
                 const resp = await axios.get('/api/drive/trash', { headers: { Authorization: `Bearer ${token}` } });
                 setFolders(resp.data.folders || []);
                 setFiles(resp.data.files || []);
@@ -203,6 +212,22 @@ export default function Dashboard() {
         } finally {
             setLoading(false);
             fetchStorageQuota();
+        }
+    };
+
+    const handleSaveForm = async (formData: any) => {
+        try {
+            const token = localStorage.getItem('token');
+            // Use the correct backend port (8083) for forms
+            await axios.post('https://baknusdrive.smkbn666.sch.id/api/forms', formData, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setShowFormBuilder(false);
+            fetchDriveData();
+            alert("Formulir berhasil disimpan!");
+        } catch (error: any) {
+            console.error("Failed to save form:", error);
+            alert("Gagal menyimpan formulir: " + (error.response?.data?.error || error.message));
         }
     };
 
@@ -504,6 +529,7 @@ export default function Dashboard() {
         { id: 'shared', icon: Users, label: 'Shared with me' },
         { id: 'recent', icon: Clock, label: 'Recent' },
         { id: 'starred', icon: Star, label: 'Starred' },
+        { id: 'forms', icon: ClipboardList, label: 'Baknus Form' },
         { id: 'spam', icon: AlertCircle, label: 'Spam' },
         { id: 'trash', icon: Trash2, label: 'Trash' },
         ...((user?.role?.toLowerCase() === 'admin') ? [{ id: 'admin', icon: Shield, label: 'Admin Panel' }] : [])
@@ -575,6 +601,9 @@ export default function Dashboard() {
                             <button onClick={handleCreateFolder} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-800 dark:text-slate-200">
                                 <FolderPlus size={18} className="text-slate-600 dark:text-slate-400" /> New folder
                             </button>
+                            <button onClick={() => { setShowNewMenu(false); setShowFormBuilder(true); }} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-800 dark:text-slate-200">
+                                <ClipboardList size={18} className="text-indigo-600 dark:text-indigo-400" /> New Baknus Form
+                            </button>
                             <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
                             <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-800 dark:text-slate-200">
                                 <Upload size={18} className="text-slate-600 dark:text-slate-400" /> File upload
@@ -603,6 +632,8 @@ export default function Dashboard() {
                                         setBreadcrumb([{ id: null, name: 'Trash' }]);
                                     } else if (item.id === 'shared') {
                                         setBreadcrumb([{ id: null, name: 'Shared with me' }]);
+                                    } else if (item.id === 'forms') {
+                                        setBreadcrumb([{ id: null, name: 'Baknus Form' }]);
                                     }
                                 }}
                                 className={`w-full flex items-center gap-4 px-6 py-2 rounded-r-full text-[14px] transition-colors ${isActive
@@ -909,6 +940,102 @@ export default function Dashboard() {
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    ) : currentView === 'forms' ? (
+                        <div className="p-6 max-w-7xl mx-auto">
+                            <div className="flex justify-between items-center mb-10">
+                                <div>
+                                    <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3">
+                                        <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl text-indigo-600 dark:text-indigo-400">
+                                            <ClipboardList size={28} />
+                                        </div>
+                                        Baknus Form
+                                    </h2>
+                                    <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">Buat formulir digital, kumpulkan data, dan kelola respon dengan mudah.</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowFormBuilder(true)}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3.5 rounded-2xl font-bold shadow-xl shadow-indigo-500/30 transition-all hover:scale-105 active:scale-95 flex items-center gap-2 text-lg"
+                                >
+                                    <Plus size={24} /> Buat Formulir Baru
+                                </button>
+                            </div>
+
+                            {myForms.length === 0 ? (
+                                <div className="bg-white dark:bg-slate-800/50 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-[32px] p-20 flex flex-col items-center text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    <div className="w-24 h-24 bg-indigo-50 dark:bg-indigo-900/20 rounded-3xl flex items-center justify-center mb-8">
+                                        <ClipboardList size={48} className="text-indigo-400" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-3">Belum Ada Formulir</h3>
+                                    <p className="text-slate-500 dark:text-slate-400 max-w-md mb-10 text-lg leading-relaxed">
+                                        Mulai kumpulkan data dengan membuat formulir pertama Anda. Anda bisa membagikannya lewat link atau embed.
+                                    </p>
+                                    <button
+                                        onClick={() => setShowFormBuilder(true)}
+                                        className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center gap-2 text-lg"
+                                    >
+                                        Pelajari cara membuat formulir <ExternalLink size={20} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                    {myForms.map((form: any) => (
+                                        <div key={form.id} className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-100 dark:border-slate-700 p-6 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden flex flex-col h-full">
+                                            <div className="absolute top-0 left-0 w-2 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+                                            <div className="flex justify-between items-start mb-6">
+                                                <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl text-slate-500">
+                                                    <FileText size={24} />
+                                                </div>
+                                                <span className={`text-xs font-bold px-3 py-1 rounded-full ${form.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-slate-100 text-slate-600'}`}>
+                                                    {form.is_active ? 'AKTIF' : 'DRAFT'}
+                                                </span>
+                                            </div>
+
+                                            <h4 className="text-xl font-bold text-slate-800 dark:text-white mb-2 leading-tight group-hover:text-indigo-600 transition-colors h-14 overflow-hidden">
+                                                {form.title}
+                                            </h4>
+
+                                            <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 line-clamp-2">
+                                                {form.description || 'Tidak ada deskripsi.'}
+                                            </p>
+
+                                            <div className="mt-auto pt-6 border-t border-slate-50 dark:border-slate-700/50 grid grid-cols-2 gap-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tanggapan</span>
+                                                    <span className="text-2xl font-black text-slate-800 dark:text-slate-200">0</span>
+                                                </div>
+                                                <div className="flex flex-col items-end">
+                                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Dibuat</span>
+                                                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                                                        {new Date(form.created_at).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-6 flex gap-2">
+                                                <button
+                                                    onClick={() => alert("Fitur lihat respon akan segera hadir!")}
+                                                    className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                                                >
+                                                    <Eye size={18} /> Lihat Respon
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        const url = `${window.location.origin}/f/${form.id}`;
+                                                        navigator.clipboard.writeText(url);
+                                                        alert("Link formulir berhasil disalin ke clipboard!");
+                                                    }}
+                                                    className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-colors"
+                                                    title="Bagikan Link"
+                                                >
+                                                    <Share2 size={18} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <>
@@ -1378,6 +1505,14 @@ export default function Dashboard() {
                         </div>
                     </div>
                 )}
+
+                {showFormBuilder && (
+                    <FormBuilder
+                        onClose={() => setShowFormBuilder(false)}
+                        onSave={handleSaveForm}
+                    />
+                )}
+
                 {showSettingsModal && (
                     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                         <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[28px] shadow-2xl overflow-hidden border border-white/20 animate-in fade-in zoom-in duration-200">

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -69,7 +70,31 @@ func GetPublicForm(c *gin.Context) {
 }
 
 func SubmitFormResponse(c *gin.Context) {
-	// Logic to save response and potentially sync to Drive
+	id := c.Param("id")
+	var req struct {
+		ResponseData interface{} `json:"response_data"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
+		return
+	}
+
+	jsonData, err := json.Marshal(req.ResponseData)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memproses data"})
+		return
+	}
+
+	response := models.FormResponse{
+		FormID:       id,
+		ResponseData: string(jsonData),
+	}
+
+	if err := DB.Create(&response).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan jawaban"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "Jawaban berhasil dikirim"})
 }
 
@@ -82,12 +107,26 @@ func ListMyForms(c *gin.Context) {
 
 func CreateForm(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
-	var form models.Form
-	if err := c.ShouldBindJSON(&form); err != nil {
+	var req struct {
+		Title       string      `json:"title"`
+		Description string      `json:"description"`
+		Questions   interface{} `json:"questions"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
 		return
 	}
-	form.CreatorID = userID
+
+	questionsJSON, _ := json.Marshal(req.Questions)
+
+	form := models.Form{
+		Title:       req.Title,
+		Description: req.Description,
+		Questions:   string(questionsJSON),
+		CreatorID:   userID,
+		IsActive:    true,
+	}
+
 	if err := DB.Create(&form).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat formulir"})
 		return

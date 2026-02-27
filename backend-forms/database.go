@@ -1,7 +1,7 @@
 package main
 
 import (
-	"baknusdrive/models"
+	"baknus-forms/models"
 	"fmt"
 	"log"
 	"os"
@@ -39,15 +39,9 @@ func InitDB() {
 	log.Println("PostgreSQL connected successfully")
 
 	// Apply migrations for Forms - We use separate tables but in the same DB
-	// Note: models.User, models.Folder etc are from the common models
 	err = DB.AutoMigrate(
-		&models.User{}, 
-		&models.Folder{}, 
-		&models.File{}, 
-		&models.Share{}, 
-		&models.Device{},
-		&models.Form{},         // New
-		&models.FormResponse{}, // New
+		&models.Form{},
+		&models.FormResponse{},
 	)
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)

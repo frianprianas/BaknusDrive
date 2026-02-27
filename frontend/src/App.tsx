@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './Login';
 import Dashboard from './Dashboard';
+import FormSubmission from './FormSubmission';
 
 function App() {
   const token = localStorage.getItem('token');
@@ -14,6 +15,7 @@ function App() {
       <div className="w-full h-full z-10">
         <Routes>
           <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
+          <Route path="/f/:id" element={<FormSubmission />} />
           <Route path="/*" element={token ? <Dashboard /> : <Navigate to="/login" />} />
         </Routes>
       </div>

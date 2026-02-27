@@ -28,10 +28,10 @@ func (f *Form) BeforeCreate(tx *gorm.DB) (err error) {
 }
 
 type FormResponse struct {
-	ID         uint           `gorm:"primaryKey" json:"id"`
-	FormID     string         `gorm:"not null;index" json:"form_id"`
-	Respondent string         `json:"respondent"`                  // Email jika login, atau 'Anonymous'
-	Answers    string         `gorm:"type:text" json:"answers"`     // JSON string of answers
-	CreatedAt  time.Time      `json:"created_at"`
-	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	ID           uint           `gorm:"primaryKey" json:"id"`
+	FormID       string         `gorm:"not null;index" json:"form_id"`
+	Respondent   string         `json:"respondent"`                  // Email jika login, atau 'Anonymous'
+	ResponseData string         `gorm:"type:text" json:"response_data"` // JSON string of answers
+	CreatedAt    time.Time      `json:"created_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 }
