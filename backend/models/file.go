@@ -1,0 +1,25 @@
+package models
+
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
+
+// File represents an uploaded file metadata
+type File struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	Name      string         `gorm:"not null" json:"name"`
+	MimeType  string         `gorm:"not null" json:"mime_type"`
+	Size      int64          `gorm:"not null" json:"size"`
+	Path      string         `gorm:"not null" json:"-"` // physical path on disk/S3
+	FolderID  *uint          `json:"folder_id"` // null if root
+	UserID    string         `gorm:"not null" json:"user_id"`
+	User      User           `json:"-"`
+	OwnerName string         `gorm:"-" json:"owner_name,omitempty"`
+	IsShared  bool           `gorm:"-" json:"is_shared,omitempty"`
+	IsPublic  bool           `gorm:"default:false" json:"is_public"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
