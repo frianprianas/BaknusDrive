@@ -222,8 +222,8 @@ export default function Dashboard() {
     const handleSaveForm = async (formData: any) => {
         try {
             const token = localStorage.getItem('token');
-            // Use the correct backend port (8083) for forms
-            await axios.post('https://baknusdrive.smkbn666.sch.id/api/forms', formData, {
+            const API_BASE = import.meta.env.VITE_API_URL || '';
+            await axios.post(`${API_BASE}/api/forms`, formData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setShowFormBuilder(false);
