@@ -36,6 +36,10 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [myForms, setMyForms] = useState<any[]>([]);
     const [showFormBuilder, setShowFormBuilder] = useState(false);
+    const [responsesModal, setResponsesModal] = useState<{ visible: boolean, form: any }>({ visible: false, form: null });
+    const [formResponses, setFormResponses] = useState<any[]>([]);
+    const [loadingResponses, setLoadingResponses] = useState(false);
+    const [exporting, setExporting] = useState(false);
 
     const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
     const [currentView, setCurrentView] = useState('drive');
@@ -228,6 +232,48 @@ export default function Dashboard() {
         } catch (error: any) {
             console.error("Failed to save form:", error);
             alert("Gagal menyimpan formulir: " + (error.response?.data?.error || error.message));
+        }
+    };
+
+    const openResponsesModal = async (form: any) => {
+        setResponsesModal({ visible: true, form });
+        setFormResponses([]);
+        setLoadingResponses(true);
+        try {
+            const token = localStorage.getItem('token');
+            const API_BASE = import.meta.env.VITE_API_URL || '';
+            const resp = await axios.get(`${API_BASE}/api/forms/${form.id}/responses`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const responses = (resp.data || []).map((r: any) => {
+                let parsed = {};
+                try { parsed = JSON.parse(r.response_data); } catch { }
+                return { ...r, parsed };
+            });
+            setFormResponses(responses);
+        } catch (err) {
+            console.error('Failed to load responses', err);
+        } finally {
+            setLoadingResponses(false);
+        }
+    };
+
+    const exportResponsesToDrive = async () => {
+        if (!responsesModal.form) return;
+        setExporting(true);
+        try {
+            const token = localStorage.getItem('token');
+            const API_BASE = import.meta.env.VITE_API_URL || '';
+            const resp = await axios.post(
+                `${API_BASE}/api/forms/${responsesModal.form.id}/responses/export`,
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            alert(`✅ ${resp.data.message}`);
+        } catch (err: any) {
+            alert(`❌ Gagal ekspor: ${err.response?.data?.error || err.message}`);
+        } finally {
+            setExporting(false);
         }
     };
 
@@ -1015,7 +1061,7 @@ export default function Dashboard() {
 
                                             <div className="mt-6 flex gap-2">
                                                 <button
-                                                    onClick={() => alert("Fitur lihat respon akan segera hadir!")}
+                                                    onClick={() => openResponsesModal(form)}
                                                     className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
                                                 >
                                                     <Eye size={18} /> Lihat Respon
@@ -1640,6 +1686,93 @@ export default function Dashboard() {
                         </div>
                     </div>
                 )}
+
+                {/* Form Responses Modal */}
+                {responsesModal.visible && responsesModal.form && (() => {
+                    const form = responsesModal.form;
+                    let questions: any[] = [];
+                    try { questions = JSON.parse(form.questions || '[]'); } catch { }
+                    return (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                            <div className="bg-white dark:bg-slate-800 rounded-[28px] shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+                                {/* Modal Header */}
+                                <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-700 shrink-0">
+                                    <div>
+                                        <h2 className="text-xl font-bold text-slate-800 dark:text-white">{form.title}</h2>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{formResponses.length} respon diterima</p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={exportResponsesToDrive}
+                                            disabled={exporting || formResponses.length === 0}
+                                            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-500/30"
+                                        >
+                                            {exporting ? (
+                                                <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div> Mengekspor...</>
+                                            ) : (
+                                                <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> Ekspor ke Drive (.xlsx)</>
+                                            )}
+                                        </button>
+                                        <button onClick={() => setResponsesModal({ visible: false, form: null })} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
+                                            <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Modal Body */}
+                                <div className="overflow-auto flex-1 p-6">
+                                    {loadingResponses ? (
+                                        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                                            <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                                            <p>Memuat respon...</p>
+                                        </div>
+                                    ) : formResponses.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                                            <svg className="w-16 h-16 mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                                            <p className="font-medium">Belum ada respon</p>
+                                            <p className="text-sm mt-1">Bagikan link formulir untuk mulai menerima respon.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-700">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="bg-slate-50 dark:bg-slate-900/50">
+                                                        <th className="text-left px-4 py-3 font-bold text-slate-600 dark:text-slate-300 text-xs uppercase tracking-wider whitespace-nowrap">#</th>
+                                                        <th className="text-left px-4 py-3 font-bold text-slate-600 dark:text-slate-300 text-xs uppercase tracking-wider whitespace-nowrap">Waktu</th>
+                                                        {questions.map((q: any) => (
+                                                            <th key={q.id} className="text-left px-4 py-3 font-bold text-slate-600 dark:text-slate-300 text-xs uppercase tracking-wider whitespace-nowrap max-w-[200px]">
+                                                                {q.label || 'Pertanyaan'}
+                                                                {q.required && <span className="text-red-400 ml-0.5">*</span>}
+                                                            </th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                                    {formResponses.map((resp: any, idx: number) => (
+                                                        <tr key={resp.id} className={idx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50/50 dark:bg-slate-800/50'}>
+                                                            <td className="px-4 py-3 text-slate-500 font-medium">{idx + 1}</td>
+                                                            <td className="px-4 py-3 text-slate-500 whitespace-nowrap text-xs">{new Date(resp.created_at).toLocaleString('id-ID')}</td>
+                                                            {questions.map((q: any) => {
+                                                                const val = resp.parsed?.[q.id];
+                                                                const display = Array.isArray(val) ? val.join(', ') : (val ?? '-');
+                                                                return (
+                                                                    <td key={q.id} className="px-4 py-3 text-slate-700 dark:text-slate-300 max-w-[200px] truncate">
+                                                                        {display.toString() || '-'}
+                                                                    </td>
+                                                                );
+                                                            })}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
+
             </main>
         </div>
     );

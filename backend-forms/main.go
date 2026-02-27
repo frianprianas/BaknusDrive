@@ -1,14 +1,20 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
+	"time"
 
 	"baknus-forms/models"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/xuri/excelize/v2"
 )
 
 func main() {
@@ -49,6 +55,7 @@ func main() {
 			protected.PUT("/:id", UpdateForm)
 			protected.DELETE("/:id", DeleteForm)
 			protected.GET("/:id/responses", GetFormResponses)
+			protected.POST("/:id/responses/export", ExportResponsesToDrive)
 		}
 	}
 
@@ -193,4 +200,158 @@ func GetFormResponses(c *gin.Context) {
 	var responses []models.FormResponse
 	DB.Where("form_id = ?", id).Find(&responses)
 	c.JSON(http.StatusOK, responses)
+}
+
+// ExportResponsesToDrive generates an XLSX file from all responses and saves it to the creator's Drive
+func ExportResponsesToDrive(c *gin.Context) {
+	id := c.Param("id")
+	userID := c.MustGet("userID").(string)
+
+	// 1. Verify ownership
+	var form models.Form
+	if err := DB.Where("id = ? AND creator_id = ?", id, userID).First(&form).Error; err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Akses ditolak"})
+		return
+	}
+
+	// 2. Parse questions from JSON string
+	var questions []map[string]interface{}
+	if err := json.Unmarshal([]byte(form.Questions), &questions); err != nil {
+		questions = []map[string]interface{}{}
+	}
+
+	// 3. Fetch all responses
+	var responses []models.FormResponse
+	DB.Where("form_id = ?", id).Order("created_at asc").Find(&responses)
+
+	// 4. Build XLSX
+	f := excelize.NewFile()
+	sheet := "Respon"
+	f.NewSheet(sheet)
+	f.DeleteSheet("Sheet1")
+
+	// Header style
+	headerStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true, Color: "FFFFFF", Size: 11},
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"4F46E5"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+		Border: []excelize.Border{
+			{Type: "bottom", Color: "CCCCCC", Style: 1},
+		},
+	})
+
+	// Build header row: No | Waktu | <question labels...>
+	headers := []string{"No", "Waktu Pengiriman", "Responden"}
+	for _, q := range questions {
+		label, _ := q["label"].(string)
+		if label == "" {
+			label = "Pertanyaan"
+		}
+		headers = append(headers, label)
+	}
+
+	for col, header := range headers {
+		cell, _ := excelize.CoordinatesToCellName(col+1, 1)
+		f.SetCellValue(sheet, cell, header)
+		f.SetCellStyle(sheet, cell, cell, headerStyle)
+	}
+	f.SetRowHeight(sheet, 1, 22)
+
+	// Data rows
+	for rowIdx, resp := range responses {
+		row := rowIdx + 2
+		var respData map[string]interface{}
+		json.Unmarshal([]byte(resp.ResponseData), &respData)
+
+		respondent := resp.Respondent
+		if respondent == "" {
+			respondent = "Anonim"
+		}
+
+		f.SetCellValue(sheet, fmt.Sprintf("A%d", row), rowIdx+1)
+		f.SetCellValue(sheet, fmt.Sprintf("B%d", row), resp.CreatedAt.Format("2006-01-02 15:04:05"))
+		f.SetCellValue(sheet, fmt.Sprintf("C%d", row), respondent)
+
+		for colIdx, q := range questions {
+			qID, _ := q["id"].(string)
+			val := ""
+			if respData != nil {
+				if v, ok := respData[qID]; ok {
+					switch vt := v.(type) {
+					case []interface{}:
+						// checkbox – join values
+						strs := make([]string, len(vt))
+						for i, item := range vt {
+							strs[i] = fmt.Sprintf("%v", item)
+						}
+						for i, s := range strs {
+							if i == 0 {
+								val = s
+							} else {
+								val += ", " + s
+							}
+						}
+					default:
+						val = fmt.Sprintf("%v", vt)
+					}
+				}
+			}
+			cell, _ := excelize.CoordinatesToCellName(colIdx+4, row)
+			f.SetCellValue(sheet, cell, val)
+		}
+	}
+
+	// Auto-width columns
+	for col := range headers {
+		colName, _ := excelize.ColumnNumberToName(col + 1)
+		f.SetColWidth(sheet, colName, colName, 22)
+	}
+
+	// 5. Write XLSX to buffer
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat file XLSX"})
+		return
+	}
+
+	// 6. Upload to creator's Drive via main backend API
+	filename := fmt.Sprintf("Respon_%s_%s.xlsx", form.Title, time.Now().Format("20060102_150405"))
+	authHeader := c.GetHeader("Authorization")
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat form file"})
+		return
+	}
+	io.Copy(part, &buf)
+	writer.Close()
+
+	// Call the main backend upload endpoint (internal Docker network)
+	uploadReq, _ := http.NewRequest("POST", "http://backend:8080/api/drive/upload", body)
+	uploadReq.Header.Set("Content-Type", writer.FormDataContentType())
+	uploadReq.Header.Set("Authorization", authHeader)
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	uploadResp, err := client.Do(uploadReq)
+	if err != nil || uploadResp.StatusCode >= 400 {
+		errMsg := "Gagal mengupload ke Drive"
+		if uploadResp != nil {
+			respBody, _ := io.ReadAll(uploadResp.Body)
+			errMsg = string(respBody)
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": errMsg})
+		return
+	}
+	defer uploadResp.Body.Close()
+
+	var uploadResult map[string]interface{}
+	json.NewDecoder(uploadResp.Body).Decode(&uploadResult)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":  fmt.Sprintf("File '%s' berhasil disimpan ke Drive Anda!", filename),
+		"file":     uploadResult,
+		"filename": filename,
+	})
 }
