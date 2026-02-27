@@ -37,6 +37,28 @@ services:
     networks:
       - baknus_network
 
+  forms:
+    build:
+      context: ./backend-forms
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8083:8080"
+    volumes:
+      - ./backend-forms:/app
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=baknuspassword
+      - DB_NAME=baknusdrive
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - baknus_network
+
   postgres:
     image: postgres:15-alpine
     restart: always
