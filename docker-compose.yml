@@ -45,8 +45,6 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=baknuspassword
       - POSTGRES_DB=baknusdrive
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -61,8 +59,6 @@ services:
     image: redis:7-alpine
     restart: always
     command: redis-server --maxclients 10000
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
