@@ -41,7 +41,22 @@ const FormSubmission: React.FC = () => {
         setLoading(true);
         try {
             const resp = await axios.get(`${API_BASE}/api/forms/f/${id}`);
-            setForm(resp.data);
+            const data = resp.data;
+
+            // Backend menyimpan `questions` sebagai JSON string di database.
+            // Parse ke array jika masih berupa string.
+            if (typeof data.questions === 'string') {
+                try {
+                    data.questions = JSON.parse(data.questions);
+                } catch {
+                    data.questions = [];
+                }
+            }
+            if (!Array.isArray(data.questions)) {
+                data.questions = [];
+            }
+
+            setForm(data);
         } catch (err: any) {
             console.error("Failed to fetch form:", err);
             setError(err.response?.data?.error || "Gagal memuat formulir");
