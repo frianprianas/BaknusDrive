@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    allowedHosts: ['baknusdrive.smkbn666.sch.id'],
     watch: {
       usePolling: true,
     },
