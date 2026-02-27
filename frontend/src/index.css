@@ -3,6 +3,11 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    font-size: 14px;
+    /* More compact scale for professional dashboard feel */
+  }
+
   body {
     @apply bg-slate-50 text-slate-900 antialiased overflow-hidden select-none;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -13,6 +18,7 @@
   .glass {
     @apply bg-white/70 backdrop-blur-lg border border-white/30 shadow-sm;
   }
+
   .glass-dark {
     @apply bg-slate-900/70 backdrop-blur-lg border border-slate-700/50 shadow-sm;
   }
@@ -23,12 +29,15 @@
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   @apply bg-slate-300 rounded-full;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-slate-400;
 }
