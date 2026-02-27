@@ -20,9 +20,8 @@ func main() {
 	}()
 
 	r := gin.Default()
-	// Set a lower memory limit for multipart forms (default is 32 MiB)
-	// Files larger than this will be stored in temporary files to save RAM
-	r.MaxMultipartMemory = 32 << 20 // 32 MiB
+	// Increase memory limit for multipart forms to handle large uploads smoothly
+	r.MaxMultipartMemory = 512 << 20 // 512 MiB
 
 
 	// CORS Setup
