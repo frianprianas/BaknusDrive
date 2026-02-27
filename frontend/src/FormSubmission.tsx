@@ -6,6 +6,9 @@ import {
     AlertCircle, Loader2, Home
 } from 'lucide-react';
 
+// Works on localhost (no base = same origin) and on production
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 interface Question {
     id: string;
     type: string;
@@ -37,7 +40,7 @@ const FormSubmission: React.FC = () => {
     const fetchForm = async () => {
         setLoading(true);
         try {
-            const resp = await axios.get(`https://baknusdrive.smkbn666.sch.id/api/forms/f/${id}`);
+            const resp = await axios.get(`${API_BASE}/api/forms/f/${id}`);
             setForm(resp.data);
         } catch (err: any) {
             console.error("Failed to fetch form:", err);
@@ -55,7 +58,7 @@ const FormSubmission: React.FC = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            await axios.post(`https://baknusdrive.smkbn666.sch.id/api/forms/f/${id}/submit`, {
+            await axios.post(`${API_BASE}/api/forms/f/${id}/submit`, {
                 response_data: responses
             });
             setSubmitted(true);
@@ -69,7 +72,7 @@ const FormSubmission: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900">
                 <Loader2 size={48} className="animate-spin text-indigo-600 mb-4" />
                 <p className="text-slate-500 font-medium">Memuat formulir...</p>
             </div>
@@ -78,7 +81,7 @@ const FormSubmission: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
+            <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
                 <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl max-w-md w-full text-center">
                     <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500">
                         <AlertCircle size={40} />
@@ -95,7 +98,7 @@ const FormSubmission: React.FC = () => {
 
     if (submitted) {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
+            <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
                 <div className="bg-white dark:bg-slate-800 p-10 rounded-[40px] shadow-xl max-w-xl w-full text-center animate-in zoom-in duration-500">
                     <div className="w-24 h-24 bg-green-50 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-8 text-green-500">
                         <CheckCircle2 size={56} />
@@ -113,7 +116,7 @@ const FormSubmission: React.FC = () => {
     }
 
     return (
-        <div className="flex-1 overflow-y-auto bg-[#f0f4f9] dark:bg-slate-950 px-4 py-12 md:py-20">
+        <div className="min-h-screen overflow-y-auto bg-[#f0f4f9] dark:bg-slate-950 px-4 py-12 md:py-20">
             <div className="max-w-3xl mx-auto space-y-6">
                 {/* Header Section */}
                 <div className="bg-white dark:bg-slate-800 rounded-3xl border-t-[14px] border-indigo-600 p-8 md:p-10 shadow-sm overflow-hidden relative">
