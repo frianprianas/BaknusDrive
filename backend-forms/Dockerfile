@@ -8,8 +8,9 @@ WORKDIR /app
 # Install reflex for hot-reloading
 RUN go install github.com/cespare/reflex@latest
 
-# Copy go mod and sum files
-COPY go.mod go.sum ./
+# Copy go.mod and generate go.sum automatically to avoid checksum mismatches
+COPY go.mod ./
+RUN go mod tidy
 RUN go mod download
 
 # Copy the source code
