@@ -276,7 +276,8 @@ func GetPublicForm(c *gin.Context) {
 func SubmitFormResponse(c *gin.Context) {
 	id := c.Param("id")
 	var req struct {
-		ResponseData interface{} `json:"response_data"`
+		ResponseData    interface{} `json:"response_data"`
+		RespondentEmail string      `json:"respondent_email"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
@@ -289,11 +290,53 @@ func SubmitFormResponse(c *gin.Context) {
 		return
 	}
 
-	jsonData, _ := json.Marshal(req.ResponseData)
-	respondent := c.GetString("userID")
-	if respondent == "" {
-		respondent = "Anonim"
+	// ── Visibility Logic ──
+	respondent := ""
+
+	// Try to get userID from token if present (for 'both' or 'internal')
+	tokenUser := ""
+	authHeader := c.GetHeader("Authorization")
+	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		val, err := RedisClient.Get(c.Request.Context(), tokenString).Result()
+		if err == nil {
+			tokenUser = val
+		}
 	}
+
+	switch form.Visibility {
+	case "internal":
+		if tokenUser == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Formulir ini khusus untuk internal sekolah. Silakan login terlebih dahulu."})
+			return
+		}
+		respondent = tokenUser
+	case "external":
+		if req.RespondentEmail == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Alamat email wajib diisi untuk pihak luar."})
+			return
+		}
+		respondent = req.RespondentEmail
+	case "both":
+		if tokenUser != "" {
+			respondent = tokenUser
+		} else if req.RespondentEmail != "" {
+			respondent = req.RespondentEmail
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Silakan login atau masukkan alamat email Anda."})
+			return
+		}
+	default: // fallback to anonymous if something weird
+		respondent = tokenUser
+		if respondent == "" {
+			respondent = req.RespondentEmail
+		}
+		if respondent == "" {
+			respondent = "Anonim"
+		}
+	}
+
+	jsonData, _ := json.Marshal(req.ResponseData)
 	response := models.FormResponse{
 		FormID:       id,
 		Respondent:   respondent,
@@ -307,11 +350,9 @@ func SubmitFormResponse(c *gin.Context) {
 	}
 
 	// NEW: Automatically update CSV in Drive if FolderID exists
-	// Always sync to the Form Creator's Drive using System Token for background update
 	if form.FolderID != nil && *form.FolderID > 0 {
 		go func(f models.Form) {
 			log.Printf("[SubmitFormResponse] Background auto-export for form: %s by System (TargetUser: %s)", f.ID, f.CreatorID)
-			// We pass empty authHeader but provide f.CreatorID as targetUser to trigger System Token logic
 			if err := performCSVExportInternal("", f.CreatorID, f); err != nil {
 				log.Printf("[SubmitFormResponse] Warning: Background auto-export failed: %v", err)
 			} else {
@@ -336,6 +377,7 @@ func CreateForm(c *gin.Context) {
 		Title       string      `json:"title"`
 		Description string      `json:"description"`
 		Questions   interface{} `json:"questions"`
+		Visibility  string      `json:"visibility"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
@@ -360,7 +402,11 @@ func CreateForm(c *gin.Context) {
 		Description: req.Description,
 		Questions:   string(questionsJSON),
 		CreatorID:   userID,
+		Visibility:  req.Visibility,
 		IsActive:    true,
+	}
+	if form.Visibility == "" {
+		form.Visibility = "both"
 	}
 	if folderID > 0 {
 		form.FolderID = &folderID
@@ -416,6 +462,7 @@ func UpdateForm(c *gin.Context) {
 		Title       string      `json:"title"`
 		Description string      `json:"description"`
 		Questions   interface{} `json:"questions"`
+		Visibility  string      `json:"visibility"`
 		IsActive    *bool       `json:"is_active"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -434,6 +481,9 @@ func UpdateForm(c *gin.Context) {
 	}
 	if req.IsActive != nil {
 		form.IsActive = *req.IsActive
+	}
+	if req.Visibility != "" {
+		form.Visibility = req.Visibility
 	}
 
 	if err := DB.Save(&form).Error; err != nil {

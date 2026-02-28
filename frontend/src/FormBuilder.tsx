@@ -4,7 +4,8 @@ import {
     Save, Eye, Send, CheckCircle2,
     ToggleLeft, ToggleRight,
     ClipboardList, Sparkles, AlignLeft, Type,
-    ListOrdered, CheckSquare, CircleDot
+    ListOrdered, CheckSquare, CircleDot,
+    Lock, Globe, Users
 } from 'lucide-react';
 
 interface Question {
@@ -175,6 +176,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose, onSave, initialData 
     const [themeIdx, setThemeIdx] = useState(0);
     const [showPreview, setShowPreview] = useState(false);
     const [activeQ, setActiveQ] = useState<string | null>(questions[0]?.id ?? null);
+    const [visibility, setVisibility] = useState(initialData?.visibility || 'both');
     const [saved, setSaved] = useState(false);
     const titleRef = useRef<HTMLInputElement>(null);
 
@@ -225,7 +227,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose, onSave, initialData 
     const theme = THEMES[themeIdx];
 
     const handleSave = () => {
-        onSave({ title: title || 'Formulir Tanpa Judul', description, questions });
+        onSave({ title: title || 'Formulir Tanpa Judul', description, questions, visibility });
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
     };
@@ -529,6 +531,21 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose, onSave, initialData 
                                     </div>
                                 );
                             })}
+                        </div>
+
+                        <div className="space-y-2 mt-4">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Target Audiens</p>
+                            {[
+                                { id: 'internal', label: 'Internal Sekolah', icon: Lock },
+                                { id: 'external', label: 'Pihak Luar', icon: Globe },
+                                { id: 'both', label: 'Keduanya', icon: Users },
+                            ].map(v => (
+                                <button key={v.id} onClick={() => setVisibility(v.id)}
+                                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all border-2 ${visibility === v.id ? 'border-current' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}
+                                    style={{ color: visibility === v.id ? theme.accent : '', backgroundColor: visibility === v.id ? theme.accent + '10' : '' }}>
+                                    <v.icon size={13} /> {v.label}
+                                </button>
+                            ))}
                         </div>
 
                         <div className="mt-auto">

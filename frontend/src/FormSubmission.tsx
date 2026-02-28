@@ -22,6 +22,7 @@ interface Form {
     title: string;
     description: string;
     questions: Question[];
+    visibility: 'internal' | 'external' | 'both';
 }
 
 const FormSubmission: React.FC = () => {
@@ -31,7 +32,10 @@ const FormSubmission: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [respondentEmail, setRespondentEmail] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null;
 
     useEffect(() => {
         fetchForm();
@@ -73,9 +77,11 @@ const FormSubmission: React.FC = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
+            const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
             await axios.post(`${API_BASE}/api/forms/f/${id}/submit`, {
-                response_data: responses
-            });
+                response_data: responses,
+                respondent_email: respondentEmail
+            }, config);
             setSubmitted(true);
         } catch (err: any) {
             console.error("Submission failed:", err);
@@ -140,103 +146,158 @@ const FormSubmission: React.FC = () => {
                     </div>
                     <h1 className="text-4xl font-black text-slate-900 dark:text-white mb-4 leading-tight">{form?.title}</h1>
                     <p className="text-lg text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{form?.description}</p>
+
                     <div className="w-full h-px bg-slate-100 dark:bg-slate-700/50 my-6" />
+
+                    {/* Login/Email Prompt */}
+                    {form?.visibility === 'internal' && !token ? (
+                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/50 p-6 rounded-2xl mb-6">
+                            <h3 className="text-amber-800 dark:text-amber-400 font-bold mb-2 flex items-center gap-2">
+                                <Lock size={18} /> Khusus Internal Sekolah
+                            </h3>
+                            <p className="text-amber-700 dark:text-amber-500 text-sm mb-4">
+                                Formulir ini hanya dapat diisi oleh warga sekolah. Silakan login terlebih dahulu.
+                            </p>
+                            <button
+                                onClick={() => window.location.href = `/login?redirect=/f/${id}`}
+                                className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-xl font-bold text-sm transition-all"
+                            >
+                                Login Sekarang
+                            </button>
+                        </div>
+                    ) : (form?.visibility === 'external' || (form?.visibility === 'both' && !token)) && (
+                        <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 p-6 rounded-2xl mb-6">
+                            <label className="block text-indigo-900 dark:text-indigo-300 font-bold mb-3 flex items-center gap-2">
+                                <ClipboardList size={18} /> Identitas Pengisi
+                            </label>
+                            <p className="text-indigo-700 dark:text-indigo-400 text-sm mb-4">
+                                Masukkan alamat email Anda untuk melanjutkan pengisian formulir.
+                            </p>
+                            <input
+                                type="email"
+                                required
+                                value={respondentEmail}
+                                onChange={(e) => setRespondentEmail(e.target.value)}
+                                placeholder="Alamat email Anda"
+                                className="w-full bg-white dark:bg-slate-900 border-2 border-indigo-100 dark:border-indigo-800 px-4 py-3 rounded-xl focus:border-indigo-600 outline-none transition-all dark:text-white"
+                            />
+                        </div>
+                    )}
+
+                    {token && (
+                        <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl mb-6 border border-slate-100 dark:border-slate-800">
+                            <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
+                                {user?.name?.charAt(0) || '?'}
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{user?.name}</p>
+                                <p className="text-xs text-slate-500">{user?.email}</p>
+                            </div>
+                            <div className="ml-auto text-xs font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-md">
+                                LOGGED IN
+                            </div>
+                        </div>
+                    )}
+
                     <p className="text-sm text-red-500 font-semibold">* Menunjukkan pertanyaan yang wajib diisi</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6 pb-20">
-                    {form?.questions.map((q) => (
-                        <div key={q.id} className="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-sm border border-slate-100 dark:border-slate-700/50">
-                            <label className="block text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 flex gap-1">
-                                {q.label}
-                                {q.required && <span className="text-red-500">*</span>}
-                            </label>
+                {/* Form Content - Hide if internal but not logged in */}
+                {form?.visibility === 'internal' && !token ? null : (
+                    <form onSubmit={handleSubmit} className="space-y-6 pb-20">
+                        {form?.questions.map((q) => (
+                            <div key={q.id} className="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-sm border border-slate-100 dark:border-slate-700/50">
+                                <label className="block text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 flex gap-1">
+                                    {q.label}
+                                    {q.required && <span className="text-red-500">*</span>}
+                                </label>
 
-                            {q.type === 'text' && (
-                                <input
-                                    type="text"
-                                    required={q.required}
-                                    placeholder="Jawaban Anda"
-                                    onChange={(e) => handleInputChange(q.id, e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 focus:border-indigo-600 outline-none p-3 text-lg transition-all dark:text-white"
-                                />
-                            )}
+                                {q.type === 'text' && (
+                                    <input
+                                        type="text"
+                                        required={q.required}
+                                        placeholder="Jawaban Anda"
+                                        onChange={(e) => handleInputChange(q.id, e.target.value)}
+                                        className="w-full bg-slate-50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 focus:border-indigo-600 outline-none p-3 text-lg transition-all dark:text-white"
+                                    />
+                                )}
 
-                            {q.type === 'paragraph' && (
-                                <textarea
-                                    required={q.required}
-                                    placeholder="Jawaban Anda"
-                                    onChange={(e) => handleInputChange(q.id, e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 focus:border-indigo-600 outline-none p-3 text-lg transition-all resize-none min-h-[120px] dark:text-white"
-                                />
-                            )}
+                                {q.type === 'paragraph' && (
+                                    <textarea
+                                        required={q.required}
+                                        placeholder="Jawaban Anda"
+                                        onChange={(e) => handleInputChange(q.id, e.target.value)}
+                                        className="w-full bg-slate-50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 focus:border-indigo-600 outline-none p-3 text-lg transition-all resize-none min-h-[120px] dark:text-white"
+                                    />
+                                )}
 
-                            {(q.type === 'multiple' || q.type === 'checkbox') && (
-                                <div className="space-y-4">
-                                    {q.options?.map((opt, idx) => (
-                                        <label key={idx} className="flex items-center gap-4 cursor-pointer group">
-                                            <div className="relative flex items-center">
-                                                <input
-                                                    type={q.type === 'multiple' ? 'radio' : 'checkbox'}
-                                                    name={q.id}
-                                                    required={q.required && !responses[q.id]}
-                                                    onChange={(e) => {
-                                                        if (q.type === 'multiple') {
-                                                            handleInputChange(q.id, opt);
-                                                        } else {
-                                                            const current = responses[q.id] || [];
-                                                            if (e.target.checked) {
-                                                                handleInputChange(q.id, [...current, opt]);
+                                {(q.type === 'multiple' || q.type === 'checkbox') && (
+                                    <div className="space-y-4">
+                                        {q.options?.map((opt, idx) => (
+                                            <label key={idx} className="flex items-center gap-4 cursor-pointer group">
+                                                <div className="relative flex items-center">
+                                                    <input
+                                                        type={q.type === 'multiple' ? 'radio' : 'checkbox'}
+                                                        name={q.id}
+                                                        required={q.required && !responses[q.id]}
+                                                        onChange={(e) => {
+                                                            if (q.type === 'multiple') {
+                                                                handleInputChange(q.id, opt);
                                                             } else {
-                                                                handleInputChange(q.id, current.filter((o: string) => o !== opt));
+                                                                const current = responses[q.id] || [];
+                                                                if (e.target.checked) {
+                                                                    handleInputChange(q.id, [...current, opt]);
+                                                                } else {
+                                                                    handleInputChange(q.id, current.filter((o: string) => o !== opt));
+                                                                }
                                                             }
-                                                        }
-                                                    }}
-                                                    className="w-6 h-6 appearance-none border-2 border-slate-300 dark:border-slate-600 rounded-full checked:bg-indigo-600 checked:border-indigo-600 transition-all cursor-pointer"
-                                                />
-                                                <div className="absolute inset-0 flex items-center justify-center text-white scale-0 group-hover:scale-100 transition-transform">
-                                                    <div className="w-2 h-2 bg-white rounded-full" />
+                                                        }}
+                                                        className="w-6 h-6 appearance-none border-2 border-slate-300 dark:border-slate-600 rounded-full checked:bg-indigo-600 checked:border-indigo-600 transition-all cursor-pointer"
+                                                    />
+                                                    <div className="absolute inset-0 flex items-center justify-center text-white scale-0 group-hover:scale-100 transition-transform">
+                                                        <div className="w-2 h-2 bg-white rounded-full" />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <span className="text-lg text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 transition-colors">{opt}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            )}
+                                                <span className="text-lg text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 transition-colors">{opt}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
 
-                            {q.type === 'dropdown' && (
-                                <select
-                                    required={q.required}
-                                    onChange={(e) => handleInputChange(q.id, e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-100 dark:border-slate-700 rounded-xl p-4 text-lg outline-none focus:ring-2 focus:ring-indigo-600 transition-all dark:text-white"
-                                >
-                                    <option value="">Pilih Opsi</option>
-                                    {q.options?.map((opt, idx) => (
-                                        <option key={idx} value={opt}>{opt}</option>
-                                    ))}
-                                </select>
-                            )}
+                                {q.type === 'dropdown' && (
+                                    <select
+                                        required={q.required}
+                                        onChange={(e) => handleInputChange(q.id, e.target.value)}
+                                        className="w-full bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-100 dark:border-slate-700 rounded-xl p-4 text-lg outline-none focus:ring-2 focus:ring-indigo-600 transition-all dark:text-white"
+                                    >
+                                        <option value="">Pilih Opsi</option>
+                                        {q.options?.map((opt, idx) => (
+                                            <option key={idx} value={opt}>{opt}</option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+                        ))}
+
+                        <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm">
+                            <button
+                                type="submit"
+                                disabled={submitting}
+                                className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white px-10 py-4 rounded-2xl font-bold text-xl shadow-xl shadow-indigo-500/20 transition-all flex items-center gap-3 hover:scale-105 active:scale-95"
+                            >
+                                {submitting ? <Loader2 className="animate-spin" /> : <Send size={24} />}
+                                Kirim Jawaban
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setResponses({})}
+                                className="text-slate-500 hover:text-red-500 font-bold text-lg transition-colors"
+                            >
+                                Hapus Formulir
+                            </button>
                         </div>
-                    ))}
-
-                    <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm">
-                        <button
-                            type="submit"
-                            disabled={submitting}
-                            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white px-10 py-4 rounded-2xl font-bold text-xl shadow-xl shadow-indigo-500/20 transition-all flex items-center gap-3 hover:scale-105 active:scale-95"
-                        >
-                            {submitting ? <Loader2 className="animate-spin" /> : <Send size={24} />}
-                            Kirim Jawaban
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setResponses({})}
-                            className="text-slate-500 hover:text-red-500 font-bold text-lg transition-colors"
-                        >
-                            Hapus Formulir
-                        </button>
-                    </div>
-                </form>
+                    </form>
+                )}
             </div>
         </div>
     );

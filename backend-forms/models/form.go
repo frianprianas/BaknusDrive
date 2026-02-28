@@ -11,10 +11,11 @@ type Form struct {
 	ID          string         `gorm:"primaryKey;type:varchar(255)" json:"id"`
 	Title       string         `gorm:"not null" json:"title"`
 	Description string         `json:"description"`
-	CreatorID   string         `gorm:"not null;index" json:"creator_id"` // Email dari Mailcow
-	Questions   string         `gorm:"type:text" json:"questions"`      // JSON string of questions
+	CreatorID   string         `gorm:"not null;index" json:"creator_id"`          // Email dari Mailcow
+	Questions   string         `gorm:"type:text" json:"questions"`                // JSON string of questions
+	Visibility  string         `gorm:"not null;default:'both'" json:"visibility"` // internal, external, both
 	IsActive    bool           `gorm:"default:true" json:"is_active"`
-	FolderID    *uint          `json:"folder_id"`                       // ID folder di Drive untuk simpan hasil
+	FolderID    *uint          `json:"folder_id"` // ID folder di Drive untuk simpan hasil
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
@@ -30,7 +31,7 @@ func (f *Form) BeforeCreate(tx *gorm.DB) (err error) {
 type FormResponse struct {
 	ID           uint           `gorm:"primaryKey" json:"id"`
 	FormID       string         `gorm:"not null;index" json:"form_id"`
-	Respondent   string         `json:"respondent"`                  // Email jika login, atau 'Anonymous'
+	Respondent   string         `json:"respondent"`                     // Email jika login, atau 'Anonymous'
 	ResponseData string         `gorm:"type:text" json:"response_data"` // JSON string of answers
 	CreatedAt    time.Time      `json:"created_at"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
