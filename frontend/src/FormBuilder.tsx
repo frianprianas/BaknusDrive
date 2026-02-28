@@ -16,6 +16,7 @@ interface Question {
 interface FormBuilderProps {
     onClose: () => void;
     onSave: (formData: any) => void;
+    initialData?: any | null;
 }
 
 // ─── Preview Modal ────────────────────────────────────────────────────────────
@@ -161,12 +162,18 @@ const PreviewModal: React.FC<{ title: string; description: string; questions: Qu
 };
 
 // ─── Main FormBuilder ─────────────────────────────────────────────────────────
-const FormBuilder: React.FC<FormBuilderProps> = ({ onClose, onSave }) => {
-    const [title, setTitle] = useState('Formulir Tanpa Judul');
-    const [description, setDescription] = useState('');
-    const [questions, setQuestions] = useState<Question[]>([
-        { id: '1', type: 'text', label: 'Pertanyaan Tanpa Judul', required: false }
-    ]);
+const FormBuilder: React.FC<FormBuilderProps> = ({ onClose, onSave, initialData }) => {
+    const parseInitialQuestions = (): Question[] => {
+        if (!initialData?.questions) return [{ id: '1', type: 'text', label: 'Pertanyaan Tanpa Judul', required: false }];
+        try {
+            const q = typeof initialData.questions === 'string' ? JSON.parse(initialData.questions) : initialData.questions;
+            return Array.isArray(q) && q.length > 0 ? q : [{ id: '1', type: 'text', label: 'Pertanyaan Tanpa Judul', required: false }];
+        } catch { return [{ id: '1', type: 'text', label: 'Pertanyaan Tanpa Judul', required: false }]; }
+    };
+
+    const [title, setTitle] = useState(initialData?.title || 'Formulir Tanpa Judul');
+    const [description, setDescription] = useState(initialData?.description || '');
+    const [questions, setQuestions] = useState<Question[]>(parseInitialQuestions);
     const [showPreview, setShowPreview] = useState(false);
 
     const addQuestion = () => {

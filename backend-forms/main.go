@@ -2,50 +2,50 @@ package main
 
 import (
 	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
+	"strings"
 	"time"
 
 	"baknus-forms/models"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/xuri/excelize/v2"
 )
 
+const BACKEND_URL = "http://backend:8080"
+const BAKNUSFORM_FOLDER = "Baknusform"
+
 func main() {
-	// Initialize connections
 	InitDB()
 	InitRedis()
 
 	r := gin.Default()
 
-	// CORS Setup
 	r.Use(cors.New(cors.Config{
-		AllowOriginFunc: func(origin string) bool {
-			return true
-		},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
-		ExposeHeaders:    []string{"Content-Length"},
+		AllowOriginFunc: func(origin string) bool { return true },
+		AllowMethods:    []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:    []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
+		ExposeHeaders:   []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
 
 	api := r.Group("/api/forms")
 	{
 		api.GET("/ping", func(c *gin.Context) {
-			c.JSON(200, gin.H{"message": "BaknusForms Service is running on port 8083!"})
+			c.JSON(200, gin.H{"message": "BaknusForms Service OK"})
 		})
 
-		// Public Form Routes
+		// Public routes
 		api.GET("/f/:id", GetPublicForm)
 		api.POST("/f/:id/submit", SubmitFormResponse)
 
-		// Protected Routes
+		// Protected routes
 		protected := api.Group("")
 		protected.Use(AuthMiddleware())
 		{
@@ -59,13 +59,154 @@ func main() {
 		}
 	}
 
-	log.Println("BaknusForms Service starting on :8080 (mapped to 8083)")
+	log.Println("BaknusForms Service starting on :8080")
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
 
-// Handlers Stubs
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
+// ensureBaknusFormFolder calls the main backend to find-or-create "Baknusform" folder.
+// Returns the folder ID (uint) on success.
+func ensureBaknusFormFolder(authHeader string) (uint, error) {
+	// 1. Try listing root folders to find "Baknusform"
+	req, _ := http.NewRequest("GET", BACKEND_URL+"/api/drive?parent_id=", nil)
+	req.Header.Set("Authorization", authHeader)
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("gagal hubungi backend: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var driveData struct {
+		Folders []struct {
+			ID   uint   `json:"id"`
+			Name string `json:"name"`
+		} `json:"folders"`
+	}
+	json.NewDecoder(resp.Body).Decode(&driveData)
+
+	// Check if already exists
+	for _, f := range driveData.Folders {
+		if strings.EqualFold(f.Name, BAKNUSFORM_FOLDER) {
+			return f.ID, nil
+		}
+	}
+
+	// 2. Create the folder
+	body, _ := json.Marshal(map[string]interface{}{"name": BAKNUSFORM_FOLDER})
+	createReq, _ := http.NewRequest("POST", BACKEND_URL+"/api/drive/folder", bytes.NewReader(body))
+	createReq.Header.Set("Authorization", authHeader)
+	createReq.Header.Set("Content-Type", "application/json")
+
+	createResp, err := client.Do(createReq)
+	if err != nil {
+		return 0, fmt.Errorf("gagal membuat folder: %v", err)
+	}
+	defer createResp.Body.Close()
+
+	var folder struct {
+		ID uint `json:"id"`
+	}
+	json.NewDecoder(createResp.Body).Decode(&folder)
+	if folder.ID == 0 {
+		return 0, fmt.Errorf("folder ID tidak valid setelah dibuat")
+	}
+	return folder.ID, nil
+}
+
+// uploadCSVToDrive uploads a CSV buffer to the Drive under folderID.
+func uploadCSVToDrive(authHeader string, folderID uint, filename string, csvBuf *bytes.Buffer) error {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	part, _ := writer.CreateFormFile("file", filename)
+	io.Copy(part, csvBuf)
+	writer.WriteField("parent_id", fmt.Sprintf("%d", folderID))
+	writer.Close()
+
+	uploadURL := fmt.Sprintf("%s/api/drive/upload", BACKEND_URL)
+	req, _ := http.NewRequest("POST", uploadURL, body)
+	req.Header.Set("Authorization", authHeader)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("upload gagal (%d): %s", resp.StatusCode, string(b))
+	}
+	return nil
+}
+
+// buildCSV generates CSV bytes from form questions + responses.
+func buildCSV(questions []map[string]interface{}, responses []models.FormResponse) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	w := csv.NewWriter(&buf)
+
+	// Header row
+	headers := []string{"No", "Waktu Pengiriman", "Respondent"}
+	for _, q := range questions {
+		label, _ := q["label"].(string)
+		if label == "" {
+			label = "Pertanyaan"
+		}
+		headers = append(headers, label)
+	}
+	w.Write(headers)
+
+	// Data rows
+	for i, resp := range responses {
+		var data map[string]interface{}
+		json.Unmarshal([]byte(resp.ResponseData), &data)
+
+		respondent := resp.Respondent
+		if respondent == "" {
+			respondent = "Anonim"
+		}
+
+		row := []string{
+			fmt.Sprintf("%d", i+1),
+			resp.CreatedAt.Format("2006-01-02 15:04:05"),
+			respondent,
+		}
+		for _, q := range questions {
+			qID, _ := q["id"].(string)
+			val := ""
+			if data != nil {
+				if v, ok := data[qID]; ok {
+					switch vt := v.(type) {
+					case []interface{}:
+						parts := make([]string, len(vt))
+						for j, item := range vt {
+							parts[j] = fmt.Sprintf("%v", item)
+						}
+						val = strings.Join(parts, ", ")
+					default:
+						val = fmt.Sprintf("%v", vt)
+					}
+				}
+			}
+			row = append(row, val)
+		}
+		w.Write(row)
+	}
+	w.Flush()
+
+	if err := w.Error(); err != nil {
+		return nil, err
+	}
+	return &buf, nil
+}
+
+// ─── handlers ─────────────────────────────────────────────────────────────────
+
 func GetPublicForm(c *gin.Context) {
 	id := c.Param("id")
 	var form models.Form
@@ -86,11 +227,7 @@ func SubmitFormResponse(c *gin.Context) {
 		return
 	}
 
-	jsonData, err := json.Marshal(req.ResponseData)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memproses data"})
-		return
-	}
+	jsonData, _ := json.Marshal(req.ResponseData)
 
 	response := models.FormResponse{
 		FormID:       id,
@@ -108,7 +245,7 @@ func SubmitFormResponse(c *gin.Context) {
 func ListMyForms(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	var forms []models.Form
-	DB.Where("creator_id = ?", userID).Find(&forms)
+	DB.Where("creator_id = ?", userID).Order("created_at desc").Find(&forms)
 	c.JSON(http.StatusOK, forms)
 }
 
@@ -124,6 +261,15 @@ func CreateForm(c *gin.Context) {
 		return
 	}
 
+	// Ensure "Baknusform" folder exists in user's Drive
+	authHeader := c.GetHeader("Authorization")
+	folderID, err := ensureBaknusFormFolder(authHeader)
+	if err != nil {
+		log.Printf("Warning: gagal membuat folder Baknusform: %v", err)
+		// Don't block form creation if folder creation fails
+		folderID = 0
+	}
+
 	questionsJSON, _ := json.Marshal(req.Questions)
 
 	form := models.Form{
@@ -132,6 +278,9 @@ func CreateForm(c *gin.Context) {
 		Questions:   string(questionsJSON),
 		CreatorID:   userID,
 		IsActive:    true,
+	}
+	if folderID > 0 {
+		form.FolderID = &folderID
 	}
 
 	if err := DB.Create(&form).Error; err != nil {
@@ -155,11 +304,6 @@ func GetFormDetails(c *gin.Context) {
 func UpdateForm(c *gin.Context) {
 	id := c.Param("id")
 	userID := c.MustGet("userID").(string)
-	var req models.Form
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
-		return
-	}
 
 	var form models.Form
 	if err := DB.Where("id = ? AND creator_id = ?", id, userID).First(&form).Error; err != nil {
@@ -167,10 +311,28 @@ func UpdateForm(c *gin.Context) {
 		return
 	}
 
-	form.Title = req.Title
+	var req struct {
+		Title       string      `json:"title"`
+		Description string      `json:"description"`
+		Questions   interface{} `json:"questions"`
+		IsActive    *bool       `json:"is_active"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
+		return
+	}
+
+	if req.Title != "" {
+		form.Title = req.Title
+	}
 	form.Description = req.Description
-	form.Questions = req.Questions
-	form.IsActive = req.IsActive
+	if req.Questions != nil {
+		qJSON, _ := json.Marshal(req.Questions)
+		form.Questions = string(qJSON)
+	}
+	if req.IsActive != nil {
+		form.IsActive = *req.IsActive
+	}
 
 	DB.Save(&form)
 	c.JSON(http.StatusOK, form)
@@ -179,18 +341,24 @@ func UpdateForm(c *gin.Context) {
 func DeleteForm(c *gin.Context) {
 	id := c.Param("id")
 	userID := c.MustGet("userID").(string)
-	if err := DB.Where("id = ? AND creator_id = ?", id, userID).Delete(&models.Form{}).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus form"})
+
+	var form models.Form
+	if err := DB.Where("id = ? AND creator_id = ?", id, userID).First(&form).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Form tidak ditemukan"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Form berhasil dihapus"})
+
+	// Also delete all responses
+	DB.Where("form_id = ?", id).Delete(&models.FormResponse{})
+	DB.Delete(&form)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Form dan semua responnya berhasil dihapus"})
 }
 
 func GetFormResponses(c *gin.Context) {
 	id := c.Param("id")
 	userID := c.MustGet("userID").(string)
-	
-	// Check ownership
+
 	var form models.Form
 	if err := DB.Where("id = ? AND creator_id = ?", id, userID).First(&form).Error; err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Akses ditolak"})
@@ -198,14 +366,14 @@ func GetFormResponses(c *gin.Context) {
 	}
 
 	var responses []models.FormResponse
-	DB.Where("form_id = ?", id).Find(&responses)
+	DB.Where("form_id = ?", id).Order("created_at asc").Find(&responses)
 	c.JSON(http.StatusOK, responses)
 }
 
-// ExportResponsesToDrive generates an XLSX file from all responses and saves it to the creator's Drive
 func ExportResponsesToDrive(c *gin.Context) {
 	id := c.Param("id")
 	userID := c.MustGet("userID").(string)
+	authHeader := c.GetHeader("Authorization")
 
 	// 1. Verify ownership
 	var form models.Form
@@ -214,144 +382,57 @@ func ExportResponsesToDrive(c *gin.Context) {
 		return
 	}
 
-	// 2. Parse questions from JSON string
-	var questions []map[string]interface{}
-	if err := json.Unmarshal([]byte(form.Questions), &questions); err != nil {
-		questions = []map[string]interface{}{}
+	// 2. Ensure Baknusform folder exists
+	folderID := uint(0)
+	if form.FolderID != nil {
+		folderID = *form.FolderID
+	}
+	if folderID == 0 {
+		var err error
+		folderID, err = ensureBaknusFormFolder(authHeader)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyiapkan folder Drive"})
+			return
+		}
+		// Save folder_id back
+		form.FolderID = &folderID
+		DB.Save(&form)
 	}
 
-	// 3. Fetch all responses
+	// 3. Parse questions
+	var questions []map[string]interface{}
+	json.Unmarshal([]byte(form.Questions), &questions)
+
+	// 4. Fetch responses
 	var responses []models.FormResponse
 	DB.Where("form_id = ?", id).Order("created_at asc").Find(&responses)
 
-	// 4. Build XLSX
-	f := excelize.NewFile()
-	sheet := "Respon"
-	f.NewSheet(sheet)
-	f.DeleteSheet("Sheet1")
-
-	// Header style
-	headerStyle, _ := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Bold: true, Color: "FFFFFF", Size: 11},
-		Fill: excelize.Fill{Type: "pattern", Color: []string{"4F46E5"}, Pattern: 1},
-		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
-		Border: []excelize.Border{
-			{Type: "bottom", Color: "CCCCCC", Style: 1},
-		},
-	})
-
-	// Build header row: No | Waktu | <question labels...>
-	headers := []string{"No", "Waktu Pengiriman", "Responden"}
-	for _, q := range questions {
-		label, _ := q["label"].(string)
-		if label == "" {
-			label = "Pertanyaan"
-		}
-		headers = append(headers, label)
-	}
-
-	for col, header := range headers {
-		cell, _ := excelize.CoordinatesToCellName(col+1, 1)
-		f.SetCellValue(sheet, cell, header)
-		f.SetCellStyle(sheet, cell, cell, headerStyle)
-	}
-	f.SetRowHeight(sheet, 1, 22)
-
-	// Data rows
-	for rowIdx, resp := range responses {
-		row := rowIdx + 2
-		var respData map[string]interface{}
-		json.Unmarshal([]byte(resp.ResponseData), &respData)
-
-		respondent := resp.Respondent
-		if respondent == "" {
-			respondent = "Anonim"
-		}
-
-		f.SetCellValue(sheet, fmt.Sprintf("A%d", row), rowIdx+1)
-		f.SetCellValue(sheet, fmt.Sprintf("B%d", row), resp.CreatedAt.Format("2006-01-02 15:04:05"))
-		f.SetCellValue(sheet, fmt.Sprintf("C%d", row), respondent)
-
-		for colIdx, q := range questions {
-			qID, _ := q["id"].(string)
-			val := ""
-			if respData != nil {
-				if v, ok := respData[qID]; ok {
-					switch vt := v.(type) {
-					case []interface{}:
-						// checkbox – join values
-						strs := make([]string, len(vt))
-						for i, item := range vt {
-							strs[i] = fmt.Sprintf("%v", item)
-						}
-						for i, s := range strs {
-							if i == 0 {
-								val = s
-							} else {
-								val += ", " + s
-							}
-						}
-					default:
-						val = fmt.Sprintf("%v", vt)
-					}
-				}
-			}
-			cell, _ := excelize.CoordinatesToCellName(colIdx+4, row)
-			f.SetCellValue(sheet, cell, val)
-		}
-	}
-
-	// Auto-width columns
-	for col := range headers {
-		colName, _ := excelize.ColumnNumberToName(col + 1)
-		f.SetColWidth(sheet, colName, colName, 22)
-	}
-
-	// 5. Write XLSX to buffer
-	var buf bytes.Buffer
-	if err := f.Write(&buf); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat file XLSX"})
+	if len(responses) == 0 {
+		c.JSON(http.StatusOK, gin.H{"message": "Belum ada respon untuk diekspor"})
 		return
 	}
 
-	// 6. Upload to creator's Drive via main backend API
-	filename := fmt.Sprintf("Respon_%s_%s.xlsx", form.Title, time.Now().Format("20060102_150405"))
-	authHeader := c.GetHeader("Authorization")
-
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("file", filename)
+	// 5. Build CSV
+	csvBuf, err := buildCSV(questions, responses)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat form file"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat file CSV"})
 		return
 	}
-	io.Copy(part, &buf)
-	writer.Close()
 
-	// Call the main backend upload endpoint (internal Docker network)
-	uploadReq, _ := http.NewRequest("POST", "http://backend:8080/api/drive/upload", body)
-	uploadReq.Header.Set("Content-Type", writer.FormDataContentType())
-	uploadReq.Header.Set("Authorization", authHeader)
+	// 6. Upload to Drive
+	filename := fmt.Sprintf("Respon_%s_%s.csv",
+		strings.ReplaceAll(form.Title, " ", "_"),
+		time.Now().Format("20060102_150405"),
+	)
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	uploadResp, err := client.Do(uploadReq)
-	if err != nil || uploadResp.StatusCode >= 400 {
-		errMsg := "Gagal mengupload ke Drive"
-		if uploadResp != nil {
-			respBody, _ := io.ReadAll(uploadResp.Body)
-			errMsg = string(respBody)
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": errMsg})
+	if err := uploadCSVToDrive(authHeader, folderID, filename, csvBuf); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload ke Drive: " + err.Error()})
 		return
 	}
-	defer uploadResp.Body.Close()
-
-	var uploadResult map[string]interface{}
-	json.NewDecoder(uploadResp.Body).Decode(&uploadResult)
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":  fmt.Sprintf("File '%s' berhasil disimpan ke Drive Anda!", filename),
-		"file":     uploadResult,
+		"message":  fmt.Sprintf("File '%s' berhasil disimpan ke folder Baknusform di Drive!", filename),
 		"filename": filename,
+		"folder":   BAKNUSFORM_FOLDER,
 	})
 }

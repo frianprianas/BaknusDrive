@@ -9,7 +9,7 @@ import {
     Star, Trash2, Folder as FolderIcon, File as FileIcon, Image as ImageIcon, FileText,
     Cloud, Plus, Download, FolderPlus, Upload, FileUp, Check,
     Edit2, Copy, Trash, RotateCcw, Share2, Sun, Moon, Eye, Shield, Lock, Unlock,
-    HelpCircle, Grip, UserX, Loader2, ExternalLink, ClipboardList
+    HelpCircle, Grip, UserX, Loader2, ExternalLink, ClipboardList, Pencil
 } from 'lucide-react';
 
 const isImageFile = (f: any) => f?.mime_type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(f?.name || '');
@@ -36,6 +36,7 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [myForms, setMyForms] = useState<any[]>([]);
     const [showFormBuilder, setShowFormBuilder] = useState(false);
+    const [editingForm, setEditingForm] = useState<any | null>(null);
     const [responsesModal, setResponsesModal] = useState<{ visible: boolean, form: any }>({ visible: false, form: null });
     const [formResponses, setFormResponses] = useState<any[]>([]);
     const [loadingResponses, setLoadingResponses] = useState(false);
@@ -274,6 +275,44 @@ export default function Dashboard() {
             alert(`❌ Gagal ekspor: ${err.response?.data?.error || err.message}`);
         } finally {
             setExporting(false);
+        }
+    };
+
+    const handleEditForm = (form: any) => {
+        setEditingForm(form);
+        setShowFormBuilder(true);
+    };
+
+    const handleUpdateForm = async (formData: any) => {
+        if (!editingForm) return;
+        try {
+            const token = localStorage.getItem('token');
+            const API_BASE = import.meta.env.VITE_API_URL || '';
+            await axios.put(`${API_BASE}/api/forms/${editingForm.id}`, formData, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setShowFormBuilder(false);
+            setEditingForm(null);
+            fetchDriveData();
+            alert('Formulir berhasil diperbarui!');
+        } catch (error: any) {
+            console.error('Failed to update form:', error);
+            alert('Gagal memperbarui formulir: ' + (error.response?.data?.error || error.message));
+        }
+    };
+
+    const handleDeleteForm = async (form: any) => {
+        if (!confirm(`Yakin ingin menghapus formulir "${form.title}"?\nSemua respon juga akan dihapus.`)) return;
+        try {
+            const token = localStorage.getItem('token');
+            const API_BASE = import.meta.env.VITE_API_URL || '';
+            await axios.delete(`${API_BASE}/api/forms/${form.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            fetchDriveData();
+            alert('Formulir berhasil dihapus!');
+        } catch (error: any) {
+            alert('Gagal menghapus formulir: ' + (error.response?.data?.error || error.message));
         }
     };
 
@@ -1077,6 +1116,20 @@ export default function Dashboard() {
                                                 >
                                                     <Share2 size={18} />
                                                 </button>
+                                                <button
+                                                    onClick={() => handleEditForm(form)}
+                                                    className="p-3 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl transition-colors"
+                                                    title="Edit Formulir"
+                                                >
+                                                    <Pencil size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteForm(form)}
+                                                    className="p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors"
+                                                    title="Hapus Formulir"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
@@ -1554,8 +1607,9 @@ export default function Dashboard() {
 
                 {showFormBuilder && (
                     <FormBuilder
-                        onClose={() => setShowFormBuilder(false)}
-                        onSave={handleSaveForm}
+                        onClose={() => { setShowFormBuilder(false); setEditingForm(null); }}
+                        onSave={editingForm ? handleUpdateForm : handleSaveForm}
+                        initialData={editingForm}
                     />
                 )}
 
