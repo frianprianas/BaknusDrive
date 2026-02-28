@@ -20,6 +20,7 @@ import (
 )
 
 var BACKEND_URL = "http://backend:8080"
+
 const BAKNUSFORM_FOLDER = "Baknusform"
 
 func main() {
@@ -31,11 +32,12 @@ func main() {
 	}
 	log.Printf("[Main] Using BACKEND_URL: %s", BACKEND_URL)
 
+	r := gin.Default()
 	r.Use(cors.New(cors.Config{
-		AllowOriginFunc: func(origin string) bool { return true },
-		AllowMethods:    []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:    []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
-		ExposeHeaders:   []string{"Content-Length"},
+		AllowOriginFunc:  func(origin string) bool { return true },
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
+		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
 
@@ -78,19 +80,19 @@ func ensureBaknusFormFolder(authHeader string) (uint, error) {
 	req, _ := http.NewRequest("GET", BACKEND_URL+"/api/drive", nil)
 	log.Printf("[ensureBaknusFormFolder] Checking root drive for user...")
 	req.Header.Set("Authorization", authHeader)
-	
+
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("[ensureBaknusFormFolder] Error connecting to backend: %v", err)
+		log.Printf("[ensureBaknusFormFolder] ERROR connecting to backend: %v", err)
 		return 0, fmt.Errorf("gagal hubungi backend: %v", err)
 	}
 	defer resp.Body.Close()
 
+	bodyBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
-		log.Printf("[ensureBaknusFormFolder] Backend error (%d): %s", resp.StatusCode, string(b))
-		return 0, fmt.Errorf("backend mengembalikan %d", resp.StatusCode)
+		log.Printf("[ensureBaknusFormFolder] ERROR: Backend returned %d. Response: %s", resp.StatusCode, string(bodyBytes))
+		return 0, fmt.Errorf("backend mengembalikan status %d", resp.StatusCode)
 	}
 
 	var driveData struct {
@@ -99,8 +101,8 @@ func ensureBaknusFormFolder(authHeader string) (uint, error) {
 			Name string `json:"name"`
 		} `json:"folders"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&driveData); err != nil {
-		log.Printf("[ensureBaknusFormFolder] Error decoding drive data: %v", err)
+	if err := json.Unmarshal(bodyBytes, &driveData); err != nil {
+		log.Printf("[ensureBaknusFormFolder] ERROR decoding drive data: %v. Body was: %s", err, string(bodyBytes))
 		return 0, fmt.Errorf("gagal decode data drive: %v", err)
 	}
 
@@ -112,59 +114,59 @@ func ensureBaknusFormFolder(authHeader string) (uint, error) {
 		}
 	}
 
-	log.Printf("[ensureBaknusFormFolder] Folder '%s' not found. Creating a new one...", BAKNUSFORM_FOLDER)
+	log.Printf("[ensureBaknusFormFolder] Folder '%s' not found in root. Creating a new one...", BAKNUSFORM_FOLDER)
 
 	// 2. Create the folder if not found
-	body, _ := json.Marshal(map[string]interface{}{"name": BAKNUSFORM_FOLDER})
-	createReq, _ := http.NewRequest("POST", BACKEND_URL+"/api/drive/folder", bytes.NewReader(body))
+	createPayload, _ := json.Marshal(map[string]interface{}{"name": BAKNUSFORM_FOLDER})
+	createReq, _ := http.NewRequest("POST", BACKEND_URL+"/api/drive/folder", bytes.NewReader(createPayload))
 	createReq.Header.Set("Authorization", authHeader)
 	createReq.Header.Set("Content-Type", "application/json")
 
 	createResp, err := client.Do(createReq)
 	if err != nil {
-		log.Printf("[ensureBaknusFormFolder] Error creating folder: %v", err)
+		log.Printf("[ensureBaknusFormFolder] ERROR creating folder: %v", err)
 		return 0, fmt.Errorf("gagal membuat folder: %v", err)
 	}
 	defer createResp.Body.Close()
 
+	cRespBytes, _ := io.ReadAll(createResp.Body)
 	if createResp.StatusCode >= 400 {
-		b, _ := io.ReadAll(createResp.Body)
-		log.Printf("[ensureBaknusFormFolder] Create folder error (%d): %s", createResp.StatusCode, string(b))
-		// If already exists but somehow not caught above (e.g. edge case), backend might return 400 or 409
-		// We could ignore if name already taken, but better to just report failure
-		return 0, fmt.Errorf("gagal buat folder (%d): %s", createResp.StatusCode, string(b))
+		log.Printf("[ensureBaknusFormFolder] ERROR creating folder (%d): %s", createResp.StatusCode, string(cRespBytes))
+		return 0, fmt.Errorf("gagal buat folder (%d): %s", createResp.StatusCode, string(cRespBytes))
 	}
 
 	var folder struct {
 		ID uint `json:"id"`
 	}
-	if err := json.NewDecoder(createResp.Body).Decode(&folder); err != nil {
-		log.Printf("[ensureBaknusFormFolder] Error decoding new folder ID: %v", err)
+	if err := json.Unmarshal(cRespBytes, &folder); err != nil {
+		log.Printf("[ensureBaknusFormFolder] ERROR decoding new folder ID: %v. Body was: %s", err, string(cRespBytes))
 		return 0, err
 	}
-	
+
 	if folder.ID == 0 {
 		return 0, fmt.Errorf("folder ID tidak valid setelah dibuat")
 	}
-	log.Printf("[ensureBaknusFormFolder] Created folder '%s' successfully. ID: %d", BAKNUSFORM_FOLDER, folder.ID)
+	log.Printf("[ensureBaknusFormFolder] SUCCESS: Created folder '%s'. ID: %d", BAKNUSFORM_FOLDER, folder.ID)
 	return folder.ID, nil
 }
 
 // uploadCSVToDrive uploads a CSV buffer to the Drive under folderID.
 func uploadCSVToDrive(authHeader string, folderID uint, filename string, csvBuf *bytes.Buffer) error {
 	contentSize := csvBuf.Len()
-	log.Printf("[uploadCSVToDrive] Attempting upload: %s (size: %d) to folderID: %d", filename, contentSize, folderID)
+	log.Printf("[uploadCSVToDrive] Starting upload: %s (size: %d) to folderID: %d", filename, contentSize, folderID)
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
+	// metadata fields should come before file part
+	writer.WriteField("folder_id", fmt.Sprintf("%d", folderID))
+
 	part, err := writer.CreateFormFile("file", filename)
 	if err != nil {
-		log.Printf("[uploadCSVToDrive] Error creating multipart form file: %v", err)
+		log.Printf("[uploadCSVToDrive] ERROR creating form file: %v", err)
 		return err
 	}
 	io.Copy(part, csvBuf)
-	writer.WriteField("folder_id", fmt.Sprintf("%d", folderID))
 	writer.Close()
 
 	uploadURL := fmt.Sprintf("%s/api/drive/upload", BACKEND_URL)
@@ -175,14 +177,14 @@ func uploadCSVToDrive(authHeader string, folderID uint, filename string, csvBuf 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("[uploadCSVToDrive] Network error connecting to %s: %v", uploadURL, err)
+		log.Printf("[uploadCSVToDrive] Network ERROR connecting to backend: %v", err)
 		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		b, _ := io.ReadAll(resp.Body)
-		log.Printf("[uploadCSVToDrive] Backend error %d: %s", resp.StatusCode, string(b))
+		log.Printf("[uploadCSVToDrive] Backend ERROR %d: %s", resp.StatusCode, string(b))
 		return fmt.Errorf("upload gagal (%d): %s", resp.StatusCode, string(b))
 	}
 
