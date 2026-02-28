@@ -74,12 +74,20 @@ func ensureBaknusFormFolder(authHeader string) (uint, error) {
 	req, _ := http.NewRequest("GET", BACKEND_URL+"/api/drive", nil)
 	log.Printf("[ensureBaknusFormFolder] Checking root drive for user...")
 	req.Header.Set("Authorization", authHeader)
+	
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Printf("[ensureBaknusFormFolder] Error connecting to backend: %v", err)
 		return 0, fmt.Errorf("gagal hubungi backend: %v", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		log.Printf("[ensureBaknusFormFolder] Backend error (%d): %s", resp.StatusCode, string(b))
+		return 0, fmt.Errorf("backend mengembalikan %d", resp.StatusCode)
+	}
 
 	var driveData struct {
 		Folders []struct {
@@ -87,16 +95,22 @@ func ensureBaknusFormFolder(authHeader string) (uint, error) {
 			Name string `json:"name"`
 		} `json:"folders"`
 	}
-	json.NewDecoder(resp.Body).Decode(&driveData)
+	if err := json.NewDecoder(resp.Body).Decode(&driveData); err != nil {
+		log.Printf("[ensureBaknusFormFolder] Error decoding drive data: %v", err)
+		return 0, fmt.Errorf("gagal decode data drive: %v", err)
+	}
 
-	// Check if already exists
+	// Check if already exists in the list (root folder)
 	for _, f := range driveData.Folders {
 		if strings.EqualFold(f.Name, BAKNUSFORM_FOLDER) {
+			log.Printf("[ensureBaknusFormFolder] Found existing folder '%s' with ID %d", BAKNUSFORM_FOLDER, f.ID)
 			return f.ID, nil
 		}
 	}
 
-	// 2. Create the folder
+	log.Printf("[ensureBaknusFormFolder] Folder '%s' not found. Creating a new one...", BAKNUSFORM_FOLDER)
+
+	// 2. Create the folder if not found
 	body, _ := json.Marshal(map[string]interface{}{"name": BAKNUSFORM_FOLDER})
 	createReq, _ := http.NewRequest("POST", BACKEND_URL+"/api/drive/folder", bytes.NewReader(body))
 	createReq.Header.Set("Authorization", authHeader)
@@ -104,17 +118,31 @@ func ensureBaknusFormFolder(authHeader string) (uint, error) {
 
 	createResp, err := client.Do(createReq)
 	if err != nil {
+		log.Printf("[ensureBaknusFormFolder] Error creating folder: %v", err)
 		return 0, fmt.Errorf("gagal membuat folder: %v", err)
 	}
 	defer createResp.Body.Close()
 
+	if createResp.StatusCode >= 400 {
+		b, _ := io.ReadAll(createResp.Body)
+		log.Printf("[ensureBaknusFormFolder] Create folder error (%d): %s", createResp.StatusCode, string(b))
+		// If already exists but somehow not caught above (e.g. edge case), backend might return 400 or 409
+		// We could ignore if name already taken, but better to just report failure
+		return 0, fmt.Errorf("gagal buat folder (%d): %s", createResp.StatusCode, string(b))
+	}
+
 	var folder struct {
 		ID uint `json:"id"`
 	}
-	json.NewDecoder(createResp.Body).Decode(&folder)
+	if err := json.NewDecoder(createResp.Body).Decode(&folder); err != nil {
+		log.Printf("[ensureBaknusFormFolder] Error decoding new folder ID: %v", err)
+		return 0, err
+	}
+	
 	if folder.ID == 0 {
 		return 0, fmt.Errorf("folder ID tidak valid setelah dibuat")
 	}
+	log.Printf("[ensureBaknusFormFolder] Created folder '%s' successfully. ID: %d", BAKNUSFORM_FOLDER, folder.ID)
 	return folder.ID, nil
 }
 

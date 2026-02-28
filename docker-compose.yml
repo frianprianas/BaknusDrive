@@ -20,7 +20,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "127.0.0.1:8082:8080"
+      - "0.0.0.0:8082:8080"
     volumes:
       - ./backend:/app
     environment:
@@ -42,7 +42,7 @@ services:
       context: ./backend-forms
       dockerfile: Dockerfile
     ports:
-      - "127.0.0.1:8083:8080"
+      - "0.0.0.0:8083:8080"
     volumes:
       - ./backend-forms:/app
     environment:
