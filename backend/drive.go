@@ -11,9 +11,10 @@ import (
 
 	"baknusdrive/models"
 
-	"github.com/gin-gonic/gin"
 	"log"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 type CreateFolderReq struct {
@@ -92,7 +93,7 @@ func ListDrive(c *gin.Context) {
 		parentID, err := strconv.Atoi(parentIDStr)
 		if err == nil {
 			pid := uint(parentID)
-			
+
 			// Verify ownership OR recursive shared access
 			var parentFolder models.Folder
 			if err := DB.Where("id = ?", pid).First(&parentFolder).Error; err == nil {
@@ -154,7 +155,7 @@ func UploadFile(c *gin.Context) {
 
 	parentIDStr := c.PostForm("folder_id")
 	deviceIDStr := c.PostForm("device_id")
-	
+
 	var folderID *uint
 	if parentIDStr != "" && parentIDStr != "null" {
 		pid, err := strconv.Atoi(parentIDStr)
@@ -185,6 +186,17 @@ func UploadFile(c *gin.Context) {
 		}
 	}
 
+	// Overwrite logic: if a file with the same name exists in same folder, replace it.
+	var oldFile models.File
+	query := DB.Where("name = ? AND user_id = ?", fileHeader.Filename, userID)
+	if folderID != nil {
+		query = query.Where("folder_id = ?", *folderID)
+	} else {
+		query = query.Where("folder_id IS NULL")
+	}
+
+	exists := query.First(&oldFile).Error == nil
+
 	// Verify Quota
 	var currentUser models.User
 	if err := DB.Where("id = ?", userID).First(&currentUser).Error; err != nil {
@@ -195,7 +207,12 @@ func UploadFile(c *gin.Context) {
 	var totalSize int64
 	DB.Model(&models.File{}).Where("user_id = ?", userID).Select("COALESCE(SUM(size), 0)").Scan(&totalSize)
 
-	if totalSize+fileHeader.Size > currentUser.Quota {
+	sizeDiff := fileHeader.Size
+	if exists {
+		sizeDiff -= oldFile.Size
+	}
+
+	if totalSize+sizeDiff > currentUser.Quota {
 		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Kapasitas penyimpanan Anda sudah penuh."})
 		return
 	}
@@ -204,8 +221,8 @@ func UploadFile(c *gin.Context) {
 	userStoragePath := filepath.Join("storage", userID)
 	os.MkdirAll(userStoragePath, os.ModePerm)
 
-	// Generate safe filename to avoid conflicts
-	safeFilename := fmt.Sprintf("%d_%s", fileHeader.Size, fileHeader.Filename)
+	// Generate safe filename to avoid conflicts (but consistent if overwriting)
+	safeFilename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileHeader.Filename)
 	savePath := filepath.Join(userStoragePath, safeFilename)
 
 	if err := c.SaveUploadedFile(fileHeader, savePath); err != nil {
@@ -218,26 +235,41 @@ func UploadFile(c *gin.Context) {
 		mimeType = "application/octet-stream"
 	}
 
-	fileRecord := models.File{
-		Name:     fileHeader.Filename,
-		MimeType: mimeType,
-		Size:     fileHeader.Size,
-		Path:     savePath,
-		FolderID: folderID,
-		UserID:   userID,
-		DeviceID: deviceID,
+	if exists {
+		// Remove old physical file
+		os.Remove(oldFile.Path)
+		// Update record
+		oldFile.Size = fileHeader.Size
+		oldFile.Path = savePath
+		oldFile.MimeType = mimeType
+		oldFile.DeviceID = deviceID
+		if err := DB.Save(&oldFile).Error; err != nil {
+			os.Remove(savePath) // rollback
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update file metadata"})
+			return
+		}
+		// Update UsedSpace
+		DB.Model(&currentUser).Update("used_space", totalSize+sizeDiff)
+		c.JSON(http.StatusOK, oldFile)
+	} else {
+		fileRecord := models.File{
+			Name:     fileHeader.Filename,
+			MimeType: mimeType,
+			Size:     fileHeader.Size,
+			Path:     savePath,
+			FolderID: folderID,
+			UserID:   userID,
+			DeviceID: deviceID,
+		}
+		if err := DB.Create(&fileRecord).Error; err != nil {
+			os.Remove(savePath) // rollback
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file metadata"})
+			return
+		}
+		// Update UsedSpace
+		DB.Model(&currentUser).Update("used_space", totalSize+fileHeader.Size)
+		c.JSON(http.StatusOK, fileRecord)
 	}
-
-	if err := DB.Create(&fileRecord).Error; err != nil {
-		os.Remove(savePath) // rollback physical file on DB failure
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file metadata"})
-		return
-	}
-
-	// Helper to update UsedSpace roughly for UI purposes
-	DB.Model(&currentUser).Update("used_space", totalSize+fileHeader.Size)
-
-	c.JSON(http.StatusOK, fileRecord)
 }
 
 func DownloadFile(c *gin.Context) {
@@ -282,7 +314,7 @@ func addFilesToZip(zipWriter *zip.Writer, folderID uint, currentPath string) err
 			if err != nil {
 				continue
 			}
-			
+
 			w, err := zipWriter.Create(filepath.Join(currentPath, file.Name))
 			if err != nil {
 				f.Close()
@@ -333,7 +365,7 @@ func DownloadFolder(c *gin.Context) {
 	c.Header("Content-Type", "application/zip")
 
 	zipWriter := zip.NewWriter(c.Writer)
-	
+
 	// Ensure the parent directory itself acts as root or its contents act as root.
 	// We will package the contents of the folder into the root of the zip.
 	addFilesToZip(zipWriter, fid, "")

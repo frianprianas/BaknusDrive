@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import {
     X, Plus, Trash2, GripVertical,
     Save, Eye, Send, CheckCircle2,
-    ChevronDown, ToggleLeft, ToggleRight,
+    ToggleLeft, ToggleRight,
     ClipboardList, Sparkles, AlignLeft, Type,
     ListOrdered, CheckSquare, CircleDot
 } from 'lucide-react';
@@ -41,8 +41,11 @@ const QUESTION_TYPES = [
 
 // ─── Preview Modal ─────────────────────────────────────────────────────────────
 const PreviewModal: React.FC<{
-    title: string; description: string; questions: Question[];
-    themeIdx: number; onClose: () => void;
+    title: string;
+    description: string;
+    questions: Question[];
+    themeIdx: number;
+    onClose: () => void;
 }> = ({ title, description, questions, themeIdx, onClose }) => {
     const theme = THEMES[themeIdx];
     const [responses, setResponses] = useState<Record<string, any>>({});
@@ -175,11 +178,12 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose, onSave, initialData 
     const [saved, setSaved] = useState(false);
     const titleRef = useRef<HTMLInputElement>(null);
 
-    const theme = THEMES[themeIdx];
-
-    const addQuestion = () => {
+    const addQuestion = (type: string = 'text') => {
         const newId = 'q' + Math.random().toString(36).substr(2, 9);
-        const newQ: Question = { id: newId, type: 'text', label: '', required: false };
+        const newQ: Question = { id: newId, type, label: '', required: false };
+        if (['multiple', 'checkbox', 'dropdown'].includes(type)) {
+            newQ.options = ['Opsi 1'];
+        }
         setQuestions(prev => [...prev, newQ]);
         setActiveQ(newId);
     };
@@ -213,9 +217,12 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose, onSave, initialData 
 
     const removeOption = (qId: string, idx: number) => {
         const q = questions.find(q => q.id === qId);
-        if (q?.options && q.options.length > 1)
+        if (q?.options && q.options.length > 1) {
             updateQuestion(qId, { options: q.options.filter((_, i) => i !== idx) });
+        }
     };
+
+    const theme = THEMES[themeIdx];
 
     const handleSave = () => {
         onSave({ title: title || 'Formulir Tanpa Judul', description, questions });
@@ -353,36 +360,36 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose, onSave, initialData 
                                         {/* Card top accent */}
                                         {isActive && <div className="h-1" style={{ background: `linear-gradient(90deg, ${theme.accent}, ${theme.accent}88)` }} />}
 
-                                        <div className="p-6">
+                                        <div className="p-10">
                                             {/* Question header row */}
-                                            <div className="flex items-start gap-3 mb-5">
+                                            <div className="flex items-start gap-4 mb-6">
                                                 {/* Number badge */}
-                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0 mt-1"
+                                                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black flex-shrink-0 mt-1"
                                                     style={isActive ? { backgroundColor: theme.accent, color: 'white' } : { backgroundColor: '#f1f5f9', color: '#64748b' }}>
                                                     {idx + 1}
                                                 </div>
 
-                                                <div className="flex-1 space-y-3">
+                                                <div className="flex-1 space-y-4">
                                                     {/* Question label input */}
                                                     <input
                                                         type="text"
                                                         value={q.label}
                                                         onChange={e => updateQuestion(q.id, { label: e.target.value })}
-                                                        placeholder="Ketik pertanyaan..."
-                                                        className="w-full text-lg font-bold text-slate-800 bg-transparent border-none outline-none placeholder:text-slate-300 focus:placeholder:text-slate-200"
+                                                        placeholder="Ketik pertanyaan Anda di sini..."
+                                                        className="w-full text-2xl font-bold text-slate-800 bg-transparent border-none outline-none placeholder:text-slate-300 focus:placeholder:text-slate-200"
                                                     />
 
                                                     {/* Type selector */}
                                                     {isActive && (
-                                                        <div className="flex flex-wrap gap-1.5">
+                                                        <div className="flex flex-wrap gap-2">
                                                             {QUESTION_TYPES.map(t => {
                                                                 const Icon = t.icon;
                                                                 return (
                                                                     <button key={t.value}
                                                                         onClick={e => { e.stopPropagation(); updateQuestion(q.id, { type: t.value, options: ['multiple', 'dropdown', 'checkbox'].includes(t.value) ? q.options || ['Opsi 1', 'Opsi 2'] : undefined }); }}
-                                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border"
-                                                                        style={q.type === t.value ? { backgroundColor: theme.accent + '15', color: theme.accent, borderColor: theme.accent + '40' } : { backgroundColor: '#f8fafc', color: '#64748b', borderColor: '#e2e8f0' }}>
-                                                                        <Icon size={12} /> {t.label}
+                                                                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border-2"
+                                                                        style={q.type === t.value ? { backgroundColor: theme.accent + '15', color: theme.accent, borderColor: theme.accent } : { backgroundColor: '#f8fafc', color: '#64748b', borderColor: '#e2e8f0' }}>
+                                                                        <Icon size={16} /> {t.label}
                                                                     </button>
                                                                 );
                                                             })}
@@ -391,7 +398,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose, onSave, initialData 
 
                                                     {/* Show type badge when not active */}
                                                     {!isActive && (
-                                                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400">
+                                                        <span className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-lg">
                                                             {getTypeIcon(q.type)}
                                                             {QUESTION_TYPES.find(t => t.value === q.type)?.label}
                                                         </span>
@@ -399,45 +406,45 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose, onSave, initialData 
                                                 </div>
 
                                                 {/* Grip */}
-                                                <GripVertical size={20} className="text-slate-300 flex-shrink-0 mt-1 cursor-grab" />
+                                                <GripVertical size={24} className="text-slate-200 flex-shrink-0 mt-2 cursor-grab" />
                                             </div>
 
                                             {/* Answer area preview */}
                                             {q.type === 'text' && (
-                                                <div className="ml-10 border-b-2 border-slate-200 pb-1">
-                                                    <span className="text-slate-300 text-sm">Jawaban singkat...</span>
+                                                <div className="ml-14 border-b-2 border-slate-100 pb-2">
+                                                    <span className="text-slate-300 text-lg">Jawaban singkat...</span>
                                                 </div>
                                             )}
                                             {q.type === 'paragraph' && (
-                                                <div className="ml-10 space-y-1.5">
-                                                    {[100, 75, 85].map((w, i) => (
-                                                        <div key={i} className="h-px bg-slate-200 rounded" style={{ width: `${w}%` }} />
+                                                <div className="ml-14 space-y-2.5">
+                                                    {[100, 80, 90].map((w, i) => (
+                                                        <div key={i} className="h-0.5 bg-slate-100 rounded" style={{ width: `${w}%` }} />
                                                     ))}
-                                                    <span className="text-slate-300 text-xs">Jawaban panjang...</span>
+                                                    <span className="text-slate-300 text-sm">Jawaban panjang...</span>
                                                 </div>
                                             )}
 
                                             {/* Options */}
                                             {(q.type === 'multiple' || q.type === 'dropdown' || q.type === 'checkbox') && (
-                                                <div className="ml-10 space-y-2 mt-2">
+                                                <div className="ml-14 space-y-4 mt-4">
                                                     {q.options?.map((opt, optIdx) => (
-                                                        <div key={optIdx} className="flex items-center gap-3 group/opt">
+                                                        <div key={optIdx} className="flex items-center gap-4 group/opt">
                                                             {q.type === 'multiple' && (
-                                                                <div className="w-4 h-4 rounded-full border-2 border-slate-300 flex-shrink-0" />
+                                                                <div className="w-5 h-5 rounded-full border-2 border-slate-200 flex-shrink-0" />
                                                             )}
                                                             {q.type === 'checkbox' && (
-                                                                <div className="w-4 h-4 rounded border-2 border-slate-300 flex-shrink-0" />
+                                                                <div className="w-5 h-5 rounded-md border-2 border-slate-200 flex-shrink-0" />
                                                             )}
                                                             {q.type === 'dropdown' && (
-                                                                <span className="text-slate-400 text-sm font-bold w-5 text-center flex-shrink-0">{optIdx + 1}.</span>
+                                                                <span className="text-slate-400 text-base font-black w-6 text-center flex-shrink-0">{optIdx + 1}.</span>
                                                             )}
                                                             {isActive ? (
                                                                 <input type="text" value={opt}
                                                                     onChange={e => updateOption(q.id, optIdx, e.target.value)}
-                                                                    className="flex-1 text-sm text-slate-700 bg-transparent border-b border-transparent focus:border-slate-300 outline-none py-1 transition-colors"
+                                                                    className="flex-1 text-lg text-slate-700 bg-transparent border-b-2 border-transparent focus:border-slate-100 outline-none py-1 transition-colors"
                                                                     onClick={e => e.stopPropagation()} />
                                                             ) : (
-                                                                <span className="flex-1 text-sm text-slate-600">{opt}</span>
+                                                                <span className="flex-1 text-lg text-slate-600">{opt}</span>
                                                             )}
                                                             {isActive && (
                                                                 <button onClick={e => { e.stopPropagation(); removeOption(q.id, optIdx); }}

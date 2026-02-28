@@ -192,6 +192,47 @@ func uploadCSVToDrive(authHeader string, folderID uint, filename string, csvBuf 
 	return nil
 }
 
+// performCSVExportInternal is the core logic shared by CreateForm, SubmitFormResponse, and ExportResponsesToDrive.
+func performCSVExportInternal(authHeader string, form models.Form) error {
+	// 1. Ensure folderID exists (should already be set in most cases)
+	folderID := uint(0)
+	if form.FolderID != nil {
+		folderID = *form.FolderID
+	}
+	if folderID == 0 {
+		var err error
+		folderID, err = ensureBaknusFormFolder(authHeader)
+		if err != nil {
+			return fmt.Errorf("gagal menyiapkan folder: %v", err)
+		}
+		// Save folder_id back if we just created it
+		form.FolderID = &folderID
+		DB.Save(&form)
+	}
+
+	// 2. Parse questions
+	var questions []map[string]interface{}
+	json.Unmarshal([]byte(form.Questions), &questions)
+
+	// 3. Fetch responses
+	var responses []models.FormResponse
+	DB.Where("form_id = ?", form.ID).Order("created_at asc").Find(&responses)
+
+	// 4. Build CSV
+	csvBuf, err := buildCSV(questions, responses)
+	if err != nil {
+		return fmt.Errorf("gagal membuat CSV: %v", err)
+	}
+
+	// 5. Upload to Drive
+	filename := fmt.Sprintf("Respon_%s.csv", form.Title)
+	if err := uploadCSVToDrive(authHeader, folderID, filename, csvBuf); err != nil {
+		return fmt.Errorf("gagal upload: %v", err)
+	}
+
+	return nil
+}
+
 // buildCSV generates CSV bytes from form questions + responses.
 func buildCSV(questions []map[string]interface{}, responses []models.FormResponse) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
@@ -274,16 +315,44 @@ func SubmitFormResponse(c *gin.Context) {
 		return
 	}
 
-	jsonData, _ := json.Marshal(req.ResponseData)
+	var form models.Form
+	if err := DB.Where("id = ? AND is_active = ?", id, true).First(&form).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Form tidak ditemukan atau tidak aktif"})
+		return
+	}
 
+	jsonData, _ := json.Marshal(req.ResponseData)
+	respondent := c.GetString("userID")
+	if respondent == "" {
+		respondent = "Anonim"
+	}
 	response := models.FormResponse{
 		FormID:       id,
+		Respondent:   respondent,
 		ResponseData: string(jsonData),
 	}
 
 	if err := DB.Create(&response).Error; err != nil {
+		log.Printf("[SubmitFormResponse] DB Error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan jawaban"})
 		return
+	}
+
+	// NEW: Automatically update CSV in Drive if FolderID exists
+	if form.FolderID != nil && *form.FolderID > 0 {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader != "" {
+			go func(f models.Form, ah string) {
+				log.Printf("[SubmitFormResponse] Background auto-export for form: %s", f.ID)
+				if err := performCSVExportInternal(ah, f); err != nil {
+					log.Printf("[SubmitFormResponse] Warning: Background auto-export failed: %v (Submitter might not be owner)", err)
+				} else {
+					log.Printf("[SubmitFormResponse] Success: Auto-export completed for form: %s", f.ID)
+				}
+			}(form, authHeader)
+		} else {
+			log.Printf("[SubmitFormResponse] Skipping auto-export for form %s (Anonymous submission has no auth token)", form.ID)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Jawaban berhasil dikirim"})
@@ -340,21 +409,14 @@ func CreateForm(c *gin.Context) {
 
 	// NEW: Create initial CSV in Drive if folder exists
 	if folderID > 0 {
-		var qMap []map[string]interface{}
-		json.Unmarshal(questionsJSON, &qMap)
-		csvBuf, err := buildCSV(qMap, []models.FormResponse{})
-		if err == nil {
-			filename := fmt.Sprintf("Respon_%s.csv", req.Title)
-			log.Printf("[CreateForm] Triggering initial CSV upload: %s", filename)
-			errUpload := uploadCSVToDrive(authHeader, folderID, filename, csvBuf)
-			if errUpload != nil {
-				log.Printf("[CreateForm] ERROR: Failed initial CSV upload: %v", errUpload)
+		log.Printf("[CreateForm] Triggering initial CSV upload for form: %s", form.ID)
+		go func(f models.Form, ah string) {
+			if err := performCSVExportInternal(ah, f); err != nil {
+				log.Printf("[CreateForm] Warning: Initial CSV upload failed: %v", err)
 			} else {
-				log.Printf("[CreateForm] Initial CSV successfully uploaded: %s", filename)
+				log.Printf("[CreateForm] SUCCESS: Initial CSV uploaded for form: %s", f.ID)
 			}
-		} else {
-			log.Printf("[CreateForm] Error building initial CSV: %v", err)
-		}
+		}(form, authHeader)
 	} else {
 		log.Printf("[CreateForm] Skipping CSV upload: folderID is 0")
 	}
@@ -477,53 +539,13 @@ func ExportResponsesToDrive(c *gin.Context) {
 		return
 	}
 
-	// 2. Ensure Baknusform folder exists
-	folderID := uint(0)
-	if form.FolderID != nil {
-		folderID = *form.FolderID
-	}
-	if folderID == 0 {
-		var err error
-		folderID, err = ensureBaknusFormFolder(authHeader)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyiapkan folder Drive"})
-			return
-		}
-		// Save folder_id back
-		form.FolderID = &folderID
-		DB.Save(&form)
-	}
-
-	// 3. Parse questions
-	var questions []map[string]interface{}
-	json.Unmarshal([]byte(form.Questions), &questions)
-
-	// 4. Fetch responses
-	var responses []models.FormResponse
-	DB.Where("form_id = ?", id).Order("created_at asc").Find(&responses)
-
-	if len(responses) == 0 {
-		c.JSON(http.StatusOK, gin.H{"message": "Belum ada respon untuk diekspor"})
+	// 2. Perform export using refactored function
+	if err := performCSVExportInternal(authHeader, form); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 5. Build CSV
-	csvBuf, err := buildCSV(questions, responses)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat file CSV"})
-		return
-	}
-
-	// 6. Upload to Drive (Always use same filename for consistency if possible)
 	filename := fmt.Sprintf("Respon_%s.csv", form.Title)
-	// Alternatively, add timestamp to avoid Drive cluttering if they prefer uniqueness
-	// filename := fmt.Sprintf("Respon_%s_%s.csv", strings.ReplaceAll(form.Title, " ", "_"), time.Now().Format("20060102_150405"))
-
-	if err := uploadCSVToDrive(authHeader, folderID, filename, csvBuf); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload ke Drive: " + err.Error()})
-		return
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"message":  fmt.Sprintf("File '%s' berhasil disimpan ke folder Baknusform di Drive!", filename),
 		"filename": filename,

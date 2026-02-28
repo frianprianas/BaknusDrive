@@ -334,6 +334,13 @@ export default function Dashboard() {
         }
     };
 
+    const toggleStar = async (item: any, type: 'file' | 'folder') => {
+        // Star logic not fully implemented in backend models yet, keeping UI state
+        item.is_starred = !item.is_starred;
+        setFiles([...files]);
+        setFolders([...folders]);
+    };
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         setShowNewMenu(false);
         const file = e.target.files?.[0];
@@ -356,7 +363,7 @@ export default function Dashboard() {
                     Authorization: `Bearer ${token}`,
                     'Content-Type': 'multipart/form-data'
                 },
-                onUploadProgress: (progressEvent) => {
+                onUploadProgress: (progressEvent: any) => {
                     const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
                     setUploadProgress(prev => ({ ...prev, percent: percentCompleted }));
                 }
@@ -858,17 +865,17 @@ export default function Dashboard() {
                 </header>
 
                 {/* Subheader / Breadcrumbs */}
-                <div className="px-5 py-2 flex items-center justify-between mt-1">
-                    <div className="flex items-center gap-1 text-[22px] text-[#1f1f1f] dark:text-slate-100 font-normal">
-                        {breadcrumb.map((crumb, idx) => (
+                <div className="px-5 py-2 flex items-center justify-between">
+                    <div className="flex items-center text-xs text-slate-400 font-medium">
+                        {breadcrumb.map((crumb: any, idx: number) => (
                             <React.Fragment key={idx}>
-                                <span
-                                    onClick={() => navigateToBreadcrumb(idx)}
-                                    className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 px-2 py-1.5 rounded-xl transition-colors"
+                                <button
+                                    onClick={() => navigateToFolder(crumb.id, breadcrumb.slice(0, idx + 1))}
+                                    className="hover:text-indigo-600 hover:underline transition-all"
                                 >
-                                    {crumb.name}
-                                </span>
-                                {idx < breadcrumb.length - 1 && <ChevronRight size={22} className="text-slate-500 dark:text-slate-400 mt-1" />}
+                                    {crumb.name === 'My Drive' ? 'Beranda' : crumb.name}
+                                </button>
+                                {idx < breadcrumb.length - 1 && <ChevronRight size={12} className="mx-1 opacity-50" />}
                             </React.Fragment>
                         ))}
                     </div>
@@ -1759,7 +1766,7 @@ export default function Dashboard() {
                                             {exporting ? (
                                                 <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div> Mengekspor...</>
                                             ) : (
-                                                <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> Ekspor ke Drive (.xlsx)</>
+                                                <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> Ekspor ke Drive (.csv)</>
                                             )}
                                         </button>
                                         <button onClick={() => setResponsesModal({ visible: false, form: null })} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
