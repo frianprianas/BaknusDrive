@@ -82,15 +82,16 @@ func GetDocConfig(c *gin.Context) {
 	config.Document.Key = fmt.Sprintf("%d-%d", file.ID, file.UpdatedAt.Unix())
 	config.Document.Title = file.Name
 
-	// OnlyOffice container needs to reach the backend via internal Docker network
-	internalURL := "http://backend:8080"
+	// Use publicURL so OnlyOffice and Browser are consistent.
+	// Make sure Nginx proxies /api correctly to the backend.
 	publicURL := "http://" + c.Request.Host
-	if c.Request.TLS != nil {
+	if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
 		publicURL = "https://" + c.Request.Host
 	}
 
-	config.Document.URL = fmt.Sprintf("%s/api/drive/file/raw/%d?token=%s", internalURL, file.ID, "INTERNAL_DOC_TOKEN")
-	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", internalURL, file.ID)
+	config.Document.URL = fmt.Sprintf("%s/api/drive/file/raw/%d?token=%s", publicURL, file.ID, "INTERNAL_DOC_TOKEN")
+	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", publicURL, file.ID)
+	log.Printf("Preparing Doc Config: %s", config.Document.URL)
 	config.EditorConfig.User.ID = user.ID
 	config.EditorConfig.User.Name = user.FullName
 
@@ -126,6 +127,7 @@ func HasAccessToFile(userID string, fileID uint) bool {
 
 // Special raw download endpoint for OnlyOffice Document Server
 func RawFileAccess(c *gin.Context) {
+	log.Printf("OnlyOffice fetching file: %s", c.Param("id"))
 	// In a real app, we'd verify the token or IP of OnlyOffice DS
 	fileID := c.Param("id")
 	var file models.File
