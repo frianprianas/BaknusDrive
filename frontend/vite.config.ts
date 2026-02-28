@@ -12,6 +12,15 @@ export default defineConfig({
       usePolling: true,
     },
     proxy: {
+      '/api/forms': {
+        target: 'http://forms:8080',
+        changeOrigin: true,
+      },
+      '/f/': {
+        target: 'http://forms:8080',
+        changeOrigin: true,
+        rewrite: (path) => '/api/forms' + path,
+      },
       '/api': {
         target: 'http://backend:8080',
         changeOrigin: true,

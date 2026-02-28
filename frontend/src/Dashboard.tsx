@@ -149,7 +149,7 @@ export default function Dashboard() {
         try {
             const token = localStorage.getItem('token');
             if (currentView === 'forms') {
-                const resp = await axios.get('https://baknusdrive.smkbn666.sch.id/api/forms', {
+                const resp = await axios.get('/api/forms', {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setMyForms(resp.data || []);
