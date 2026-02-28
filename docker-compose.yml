@@ -53,6 +53,7 @@ services:
       - DB_NAME=baknusdrive
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - BACKEND_URL=http://backend:8080
     depends_on:
       - postgres
       - redis

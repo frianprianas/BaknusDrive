@@ -223,8 +223,7 @@ export default function Dashboard() {
     const handleSaveForm = async (formData: any) => {
         try {
             const token = localStorage.getItem('token');
-            const API_BASE = import.meta.env.VITE_API_URL || '';
-            await axios.post(`${API_BASE}/api/forms`, formData, {
+            await axios.post('/api/forms', formData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setShowFormBuilder(false);
@@ -242,8 +241,7 @@ export default function Dashboard() {
         setLoadingResponses(true);
         try {
             const token = localStorage.getItem('token');
-            const API_BASE = import.meta.env.VITE_API_URL || '';
-            const resp = await axios.get(`${API_BASE}/api/forms/${form.id}/responses`, {
+            const resp = await axios.get(`/api/forms/${form.id}/responses`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const responses = (resp.data || []).map((r: any) => {
@@ -264,9 +262,8 @@ export default function Dashboard() {
         setExporting(true);
         try {
             const token = localStorage.getItem('token');
-            const API_BASE = import.meta.env.VITE_API_URL || '';
             const resp = await axios.post(
-                `${API_BASE}/api/forms/${responsesModal.form.id}/responses/export`,
+                `/api/forms/${responsesModal.form.id}/responses/export`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -287,8 +284,7 @@ export default function Dashboard() {
         if (!editingForm) return;
         try {
             const token = localStorage.getItem('token');
-            const API_BASE = import.meta.env.VITE_API_URL || '';
-            await axios.put(`${API_BASE}/api/forms/${editingForm.id}`, formData, {
+            await axios.put(`/api/forms/${editingForm.id}`, formData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setShowFormBuilder(false);
@@ -305,8 +301,7 @@ export default function Dashboard() {
         if (!confirm(`Yakin ingin menghapus formulir "${form.title}"?\nSemua respon juga akan dihapus.`)) return;
         try {
             const token = localStorage.getItem('token');
-            const API_BASE = import.meta.env.VITE_API_URL || '';
-            await axios.delete(`${API_BASE}/api/forms/${form.id}`, {
+            await axios.delete(`/api/forms/${form.id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             fetchDriveData();

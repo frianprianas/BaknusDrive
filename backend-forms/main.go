@@ -296,7 +296,6 @@ func CreateForm(c *gin.Context) {
 	folderID, err := ensureBaknusFormFolder(authHeader)
 	if err != nil {
 		log.Printf("[CreateForm] Warning: gagal membuat folder Baknusform: %v", err)
-		// Don't block form creation if folder creation fails
 		folderID = 0
 	} else {
 		log.Printf("[CreateForm] Baknusform folder ID: %d", folderID)
@@ -316,9 +315,27 @@ func CreateForm(c *gin.Context) {
 	}
 
 	if err := DB.Create(&form).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat formulir"})
+		log.Printf("[CreateForm] Database error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat formulir di database"})
 		return
 	}
+
+	// NEW: Create initial CSV in Drive if folder exists
+	if folderID > 0 {
+		var qMap []map[string]interface{}
+		json.Unmarshal(questionsJSON, &qMap)
+		csvBuf, err := buildCSV(qMap, []models.FormResponse{})
+		if err == nil {
+			filename := fmt.Sprintf("Respon_%s.csv", req.Title)
+			errUpload := uploadCSVToDrive(authHeader, folderID, filename, csvBuf)
+			if errUpload != nil {
+				log.Printf("[CreateForm] Warning: gagal upload CSV awal: %v", errUpload)
+			} else {
+				log.Printf("[CreateForm] Initial CSV created: %s", filename)
+			}
+		}
+	}
+
 	c.JSON(http.StatusCreated, form)
 }
 
@@ -336,12 +353,12 @@ func GetFormDetails(c *gin.Context) {
 func UpdateForm(c *gin.Context) {
 	id := c.Param("id")
 	userID := c.MustGet("userID").(string)
-	log.Printf("[UpdateForm] id=%s userID=%s", id, userID)
+	log.Printf("[UpdateForm] Request for ID=%s by User=%s", id, userID)
 
 	var form models.Form
 	if err := DB.Where("id = ? AND creator_id = ?", id, userID).First(&form).Error; err != nil {
-		log.Printf("[UpdateForm] Form not found: %v", err)
-		c.JSON(http.StatusNotFound, gin.H{"error": "Form tidak ditemukan"})
+		log.Printf("[UpdateForm] Form not found or unauthorized: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Formulir tidak ditemukan atau Anda tidak memiliki akses"})
 		return
 	}
 
@@ -353,10 +370,9 @@ func UpdateForm(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Printf("[UpdateForm] Bad request: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
 		return
 	}
-	log.Printf("[UpdateForm] Update: title=%s", req.Title)
 
 	if req.Title != "" {
 		form.Title = req.Title
@@ -370,25 +386,45 @@ func UpdateForm(c *gin.Context) {
 		form.IsActive = *req.IsActive
 	}
 
-	DB.Save(&form)
+	if err := DB.Save(&form).Error; err != nil {
+		log.Printf("[UpdateForm] Save error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan perubahan ke database"})
+		return
+	}
+
+	log.Printf("[UpdateForm] SUCCESS: %s updated", id)
 	c.JSON(http.StatusOK, form)
 }
 
 func DeleteForm(c *gin.Context) {
 	id := c.Param("id")
 	userID := c.MustGet("userID").(string)
+	log.Printf("[DeleteForm] Request for ID=%s by User=%s", id, userID)
 
 	var form models.Form
 	if err := DB.Where("id = ? AND creator_id = ?", id, userID).First(&form).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Form tidak ditemukan"})
+		log.Printf("[DeleteForm] Form not found or unauthorized: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Formulir tidak ditemukan atau Anda tidak memiliki akses"})
 		return
 	}
 
-	// Also delete all responses
-	DB.Where("form_id = ?", id).Delete(&models.FormResponse{})
-	DB.Delete(&form)
+	tx := DB.Begin()
+	// 1. Delete all responses
+	if err := tx.Where("form_id = ?", id).Delete(&models.FormResponse{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus data respon"})
+		return
+	}
+	// 2. Delete form
+	if err := tx.Delete(&form).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus formulir"})
+		return
+	}
+	tx.Commit()
 
-	c.JSON(http.StatusOK, gin.H{"message": "Form dan semua responnya berhasil dihapus"})
+	log.Printf("[DeleteForm] SUCCESS: %s deleted", id)
+	c.JSON(http.StatusOK, gin.H{"message": "Formulir dan semua respon berhasil dihapus"})
 }
 
 func GetFormResponses(c *gin.Context) {
@@ -455,11 +491,10 @@ func ExportResponsesToDrive(c *gin.Context) {
 		return
 	}
 
-	// 6. Upload to Drive
-	filename := fmt.Sprintf("Respon_%s_%s.csv",
-		strings.ReplaceAll(form.Title, " ", "_"),
-		time.Now().Format("20060102_150405"),
-	)
+	// 6. Upload to Drive (Always use same filename for consistency if possible)
+	filename := fmt.Sprintf("Respon_%s.csv", form.Title)
+	// Alternatively, add timestamp to avoid Drive cluttering if they prefer uniqueness
+	// filename := fmt.Sprintf("Respon_%s_%s.csv", strings.ReplaceAll(form.Title, " ", "_"), time.Now().Format("20060102_150405"))
 
 	if err := uploadCSVToDrive(authHeader, folderID, filename, csvBuf); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload ke Drive: " + err.Error()})
