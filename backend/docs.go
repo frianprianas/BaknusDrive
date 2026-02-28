@@ -128,7 +128,6 @@ func HasAccessToFile(userID string, fileID uint) bool {
 // Special raw download endpoint for OnlyOffice Document Server
 func RawFileAccess(c *gin.Context) {
 	log.Printf("OnlyOffice fetching file: %s", c.Param("id"))
-	// In a real app, we'd verify the token or IP of OnlyOffice DS
 	fileID := c.Param("id")
 	var file models.File
 	if err := DB.Where("id = ?", fileID).First(&file).Error; err != nil {
@@ -136,6 +135,20 @@ func RawFileAccess(c *gin.Context) {
 		return
 	}
 
+	// Set correct Content-Type for OnlyOffice
+	ext := strings.ToLower(filepath.Ext(file.Name))
+	contentType := "application/octet-stream"
+	switch ext {
+	case ".docx":
+		contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	case ".xlsx":
+		contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	case ".pptx":
+		contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+	}
+
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", file.Name))
 	c.File(file.Path)
 }
 
