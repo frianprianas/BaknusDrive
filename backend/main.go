@@ -23,7 +23,6 @@ func main() {
 	// Increase memory limit for multipart forms to handle large uploads smoothly
 	r.MaxMultipartMemory = 512 << 20 // 512 MiB
 
-
 	// CORS Setup
 	r.Use(cors.New(cors.Config{
 		AllowOriginFunc: func(origin string) bool {
@@ -71,7 +70,16 @@ func main() {
 			// Share APIs
 			driveAPI.POST("/share", ShareItem)
 			driveAPI.GET("/shared-with-me", ListSharedWithMe)
+
+			// BaknusDoc (OnlyOffice) APIs
+			driveAPI.POST("/doc/create", CreateDoc)
+			driveAPI.GET("/doc/config/:id", GetDocConfig)
 		}
+
+		// Public/Internal raw file access for OnlyOffice
+		api.GET("/drive/file/raw/:id", RawFileAccess)
+		api.POST("/doc/callback/:id", DocCallback)
+
 		// Admin APIs
 		adminAPI := api.Group("/admin")
 		adminAPI.Use(AuthMiddleware(), AdminMiddleware())

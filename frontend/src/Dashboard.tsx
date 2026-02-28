@@ -6,7 +6,7 @@ import {
     Search, Menu, X, Filter, LayoutGrid, Clock, Users, Database,
     User, Settings, LogOut, ChevronRight, MoreVertical,
     Grid, List, AlertCircle, HardDrive, MonitorSmartphone,
-    Star, Trash2, Folder as FolderIcon, File as FileIcon, Image as ImageIcon, FileText,
+    Star, Trash2, Folder as FolderIcon, File as FileIcon, Image as ImageIcon, FileText, FileSpreadsheet, Presentation,
     Cloud, Plus, Download, FolderPlus, Upload, FileUp, Check,
     Edit2, Copy, Trash, RotateCcw, Share2, Sun, Moon, Eye, Shield, Lock, Unlock,
     HelpCircle, Grip, UserX, Loader2, ExternalLink, ClipboardList, Pencil
@@ -16,6 +16,7 @@ const isImageFile = (f: any) => f?.mime_type?.startsWith('image/') || /\.(jpg|jp
 const isPdfFile = (f: any) => f?.mime_type === 'application/pdf' || /\.(pdf)$/i.test(f?.name || '');
 const isVideoFile = (f: any) => f?.mime_type?.startsWith('video/') || /\.(mp4|webm|ogg)$/i.test(f?.name || '');
 const isTextFile = (f: any) => f?.mime_type?.startsWith('text/') || /\.(txt|csv|md|json|log|xml|js|ts|jsx|tsx|css|html|go)$/i.test(f?.name || '');
+const isDocFile = (f: any) => /\.(docx|xlsx|pptx|doc|xls|ppt)$/i.test(f?.name || '');
 
 export default function Dashboard() {
     const [user, setUser] = useState<any>(null);
@@ -24,6 +25,7 @@ export default function Dashboard() {
     const [showSidebar, setShowSidebar] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [docEditor, setDocEditor] = useState<{ visible: boolean, file: any } | null>(null);
 
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
     const [previewFile, setPreviewFile] = useState<any | null>(null);
@@ -110,6 +112,42 @@ export default function Dashboard() {
             if (interval) clearInterval(interval);
         };
     }, [currentView, responsesModal.visible, showFormBuilder]);
+
+    useEffect(() => {
+        if (docEditor?.visible && !window.DocsAPI) {
+            const scriptExists = document.getElementById("onlyoffice-api-script");
+            if (!scriptExists) {
+                const script = document.createElement('script');
+                script.id = "onlyoffice-api-script";
+                script.src = `${window.location.protocol}//${window.location.hostname}:8084/web-apps/apps/api/documents/api.js`;
+                script.onload = () => {
+                    setDocEditor(prev => prev ? { ...prev } : null);
+                };
+                document.body.appendChild(script);
+            }
+        }
+    }, [docEditor]);
+
+    useEffect(() => {
+        if (docEditor?.visible && window.DocsAPI) {
+            const initEditor = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    const resp = await axios.get(`/api/drive/doc/config/${docEditor.file.id}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    const config = resp.data;
+                    // @ts-ignore
+                    new window.DocsAPI.DocEditor("onlyoffice-container", config);
+                } catch (error) {
+                    console.error("Failed to load OnlyOffice config", error);
+                    alert("Gagal memuat editor dokumen.");
+                    setDocEditor(null);
+                }
+            };
+            initEditor();
+        }
+    }, [docEditor]);
 
     const fetchUserProfile = async () => {
         try {
@@ -508,7 +546,16 @@ export default function Dashboard() {
         }
     };
 
+    const openDocEditor = (file: any) => {
+        setDocEditor({ visible: true, file: file });
+    };
+
     const handlePreview = async (f: any) => {
+        if (isDocFile(f)) {
+            openDocEditor(f);
+            return;
+        }
+
         setPreviewFile(f);
         setPreviewUrl(null);
         try {
@@ -530,6 +577,29 @@ export default function Dashboard() {
             console.error("Failed to load preview", error);
             alert("Failed to load preview.");
             setPreviewFile(null);
+        }
+    };
+
+    const handleCreateDoc = async (type: string) => {
+        const defaultName = type === 'docx' ? 'New Document' : type === 'xlsx' ? 'New Spreadsheet' : 'New Presentation';
+        const name = prompt(`Enter ${type} name:`, defaultName);
+        if (!name) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await axios.post('/api/drive/doc/create', {
+                name: name,
+                type: type,
+                folder_id: currentFolderId
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            fetchDriveData();
+            setShowNewMenu(false);
+            openDocEditor(resp.data);
+        } catch (error) {
+            console.error("Failed to create document", error);
+            alert("Failed to create document");
         }
     };
 
@@ -689,7 +759,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between px-6 mb-6 gap-2 mt-2 md:mt-0">
                     <div className="flex items-center gap-2">
                         <img src={logo} alt="BaknusDrive logo" className="w-10 h-10 object-contain" />
-                        <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400 mb-1 tracking-tight">BaknusDrive</span>
+                        <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400 mb-1 tracking-tight">BaknusDoc</span>
                     </div>
                     <button className="md:hidden p-2 text-slate-500 dark:text-slate-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800" onClick={() => setShowSidebar(false)}>
                         <X size={20} />
@@ -712,6 +782,16 @@ export default function Dashboard() {
                             </button>
                             <button onClick={() => { setShowNewMenu(false); setShowFormBuilder(true); }} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-800 dark:text-slate-200">
                                 <ClipboardList size={18} className="text-indigo-600 dark:text-indigo-400" /> New Baknus Form
+                            </button>
+                            <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                            <button onClick={() => handleCreateDoc('docx')} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-800 dark:text-slate-200">
+                                <FileText size={18} className="text-blue-600 dark:text-blue-400" /> Baknus Write (Doc)
+                            </button>
+                            <button onClick={() => handleCreateDoc('xlsx')} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-800 dark:text-slate-200">
+                                <FileSpreadsheet size={18} className="text-green-600 dark:text-green-400" /> Baknus Calc (Sheet)
+                            </button>
+                            <button onClick={() => handleCreateDoc('pptx')} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-800 dark:text-slate-200">
+                                <Presentation size={18} className="text-orange-600 dark:text-orange-400" /> Baknus Impress (Slide)
                             </button>
                             <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
                             <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-800 dark:text-slate-200">
@@ -1884,6 +1964,35 @@ export default function Dashboard() {
                         </div>
                     );
                 })()}
+
+                {docEditor?.visible && (
+                    <div className="fixed inset-0 z-[300] bg-white flex flex-col animate-in fade-in duration-200">
+                        <div className="h-16 border-b flex items-center justify-between px-6 bg-slate-50/80 backdrop-blur-md">
+                            <div className="flex items-center gap-4">
+                                <div className="p-2 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-500/30">
+                                    <FileText size={20} />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-slate-800 tracking-tight leading-tight">{docEditor.file.name}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">BaknusDoc</span>
+                                        <span className="text-[11px] text-slate-400 font-medium">Auto-saving enabled</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setDocEditor(null);
+                                    fetchDriveData();
+                                }}
+                                className="p-2.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-all text-slate-500 hover:text-slate-800"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div id="onlyoffice-container" className="flex-1 bg-slate-100"></div>
+                    </div>
+                )}
 
             </main>
         </div>

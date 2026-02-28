@@ -32,6 +32,8 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - INTERNAL_SYSTEM_TOKEN=BAKNUS_SECRET_INTERNAL_KEY_999
+      - ONLYOFFICE_DS_JWT_SECRET=BAKNUSDOC_JWT_SECRET_999
+      - ONLYOFFICE_DS_URL=http://onlyoffice-ds
     depends_on:
       - postgres
       - redis
@@ -56,9 +58,26 @@ services:
       - REDIS_PORT=6379
       - BACKEND_URL=http://backend:8080
       - INTERNAL_SYSTEM_TOKEN=BAKNUS_SECRET_INTERNAL_KEY_999
+      - ONLYOFFICE_DS_JWT_SECRET=BAKNUSDOC_JWT_SECRET_999
     depends_on:
       - postgres
       - redis
+    networks:
+      - baknus_network
+
+  onlyoffice-ds:
+    image: onlyoffice/documentserver:latest-alpine
+    restart: always
+    ports:
+      - "0.0.0.0:8084:80"
+    environment:
+      - JWT_ENABLED=true
+      - JWT_SECRET=BAKNUSDOC_JWT_SECRET_999
+      - JWT_HEADER=Authorization
+      - JWT_IN_BODY=true
+    volumes:
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_logs:/var/log/onlyoffice
     networks:
       - baknus_network
 
@@ -92,6 +111,8 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  onlyoffice_data:
+  onlyoffice_logs:
 
 networks:
   baknus_network:
