@@ -20,6 +20,7 @@ import (
 )
 
 var BACKEND_URL = "http://backend:8080"
+var INTERNAL_SYSTEM_TOKEN = os.Getenv("INTERNAL_SYSTEM_TOKEN")
 
 const BAKNUSFORM_FOLDER = "Baknusform"
 
@@ -74,24 +75,26 @@ func main() {
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 // ensureBaknusFormFolder calls the main backend to find-or-create "Baknusform" folder.
-// Returns the folder ID (uint) on success.
-func ensureBaknusFormFolder(authHeader string) (uint, error) {
-	// 1. Try listing root folders to find "Baknusform" (no parent_id = root)
+func ensureBaknusFormFolder(authHeader string, targetUser string) (uint, error) {
 	req, _ := http.NewRequest("GET", BACKEND_URL+"/api/drive", nil)
-	log.Printf("[ensureBaknusFormFolder] Checking root drive for user...")
-	req.Header.Set("Authorization", authHeader)
+	if authHeader != "" {
+		req.Header.Set("Authorization", authHeader)
+	} else if INTERNAL_SYSTEM_TOKEN != "" && targetUser != "" {
+		req.Header.Set("X-Internal-Token", INTERNAL_SYSTEM_TOKEN)
+		req.Header.Set("X-User-Email", targetUser)
+	} else {
+		return 0, fmt.Errorf("no credentials provided")
+	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("[ensureBaknusFormFolder] ERROR connecting to backend: %v", err)
 		return 0, fmt.Errorf("gagal hubungi backend: %v", err)
 	}
 	defer resp.Body.Close()
 
 	bodyBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("[ensureBaknusFormFolder] ERROR: Backend returned %d. Response: %s", resp.StatusCode, string(bodyBytes))
 		return 0, fmt.Errorf("backend mengembalikan status %d", resp.StatusCode)
 	}
 
@@ -101,136 +104,101 @@ func ensureBaknusFormFolder(authHeader string) (uint, error) {
 			Name string `json:"name"`
 		} `json:"folders"`
 	}
-	if err := json.Unmarshal(bodyBytes, &driveData); err != nil {
-		log.Printf("[ensureBaknusFormFolder] ERROR decoding drive data: %v. Body was: %s", err, string(bodyBytes))
-		return 0, fmt.Errorf("gagal decode data drive: %v", err)
-	}
+	json.Unmarshal(bodyBytes, &driveData)
 
-	// Check if already exists in the list (root folder)
 	for _, f := range driveData.Folders {
 		if strings.EqualFold(f.Name, BAKNUSFORM_FOLDER) {
-			log.Printf("[ensureBaknusFormFolder] Found existing folder '%s' with ID %d", BAKNUSFORM_FOLDER, f.ID)
 			return f.ID, nil
 		}
 	}
 
-	log.Printf("[ensureBaknusFormFolder] Folder '%s' not found in root. Creating a new one...", BAKNUSFORM_FOLDER)
-
-	// 2. Create the folder if not found
+	// Create
 	createPayload, _ := json.Marshal(map[string]interface{}{"name": BAKNUSFORM_FOLDER})
 	createReq, _ := http.NewRequest("POST", BACKEND_URL+"/api/drive/folder", bytes.NewReader(createPayload))
-	createReq.Header.Set("Authorization", authHeader)
+	if authHeader != "" {
+		createReq.Header.Set("Authorization", authHeader)
+	} else {
+		createReq.Header.Set("X-Internal-Token", INTERNAL_SYSTEM_TOKEN)
+		createReq.Header.Set("X-User-Email", targetUser)
+	}
 	createReq.Header.Set("Content-Type", "application/json")
 
 	createResp, err := client.Do(createReq)
 	if err != nil {
-		log.Printf("[ensureBaknusFormFolder] ERROR creating folder: %v", err)
-		return 0, fmt.Errorf("gagal membuat folder: %v", err)
+		return 0, err
 	}
 	defer createResp.Body.Close()
 
 	cRespBytes, _ := io.ReadAll(createResp.Body)
-	if createResp.StatusCode >= 400 {
-		log.Printf("[ensureBaknusFormFolder] ERROR creating folder (%d): %s", createResp.StatusCode, string(cRespBytes))
-		return 0, fmt.Errorf("gagal buat folder (%d): %s", createResp.StatusCode, string(cRespBytes))
-	}
-
 	var folder struct {
 		ID uint `json:"id"`
 	}
-	if err := json.Unmarshal(cRespBytes, &folder); err != nil {
-		log.Printf("[ensureBaknusFormFolder] ERROR decoding new folder ID: %v. Body was: %s", err, string(cRespBytes))
-		return 0, err
-	}
+	json.Unmarshal(cRespBytes, &folder)
 
-	if folder.ID == 0 {
-		return 0, fmt.Errorf("folder ID tidak valid setelah dibuat")
-	}
-	log.Printf("[ensureBaknusFormFolder] SUCCESS: Created folder '%s'. ID: %d", BAKNUSFORM_FOLDER, folder.ID)
 	return folder.ID, nil
 }
 
-// uploadCSVToDrive uploads a CSV buffer to the Drive under folderID.
-func uploadCSVToDrive(authHeader string, folderID uint, filename string, csvBuf *bytes.Buffer) error {
-	contentSize := csvBuf.Len()
-	log.Printf("[uploadCSVToDrive] Starting upload: %s (size: %d) to folderID: %d", filename, contentSize, folderID)
-
+// uploadCSVToDrive uploads a CSV buffer to the Drive.
+func uploadCSVToDrive(authHeader string, targetUser string, folderID uint, filename string, csvBuf *bytes.Buffer) error {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-
-	// metadata fields should come before file part
 	writer.WriteField("folder_id", fmt.Sprintf("%d", folderID))
-
-	part, err := writer.CreateFormFile("file", filename)
-	if err != nil {
-		log.Printf("[uploadCSVToDrive] ERROR creating form file: %v", err)
-		return err
-	}
+	part, _ := writer.CreateFormFile("file", filename)
 	io.Copy(part, csvBuf)
 	writer.Close()
 
-	uploadURL := fmt.Sprintf("%s/api/drive/upload", BACKEND_URL)
-	req, _ := http.NewRequest("POST", uploadURL, body)
-	req.Header.Set("Authorization", authHeader)
+	req, _ := http.NewRequest("POST", BACKEND_URL+"/api/drive/upload", body)
+	if authHeader != "" {
+		req.Header.Set("Authorization", authHeader)
+	} else {
+		req.Header.Set("X-Internal-Token", INTERNAL_SYSTEM_TOKEN)
+		req.Header.Set("X-User-Email", targetUser)
+	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("[uploadCSVToDrive] Network ERROR connecting to backend: %v", err)
 		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		b, _ := io.ReadAll(resp.Body)
-		log.Printf("[uploadCSVToDrive] Backend ERROR %d: %s", resp.StatusCode, string(b))
-		return fmt.Errorf("upload gagal (%d): %s", resp.StatusCode, string(b))
+		return fmt.Errorf("upload gagal: %s", string(b))
 	}
-
-	log.Printf("[uploadCSVToDrive] SUCCESS: Uploaded %s", filename)
 	return nil
 }
 
-// performCSVExportInternal is the core logic shared by CreateForm, SubmitFormResponse, and ExportResponsesToDrive.
-func performCSVExportInternal(authHeader string, form models.Form) error {
-	// 1. Ensure folderID exists (should already be set in most cases)
+// performCSVExportInternal is the core logic.
+func performCSVExportInternal(authHeader string, targetUser string, form models.Form) error {
 	folderID := uint(0)
 	if form.FolderID != nil {
 		folderID = *form.FolderID
 	}
 	if folderID == 0 {
 		var err error
-		folderID, err = ensureBaknusFormFolder(authHeader)
+		folderID, err = ensureBaknusFormFolder(authHeader, targetUser)
 		if err != nil {
-			return fmt.Errorf("gagal menyiapkan folder: %v", err)
+			return err
 		}
-		// Save folder_id back if we just created it
 		form.FolderID = &folderID
 		DB.Save(&form)
 	}
 
-	// 2. Parse questions
 	var questions []map[string]interface{}
 	json.Unmarshal([]byte(form.Questions), &questions)
 
-	// 3. Fetch responses
 	var responses []models.FormResponse
 	DB.Where("form_id = ?", form.ID).Order("created_at asc").Find(&responses)
 
-	// 4. Build CSV
 	csvBuf, err := buildCSV(questions, responses)
 	if err != nil {
-		return fmt.Errorf("gagal membuat CSV: %v", err)
+		return err
 	}
 
-	// 5. Upload to Drive
 	filename := fmt.Sprintf("Respon_%s.csv", form.Title)
-	if err := uploadCSVToDrive(authHeader, folderID, filename, csvBuf); err != nil {
-		return fmt.Errorf("gagal upload: %v", err)
-	}
-
-	return nil
+	return uploadCSVToDrive(authHeader, targetUser, folderID, filename, csvBuf)
 }
 
 // buildCSV generates CSV bytes from form questions + responses.
@@ -339,20 +307,17 @@ func SubmitFormResponse(c *gin.Context) {
 	}
 
 	// NEW: Automatically update CSV in Drive if FolderID exists
+	// Always sync to the Form Creator's Drive using System Token for background update
 	if form.FolderID != nil && *form.FolderID > 0 {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader != "" {
-			go func(f models.Form, ah string) {
-				log.Printf("[SubmitFormResponse] Background auto-export for form: %s", f.ID)
-				if err := performCSVExportInternal(ah, f); err != nil {
-					log.Printf("[SubmitFormResponse] Warning: Background auto-export failed: %v (Submitter might not be owner)", err)
-				} else {
-					log.Printf("[SubmitFormResponse] Success: Auto-export completed for form: %s", f.ID)
-				}
-			}(form, authHeader)
-		} else {
-			log.Printf("[SubmitFormResponse] Skipping auto-export for form %s (Anonymous submission has no auth token)", form.ID)
-		}
+		go func(f models.Form) {
+			log.Printf("[SubmitFormResponse] Background auto-export for form: %s by System (TargetUser: %s)", f.ID, f.CreatorID)
+			// We pass empty authHeader but provide f.CreatorID as targetUser to trigger System Token logic
+			if err := performCSVExportInternal("", f.CreatorID, f); err != nil {
+				log.Printf("[SubmitFormResponse] Warning: Background auto-export failed: %v", err)
+			} else {
+				log.Printf("[SubmitFormResponse] Success: Auto-export completed for form: %s", f.ID)
+			}
+		}(form)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Jawaban berhasil dikirim"})
@@ -380,7 +345,7 @@ func CreateForm(c *gin.Context) {
 	// Ensure "Baknusform" folder exists in user's Drive
 	authHeader := c.GetHeader("Authorization")
 	log.Printf("[CreateForm] Creating form for user: %s, title: %s", userID, req.Title)
-	folderID, err := ensureBaknusFormFolder(authHeader)
+	folderID, err := ensureBaknusFormFolder(authHeader, userID)
 	if err != nil {
 		log.Printf("[CreateForm] Warning: gagal membuat folder Baknusform: %v", err)
 		folderID = 0
@@ -411,7 +376,7 @@ func CreateForm(c *gin.Context) {
 	if folderID > 0 {
 		log.Printf("[CreateForm] Triggering initial CSV upload for form: %s", form.ID)
 		go func(f models.Form, ah string) {
-			if err := performCSVExportInternal(ah, f); err != nil {
+			if err := performCSVExportInternal(ah, f.CreatorID, f); err != nil {
 				log.Printf("[CreateForm] Warning: Initial CSV upload failed: %v", err)
 			} else {
 				log.Printf("[CreateForm] SUCCESS: Initial CSV uploaded for form: %s", f.ID)
@@ -540,7 +505,7 @@ func ExportResponsesToDrive(c *gin.Context) {
 	}
 
 	// 2. Perform export using refactored function
-	if err := performCSVExportInternal(authHeader, form); err != nil {
+	if err := performCSVExportInternal(authHeader, userID, form); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

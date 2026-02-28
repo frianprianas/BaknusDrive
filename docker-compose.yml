@@ -31,6 +31,7 @@ services:
       - DB_NAME=baknusdrive
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - INTERNAL_SYSTEM_TOKEN=BAKNUS_SECRET_INTERNAL_KEY_999
     depends_on:
       - postgres
       - redis
@@ -54,6 +55,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - BACKEND_URL=http://backend:8080
+      - INTERNAL_SYSTEM_TOKEN=BAKNUS_SECRET_INTERNAL_KEY_999
     depends_on:
       - postgres
       - redis
