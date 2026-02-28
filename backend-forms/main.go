@@ -70,8 +70,9 @@ func main() {
 // ensureBaknusFormFolder calls the main backend to find-or-create "Baknusform" folder.
 // Returns the folder ID (uint) on success.
 func ensureBaknusFormFolder(authHeader string) (uint, error) {
-	// 1. Try listing root folders to find "Baknusform"
-	req, _ := http.NewRequest("GET", BACKEND_URL+"/api/drive?parent_id=", nil)
+	// 1. Try listing root folders to find "Baknusform" (no parent_id = root)
+	req, _ := http.NewRequest("GET", BACKEND_URL+"/api/drive", nil)
+	log.Printf("[ensureBaknusFormFolder] Checking root drive for user...")
 	req.Header.Set("Authorization", authHeader)
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -263,11 +264,14 @@ func CreateForm(c *gin.Context) {
 
 	// Ensure "Baknusform" folder exists in user's Drive
 	authHeader := c.GetHeader("Authorization")
+	log.Printf("[CreateForm] Creating form for user: %s, title: %s", userID, req.Title)
 	folderID, err := ensureBaknusFormFolder(authHeader)
 	if err != nil {
-		log.Printf("Warning: gagal membuat folder Baknusform: %v", err)
+		log.Printf("[CreateForm] Warning: gagal membuat folder Baknusform: %v", err)
 		// Don't block form creation if folder creation fails
 		folderID = 0
+	} else {
+		log.Printf("[CreateForm] Baknusform folder ID: %d", folderID)
 	}
 
 	questionsJSON, _ := json.Marshal(req.Questions)
@@ -304,9 +308,11 @@ func GetFormDetails(c *gin.Context) {
 func UpdateForm(c *gin.Context) {
 	id := c.Param("id")
 	userID := c.MustGet("userID").(string)
+	log.Printf("[UpdateForm] id=%s userID=%s", id, userID)
 
 	var form models.Form
 	if err := DB.Where("id = ? AND creator_id = ?", id, userID).First(&form).Error; err != nil {
+		log.Printf("[UpdateForm] Form not found: %v", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Form tidak ditemukan"})
 		return
 	}
@@ -318,9 +324,11 @@ func UpdateForm(c *gin.Context) {
 		IsActive    *bool       `json:"is_active"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
+		log.Printf("[UpdateForm] Bad request: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid: " + err.Error()})
 		return
 	}
+	log.Printf("[UpdateForm] Update: title=%s", req.Title)
 
 	if req.Title != "" {
 		form.Title = req.Title
