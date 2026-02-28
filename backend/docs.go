@@ -84,16 +84,21 @@ func GetDocConfig(c *gin.Context) {
 
 	// Use publicURL so OnlyOffice and Browser are consistent.
 	// Make sure Nginx proxies /api correctly to the backend.
+	// Use internal Docker URL so OnlyOffice can fetch the file directly.
+	// This avoids authentication issues and Nginx overhead.
+	internalURL := "http://backend:8080"
+
+	config.Document.URL = fmt.Sprintf("%s/api/raw/doc/%d?token=%s", internalURL, file.ID, "INTERNAL_DOC_TOKEN")
+	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", internalURL, file.ID)
+	log.Printf("Preparing Doc Config: %s", config.Document.URL)
+	config.EditorConfig.User.ID = user.ID
+	config.EditorConfig.User.Name = user.FullName
+
+	// Public URL for browser-facing links
 	publicURL := "http://" + c.Request.Host
 	if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
 		publicURL = "https://" + c.Request.Host
 	}
-
-	config.Document.URL = fmt.Sprintf("%s/api/drive/file/raw/%d?token=%s", publicURL, file.ID, "INTERNAL_DOC_TOKEN")
-	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", publicURL, file.ID)
-	log.Printf("Preparing Doc Config: %s", config.Document.URL)
-	config.EditorConfig.User.ID = user.ID
-	config.EditorConfig.User.Name = user.FullName
 
 	config.EditorConfig.Customization.Goback.URL = publicURL + "/dashboard"
 
@@ -269,7 +274,7 @@ func CreateDoc(c *gin.Context) {
 	fileRecord := models.File{
 		Name:     req.Name,
 		MimeType: mimeType,
-		Size:     0,
+		Size:     int64(len(templateBytes)),
 		Path:     savePath,
 		FolderID: req.FolderID,
 		UserID:   userID,

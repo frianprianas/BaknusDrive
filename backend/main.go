@@ -77,7 +77,7 @@ func main() {
 		}
 
 		// Public/Internal raw file access for OnlyOffice
-		api.GET("/drive/file/raw/:id", RawFileAccess)
+		api.GET("/raw/doc/:id", RawFileAccess)
 		api.POST("/doc/callback/:id", DocCallback)
 
 		// Admin APIs
