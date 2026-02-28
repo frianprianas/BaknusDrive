@@ -10,6 +10,9 @@ export default defineConfig({
     watch: {
       usePolling: true,
     },
+    allowedHosts: [
+      'baknusdrive.smkbn666.sch.id'
+    ],
     proxy: {
       '/api/forms': {
         target: 'http://forms:8080',
