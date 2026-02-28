@@ -22,7 +22,7 @@ func InitDB() {
 	port := os.Getenv("DB_PORT")
 
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Jakarta", host, user, password, dbname, port)
-	
+
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -31,8 +31,8 @@ func InitDB() {
 	// Optimize Connection Pool
 	sqlDB, err := db.DB()
 	if err == nil {
-		sqlDB.SetMaxIdleConns(10)           // Set the maximum number of connections in the idle connection pool
-		sqlDB.SetMaxOpenConns(100)          // Set the maximum number of open connections to the database
+		sqlDB.SetMaxIdleConns(5)            // Reduced from 10
+		sqlDB.SetMaxOpenConns(40)           // Reduced from 100 to avoid exceeding PG default (100)
 		sqlDB.SetConnMaxLifetime(time.Hour) // Set the maximum amount of time a connection may be reused
 	}
 
