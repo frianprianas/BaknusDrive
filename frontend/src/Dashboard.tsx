@@ -58,6 +58,8 @@ export default function Dashboard() {
 
     const [uploadProgress, setUploadProgress] = useState<{ active: boolean, percent: number, fileName: string }>({ active: false, percent: 0, fileName: "" });
     const [downloading, setDownloading] = useState<boolean>(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [formStatusFilter, setFormStatusFilter] = useState("Semua");
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -791,7 +793,9 @@ export default function Dashboard() {
                             </button>
                             <input
                                 type="text"
-                                placeholder="Search in Drive"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder={currentView === 'forms' ? "Cari formulir digital..." : "Search in Drive"}
                                 className="bg-transparent border-none outline-none w-full px-3 text-[16px] text-slate-700 dark:text-slate-200 placeholder:text-slate-600 dark:placeholder:text-slate-400"
                             />
                             <button className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-600 mr-1">
@@ -912,14 +916,39 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                <div className="px-5 py-2 flex items-center gap-2 border-b border-white dark:border-slate-800 pb-3">
-                    <button className="flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1 text-[14px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">Type</button>
-                    <button className="flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1 text-[14px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">People</button>
-                    <button className="flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1 text-[14px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">Modified</button>
+                <div className="px-5 py-2 flex items-center gap-2 border-b border-white dark:border-slate-800 pb-3 h-[52px]">
+                    {currentView === 'forms' ? (
+                        <>
+                            <button
+                                onClick={() => setFormStatusFilter("Semua")}
+                                className={`flex items-center gap-1.5 border rounded-lg px-3 py-1 text-[14px] font-medium transition-all ${formStatusFilter === 'Semua' ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                            >
+                                Semua
+                            </button>
+                            <button
+                                onClick={() => setFormStatusFilter("Aktif")}
+                                className={`flex items-center gap-1.5 border rounded-lg px-3 py-1 text-[14px] font-medium transition-all ${formStatusFilter === 'Aktif' ? 'bg-green-600 border-green-600 text-white' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                            >
+                                Aktif
+                            </button>
+                            <button
+                                onClick={() => setFormStatusFilter("Draft")}
+                                className={`flex items-center gap-1.5 border rounded-lg px-3 py-1 text-[14px] font-medium transition-all ${formStatusFilter === 'Draft' ? 'bg-slate-600 border-slate-600 text-white' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                            >
+                                Draft
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <button className="flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1 text-[14px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">Type</button>
+                            <button className="flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1 text-[14px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">People</button>
+                            <button className="flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1 text-[14px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">Modified</button>
+                        </>
+                    )}
                 </div>
 
                 {/* File List Header */}
-                {(viewMode === 'list' && currentView !== 'admin') && (
+                {(viewMode === 'list' && currentView !== 'admin' && currentView !== 'forms') && (
                     <div className="px-5 py-2 border-b border-slate-200 dark:border-slate-700 grid grid-cols-12 gap-4 text-[13px] font-semibold text-slate-600 dark:text-slate-400 sticky top-0 bg-white dark:bg-slate-800 z-20">
                         <div className="col-span-12 md:col-span-6 flex items-center">Name</div>
                         <div className="col-span-2 hidden md:flex items-center">Owner</div>
@@ -1086,75 +1115,82 @@ export default function Dashboard() {
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                    {myForms.map((form: any) => (
-                                        <div key={form.id} className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-100 dark:border-slate-700 p-6 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden flex flex-col h-full">
-                                            <div className="absolute top-0 left-0 w-2 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                    {myForms
+                                        .filter(f => {
+                                            const search = searchQuery.toLowerCase();
+                                            const matchesSearch = (f.title || '').toLowerCase().includes(search) || (f.description || '').toLowerCase().includes(search);
+                                            const matchesStatus = formStatusFilter === "Semua" || (formStatusFilter === "Aktif" && f.is_active) || (formStatusFilter === "Draft" && !f.is_active);
+                                            return matchesSearch && matchesStatus;
+                                        })
+                                        .map((form: any) => (
+                                            <div key={form.id} className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-100 dark:border-slate-700 p-6 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden flex flex-col h-full">
+                                                <div className="absolute top-0 left-0 w-2 h-full bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
-                                            <div className="flex justify-between items-start mb-6">
-                                                <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl text-slate-500">
-                                                    <FileText size={24} />
-                                                </div>
-                                                <span className={`text-xs font-bold px-3 py-1 rounded-full ${form.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-slate-100 text-slate-600'}`}>
-                                                    {form.is_active ? 'AKTIF' : 'DRAFT'}
-                                                </span>
-                                            </div>
-
-                                            <h4 className="text-xl font-bold text-slate-800 dark:text-white mb-2 leading-tight group-hover:text-indigo-600 transition-colors h-14 overflow-hidden">
-                                                {form.title}
-                                            </h4>
-
-                                            <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 line-clamp-2">
-                                                {form.description || 'Tidak ada deskripsi.'}
-                                            </p>
-
-                                            <div className="mt-auto pt-6 border-t border-slate-50 dark:border-slate-700/50 grid grid-cols-2 gap-4">
-                                                <div className="flex flex-col">
-                                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tanggapan</span>
-                                                    <span className="text-2xl font-black text-slate-800 dark:text-slate-200">{form.response_count || 0}</span>
-                                                </div>
-                                                <div className="flex flex-col items-end">
-                                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Dibuat</span>
-                                                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                                                        {new Date(form.created_at).toLocaleDateString()}
+                                                <div className="flex justify-between items-start mb-6">
+                                                    <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl text-slate-500">
+                                                        <FileText size={24} />
+                                                    </div>
+                                                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${form.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-slate-100 text-slate-600'}`}>
+                                                        {form.is_active ? 'AKTIF' : 'DRAFT'}
                                                     </span>
                                                 </div>
-                                            </div>
 
-                                            <div className="mt-6 flex gap-2">
-                                                <button
-                                                    onClick={() => openResponsesModal(form)}
-                                                    className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
-                                                >
-                                                    <Eye size={18} /> Lihat Respon
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        const url = `${window.location.origin}/f/${form.id}`;
-                                                        navigator.clipboard.writeText(url);
-                                                        alert("Link formulir berhasil disalin ke clipboard!");
-                                                    }}
-                                                    className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-colors"
-                                                    title="Bagikan Link"
-                                                >
-                                                    <Share2 size={18} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleEditForm(form)}
-                                                    className="p-3 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl transition-colors"
-                                                    title="Edit Formulir"
-                                                >
-                                                    <Pencil size={18} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteForm(form)}
-                                                    className="p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors"
-                                                    title="Hapus Formulir"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
+                                                <h4 className="text-xl font-bold text-slate-800 dark:text-white mb-2 leading-tight group-hover:text-indigo-600 transition-colors h-14 overflow-hidden">
+                                                    {form.title}
+                                                </h4>
+
+                                                <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 line-clamp-2">
+                                                    {form.description || 'Tidak ada deskripsi.'}
+                                                </p>
+
+                                                <div className="mt-auto pt-6 border-t border-slate-50 dark:border-slate-700/50 grid grid-cols-2 gap-4">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tanggapan</span>
+                                                        <span className="text-2xl font-black text-slate-800 dark:text-slate-200">{form.response_count || 0}</span>
+                                                    </div>
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Dibuat</span>
+                                                        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                                                            {new Date(form.created_at).toLocaleDateString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-6 flex gap-2">
+                                                    <button
+                                                        onClick={() => openResponsesModal(form)}
+                                                        className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                                                    >
+                                                        <Eye size={18} /> Lihat Respon
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            const url = `${window.location.origin}/f/${form.id}`;
+                                                            navigator.clipboard.writeText(url);
+                                                            alert("Link formulir berhasil disalin ke clipboard!");
+                                                        }}
+                                                        className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-colors"
+                                                        title="Bagikan Link"
+                                                    >
+                                                        <Share2 size={18} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleEditForm(form)}
+                                                        className="p-3 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl transition-colors"
+                                                        title="Edit Formulir"
+                                                    >
+                                                        <Pencil size={18} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteForm(form)}
+                                                        className="p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors"
+                                                        title="Hapus Formulir"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
                                 </div>
                             )}
                         </div>
