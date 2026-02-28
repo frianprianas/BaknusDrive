@@ -153,7 +153,7 @@ func uploadCSVToDrive(authHeader string, folderID uint, filename string, csvBuf 
 
 	part, _ := writer.CreateFormFile("file", filename)
 	io.Copy(part, csvBuf)
-	writer.WriteField("parent_id", fmt.Sprintf("%d", folderID))
+	writer.WriteField("folder_id", fmt.Sprintf("%d", folderID))
 	writer.Close()
 
 	uploadURL := fmt.Sprintf("%s/api/drive/upload", BACKEND_URL)
