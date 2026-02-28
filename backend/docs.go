@@ -79,14 +79,11 @@ func GetDocConfig(c *gin.Context) {
 	// Build Config
 	config := DocConfig{}
 	config.Document.FileType = strings.TrimPrefix(filepath.Ext(file.Name), ".")
-	config.Document.Key = fmt.Sprintf("%d-%d", file.ID, file.UpdatedAt.Unix())
+	config.Document.Key = fmt.Sprintf("%d-%d-%d", file.ID, file.UpdatedAt.Unix(), time.Now().Unix())
 	config.Document.Title = file.Name
 
-	// Use publicURL so OnlyOffice and Browser are consistent.
-	// Make sure Nginx proxies /api correctly to the backend.
-	// Use internal Docker URL so OnlyOffice can fetch the file directly.
-	// This avoids authentication issues and Nginx overhead.
-	internalURL := "http://backend:8080"
+	// Use internal Docker URL with port 8888 for OnlyOffice communication.
+	internalURL := "http://backend:8888"
 
 	config.Document.URL = fmt.Sprintf("%s/api/raw/doc/%d?token=%s", internalURL, file.ID, "INTERNAL_DOC_TOKEN")
 	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", internalURL, file.ID)

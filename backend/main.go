@@ -90,8 +90,8 @@ func main() {
 		}
 	}
 
-	log.Println("Starting server on :8080")
-	if err := r.Run(":8080"); err != nil {
+	log.Println("Starting server on :8888")
+	if err := r.Run(":8888"); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
