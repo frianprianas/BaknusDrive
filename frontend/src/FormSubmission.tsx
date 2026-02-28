@@ -34,8 +34,15 @@ const FormSubmission: React.FC = () => {
     const [submitted, setSubmitted] = useState(false);
     const [respondentEmail, setRespondentEmail] = useState('');
     const [error, setError] = useState<string | null>(null);
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null;
+    const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+    const [user, setUser] = useState<any>(localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
+
+    // Login Modal State
+    const [showLoginModal, setShowLoginModal] = useState(false);
+    const [loginEmail, setLoginEmail] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    const [loginLoading, setLoginLoading] = useState(false);
+    const [loginError, setLoginError] = useState('');
 
     useEffect(() => {
         fetchForm();
@@ -71,6 +78,33 @@ const FormSubmission: React.FC = () => {
 
     const handleInputChange = (questionId: string, value: any) => {
         setResponses(prev => ({ ...prev, [questionId]: value }));
+    };
+
+    const handleLocalLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoginLoading(true);
+        setLoginError('');
+
+        try {
+            const resp = await axios.post(`${API_BASE}/api/login`, {
+                email: loginEmail,
+                password: loginPassword,
+            });
+
+            if (resp.data.token) {
+                localStorage.setItem('token', resp.data.token);
+                localStorage.setItem('user', JSON.stringify(resp.data.user));
+                setToken(resp.data.token);
+                setUser(resp.data.user);
+                setShowLoginModal(false);
+                setLoginEmail('');
+                setLoginPassword('');
+            }
+        } catch (err: any) {
+            setLoginError(err.response?.data?.error || 'Login gagal. Periksa kembali email dan password Anda.');
+        } finally {
+            setLoginLoading(false);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -137,7 +171,77 @@ const FormSubmission: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen overflow-y-auto bg-[#f0f4f9] dark:bg-slate-950 px-4 py-12 md:py-20">
+        <div className="min-h-screen overflow-y-auto bg-[#f0f4f9] dark:bg-slate-950 px-4 py-12 md:py-20 relative">
+            {/* Login Modal */}
+            {showLoginModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowLoginModal(false)}></div>
+                    <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[32px] p-8 shadow-2xl relative z-10 animate-in fade-in zoom-in duration-300 border border-white/20">
+                        <div className="text-center mb-8">
+                            <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4 text-indigo-600">
+                                <Lock size={32} />
+                            </div>
+                            <h2 className="text-2xl font-black text-slate-800 dark:text-white">Login Sekolah</h2>
+                            <p className="text-slate-500 dark:text-slate-400 mt-2">Masuk dengan email Mailcow sekolah Anda</p>
+                        </div>
+
+                        <form onSubmit={handleLocalLogin} className="space-y-4">
+                            {loginError && (
+                                <div className="p-3 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 text-sm rounded-xl border border-red-100 dark:border-red-900/20 flex items-center animate-shake">
+                                    <AlertCircle size={16} className="mr-2 shrink-0" />
+                                    {loginError}
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1 ml-1">Email / Username</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={loginEmail}
+                                    onChange={(e) => setLoginEmail(e.target.value)}
+                                    placeholder="rian"
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 px-4 py-3 rounded-xl outline-none focus:border-indigo-600 transition-all dark:text-white"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1 ml-1">Password</label>
+                                <input
+                                    type="password"
+                                    required
+                                    value={loginPassword}
+                                    onChange={(e) => setLoginPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 px-4 py-3 rounded-xl outline-none focus:border-indigo-600 transition-all dark:text-white"
+                                />
+                            </div>
+
+                            <div className="pt-2">
+                                <button
+                                    type="submit"
+                                    disabled={loginLoading}
+                                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-600/20"
+                                >
+                                    {loginLoading ? <Loader2 className="animate-spin" size={20} /> : (
+                                        <>
+                                            <Send size={18} /> Masuk Sekarang
+                                        </>
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowLoginModal(false)}
+                                    className="w-full mt-2 py-3 text-slate-500 dark:text-slate-400 font-bold hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                                >
+                                    Batal
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             <div className="max-w-3xl mx-auto space-y-6">
                 {/* Header Section */}
                 <div className="bg-white dark:bg-slate-800 rounded-3xl border-t-[14px] border-indigo-600 p-8 md:p-10 shadow-sm overflow-hidden relative">
@@ -160,7 +264,7 @@ const FormSubmission: React.FC = () => {
                                 Formulir ini hanya dapat diisi oleh <b>Internal Sekolah</b> (Guru/Siswa/Staff). Silakan login dengan akun sekolah Anda.
                             </p>
                             <button
-                                onClick={() => window.location.href = `/login?redirect=/f/${id}`}
+                                onClick={() => setShowLoginModal(true)}
                                 className="w-full bg-amber-600 hover:bg-amber-700 text-white px-10 py-5 rounded-2xl font-bold text-xl shadow-xl shadow-amber-500/20 transition-all hover:scale-[1.02]"
                             >
                                 Login Sekarang
@@ -182,7 +286,7 @@ const FormSubmission: React.FC = () => {
                                 <div className="mb-8 p-4 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center gap-4 justify-between">
                                     <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Punya akun sekolah?</p>
                                     <button
-                                        onClick={() => window.location.href = `/login?redirect=/f/${id}`}
+                                        onClick={() => setShowLoginModal(true)}
                                         className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center gap-2"
                                     >
                                         <Lock size={16} /> Login lebih cepat
