@@ -89,6 +89,26 @@ export default function Dashboard() {
         fetchUsers();
     }, [currentFolderId, currentView, selectedDevice]);
 
+    // Fast polling for forms to give a "real-time" feel for response counts
+    useEffect(() => {
+        let interval: any;
+        if (currentView === 'forms' && !responsesModal.visible && !showFormBuilder) {
+            interval = setInterval(() => {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    axios.get('/api/forms', {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }).then(resp => {
+                        setMyForms(resp.data || []);
+                    }).catch(err => console.error("Real-time poll failed:", err));
+                }
+            }, 5000);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [currentView, responsesModal.visible, showFormBuilder]);
+
     const fetchUserProfile = async () => {
         try {
             const token = localStorage.getItem('token');
@@ -1090,7 +1110,7 @@ export default function Dashboard() {
                                             <div className="mt-auto pt-6 border-t border-slate-50 dark:border-slate-700/50 grid grid-cols-2 gap-4">
                                                 <div className="flex flex-col">
                                                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tanggapan</span>
-                                                    <span className="text-2xl font-black text-slate-800 dark:text-slate-200">0</span>
+                                                    <span className="text-2xl font-black text-slate-800 dark:text-slate-200">{form.response_count || 0}</span>
                                                 </div>
                                                 <div className="flex flex-col items-end">
                                                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Dibuat</span>

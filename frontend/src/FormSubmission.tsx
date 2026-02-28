@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
     Send, ClipboardList, CheckCircle2,
-    AlertCircle, Loader2, Home
+    AlertCircle, Loader2, Home, Lock, User
 } from 'lucide-react';
 
 // Works on localhost (no base = same origin) and on production
@@ -149,57 +149,85 @@ const FormSubmission: React.FC = () => {
 
                     <div className="w-full h-px bg-slate-100 dark:bg-slate-700/50 my-6" />
 
-                    {/* Login/Email Prompt */}
+                    {/* Gatekeeper Section */}
                     {form?.visibility === 'internal' && !token ? (
-                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/50 p-6 rounded-2xl mb-6">
-                            <h3 className="text-amber-800 dark:text-amber-400 font-bold mb-2 flex items-center gap-2">
-                                <Lock size={18} /> Khusus Internal Sekolah
-                            </h3>
-                            <p className="text-amber-700 dark:text-amber-500 text-sm mb-4">
-                                Formulir ini hanya dapat diisi oleh warga sekolah. Silakan login terlebih dahulu.
+                        <div className="bg-amber-50 dark:bg-amber-900/10 border-2 border-amber-200 dark:border-amber-900/40 p-10 rounded-[40px] mb-10 text-center">
+                            <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-3xl flex items-center justify-center mx-auto mb-6 text-amber-600">
+                                <Lock size={40} />
+                            </div>
+                            <h2 className="text-2xl font-black text-amber-900 dark:text-amber-300 mb-4">Akses Terbatas</h2>
+                            <p className="text-amber-800 dark:text-amber-500 text-lg mb-8 leading-relaxed">
+                                Formulir ini hanya dapat diisi oleh <b>Internal Sekolah</b> (Guru/Siswa/Staff). Silakan login dengan akun sekolah Anda.
                             </p>
                             <button
                                 onClick={() => window.location.href = `/login?redirect=/f/${id}`}
-                                className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-xl font-bold text-sm transition-all"
+                                className="w-full bg-amber-600 hover:bg-amber-700 text-white px-10 py-5 rounded-2xl font-bold text-xl shadow-xl shadow-amber-500/20 transition-all hover:scale-[1.02]"
                             >
                                 Login Sekarang
                             </button>
                         </div>
                     ) : (form?.visibility === 'external' || (form?.visibility === 'both' && !token)) && (
-                        <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 p-6 rounded-2xl mb-6">
-                            <label className="block text-indigo-900 dark:text-indigo-300 font-bold mb-3 flex items-center gap-2">
-                                <ClipboardList size={18} /> Identitas Pengisi
+                        <div className="bg-indigo-50 dark:bg-indigo-900/10 border-2 border-indigo-100 dark:border-indigo-900/30 p-10 rounded-[40px] mb-10">
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="p-4 bg-white dark:bg-indigo-900/50 rounded-2xl text-indigo-600 dark:text-indigo-400 shadow-sm">
+                                    <ClipboardList size={32} />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-black text-slate-800 dark:text-white">Identitas Pengisi</h2>
+                                    <p className="text-slate-500 dark:text-slate-400">Pastikan email yang Anda masukkan aktif.</p>
+                                </div>
+                            </div>
+
+                            {form?.visibility === 'both' && (
+                                <div className="mb-8 p-4 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center gap-4 justify-between">
+                                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Punya akun sekolah?</p>
+                                    <button
+                                        onClick={() => window.location.href = `/login?redirect=/f/${id}`}
+                                        className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center gap-2"
+                                    >
+                                        <Lock size={16} /> Login lebih cepat
+                                    </button>
+                                </div>
+                            )}
+
+                            <label className="block text-slate-700 dark:text-slate-300 font-bold mb-3">
+                                Alamat Email
                             </label>
-                            <p className="text-indigo-700 dark:text-indigo-400 text-sm mb-4">
-                                Masukkan alamat email Anda untuk melanjutkan pengisian formulir.
-                            </p>
                             <input
                                 type="email"
                                 required
                                 value={respondentEmail}
                                 onChange={(e) => setRespondentEmail(e.target.value)}
-                                placeholder="Alamat email Anda"
-                                className="w-full bg-white dark:bg-slate-900 border-2 border-indigo-100 dark:border-indigo-800 px-4 py-3 rounded-xl focus:border-indigo-600 outline-none transition-all dark:text-white"
+                                placeholder="nama@email.com"
+                                className="w-full bg-white dark:bg-slate-900 border-2 border-indigo-100 dark:border-indigo-800 px-6 py-4 rounded-3xl focus:border-indigo-600 outline-none transition-all dark:text-white text-lg placeholder:text-slate-300"
                             />
                         </div>
                     )}
 
                     {token && (
-                        <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl mb-6 border border-slate-100 dark:border-slate-800">
-                            <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
+                        <div className="flex items-center gap-5 p-6 bg-slate-50 dark:bg-indigo-900/10 rounded-[32px] mb-10 border-2 border-white dark:border-slate-800 shadow-sm relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                <CheckCircle2 size={100} />
+                            </div>
+                            <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-indigo-500/30">
                                 {user?.name?.charAt(0) || '?'}
                             </div>
-                            <div>
-                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{user?.name}</p>
-                                <p className="text-xs text-slate-500">{user?.email}</p>
+                            <div className="flex-1">
+                                <p className="text-xl font-black text-slate-900 dark:text-white">{user?.name}</p>
+                                <p className="text-slate-500 font-medium">{user?.email}</p>
                             </div>
-                            <div className="ml-auto text-xs font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-md">
-                                LOGGED IN
+                            <div className="hidden sm:block">
+                                <span className="text-xs font-black text-indigo-600 bg-white dark:bg-slate-900 px-4 py-2 rounded-full border border-indigo-50 uppercase tracking-widest">
+                                    Verified School Email
+                                </span>
                             </div>
                         </div>
                     )}
 
-                    <p className="text-sm text-red-500 font-semibold">* Menunjukkan pertanyaan yang wajib diisi</p>
+                    <div className="flex items-center gap-2 text-red-500 font-bold text-sm bg-red-50 dark:bg-red-900/10 w-fit px-4 py-2 rounded-full">
+                        <AlertCircle size={16} />
+                        * Menunjukkan pertanyaan yang wajib diisi
+                    </div>
                 </div>
 
                 {/* Form Content - Hide if internal but not logged in */}

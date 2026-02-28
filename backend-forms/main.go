@@ -367,8 +367,28 @@ func SubmitFormResponse(c *gin.Context) {
 func ListMyForms(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	var forms []models.Form
-	DB.Where("creator_id = ?", userID).Order("created_at desc").Find(&forms)
-	c.JSON(http.StatusOK, forms)
+	if err := DB.Where("creator_id = ?", userID).Order("created_at desc").Find(&forms).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data formulir"})
+		return
+	}
+
+	// Fetch response counts
+	type FormWithCount struct {
+		models.Form
+		ResponseCount int64 `json:"response_count"`
+	}
+
+	result := make([]FormWithCount, len(forms))
+	for i, f := range forms {
+		var count int64
+		DB.Model(&models.FormResponse{}).Where("form_id = ?", f.ID).Count(&count)
+		result[i] = FormWithCount{
+			Form:          f,
+			ResponseCount: count,
+		}
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 func CreateForm(c *gin.Context) {
