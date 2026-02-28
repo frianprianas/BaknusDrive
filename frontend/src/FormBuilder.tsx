@@ -282,7 +282,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose, onSave, initialData 
                             className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold text-sm transition-colors">
                             <Eye size={15} /> Preview
                         </button>
-                        <button onClick={handleSave}
+                        <button onClick={() => handleSave()}
                             className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white font-bold text-sm shadow transition-all hover:opacity-90 hover:scale-105 active:scale-95"
                             style={{ backgroundColor: saved ? '#10b981' : theme.accent }}>
                             {saved ? <><CheckCircle2 size={15} /> Tersimpan!</> : <><Save size={15} /> Simpan Form</>}
@@ -311,7 +311,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose, onSave, initialData 
                                 </button>
                             ))}
                         </div>
-                        <button onClick={addQuestion}
+                        <button onClick={() => addQuestion()}
                             className="mx-4 mt-4 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border-2 border-dashed border-slate-200 hover:border-current hover:text-current text-slate-400 text-sm font-bold transition-all"
                             style={{ '--hover-color': theme.accent } as any}
                             onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = theme.accent; (e.currentTarget as HTMLButtonElement).style.color = theme.accent; }}
@@ -489,7 +489,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose, onSave, initialData 
                             })}
 
                             {/* Add question button */}
-                            <button onClick={addQuestion}
+                            <button onClick={() => addQuestion()}
                                 className="w-full bg-white rounded-2xl border-2 border-dashed border-slate-200 p-5 flex items-center justify-center gap-3 font-bold text-slate-400 transition-all hover:bg-white hover:shadow-sm"
                                 onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = theme.accent; (e.currentTarget as HTMLButtonElement).style.color = theme.accent; }}
                                 onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = ''; (e.currentTarget as HTMLButtonElement).style.color = ''; }}>
