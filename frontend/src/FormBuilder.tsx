@@ -287,56 +287,56 @@ const FormBuilder: React.FC<FormBuilderProps> = ({ onClose, onSave, initialData 
                 <div className="flex flex-1 overflow-hidden">
 
                     {/* ── LEFT: Question List Panel ── */}
-                    <aside className="hidden lg:flex flex-col w-56 bg-white border-r border-slate-100 overflow-y-auto">
-                        <div className="p-3 border-b border-slate-100">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2 mb-2">Pertanyaan</p>
+                    <aside className="hidden lg:flex flex-col w-72 bg-white border-r border-slate-100 overflow-y-auto">
+                        <div className="p-4 border-b border-slate-100">
+                            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider px-2 mb-4">Daftar Pertanyaan</p>
                             {questions.map((q, idx) => (
                                 <button key={q.id} onClick={() => setActiveQ(q.id)}
-                                    className={`w-full text-left px-3 py-2.5 rounded-xl mb-1 flex items-start gap-2 transition-all group ${activeQ === q.id ? 'text-white' : 'text-slate-500 hover:bg-slate-50'}`}
-                                    style={activeQ === q.id ? { backgroundColor: theme.accent } : {}}>
-                                    <span className="flex-shrink-0 w-5 h-5 rounded flex items-center justify-center text-xs font-bold mt-0.5"
+                                    className={`w-full text-left px-4 py-3.5 rounded-2xl mb-2 flex items-start gap-3 transition-all group ${activeQ === q.id ? 'text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}
+                                    style={activeQ === q.id ? { backgroundColor: theme.accent, boxShadow: `0 10px 15px -3px ${theme.accent}44` } : {}}>
+                                    <span className="flex-shrink-0 w-6 h-6 rounded-lg flex items-center justify-center text-sm font-black mt-0.5"
                                         style={activeQ === q.id ? { backgroundColor: 'rgba(255,255,255,0.2)' } : { backgroundColor: '#f1f5f9', color: '#64748b' }}>
                                         {idx + 1}
                                     </span>
-                                    <span className="text-xs font-medium leading-snug truncate">
+                                    <span className="text-sm font-bold leading-snug truncate">
                                         {q.label || 'Tanpa Judul'}
                                     </span>
                                 </button>
                             ))}
                         </div>
                         <button onClick={addQuestion}
-                            className="mx-3 mt-3 flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 border-dashed border-slate-200 hover:border-current hover:text-current text-slate-400 text-sm font-semibold transition-all"
+                            className="mx-4 mt-4 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border-2 border-dashed border-slate-200 hover:border-current hover:text-current text-slate-400 text-sm font-bold transition-all"
                             style={{ '--hover-color': theme.accent } as any}
                             onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = theme.accent; (e.currentTarget as HTMLButtonElement).style.color = theme.accent; }}
                             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = ''; (e.currentTarget as HTMLButtonElement).style.color = ''; }}
                         >
-                            <Plus size={16} /> Tambah Soal
+                            <Plus size={18} /> Tambah Soal
                         </button>
                     </aside>
 
                     {/* ── CENTER: Editor ── */}
-                    <main className="flex-1 overflow-y-auto p-4 md:p-8">
-                        <div className="max-w-2xl mx-auto space-y-4 pb-20">
+                    <main className="flex-1 overflow-y-auto p-6 md:p-12 lg:p-16">
+                        <div className="max-w-4xl mx-auto space-y-6 pb-24">
 
                             {/* Header card */}
-                            <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100">
-                                <div className="h-2.5" style={{ backgroundColor: theme.accent }} />
-                                <div className="p-6 md:p-8 space-y-3">
+                            <div className="bg-white rounded-[32px] overflow-hidden shadow-xl border border-slate-100">
+                                <div className="h-3" style={{ backgroundColor: theme.accent }} />
+                                <div className="p-8 md:p-12 space-y-6">
                                     <input
                                         value={title}
                                         onChange={e => setTitle(e.target.value)}
                                         placeholder="Judul Formulir"
-                                        className="w-full text-3xl md:text-4xl font-black text-slate-800 bg-transparent border-none outline-none placeholder:text-slate-200"
+                                        className="w-full text-4xl md:text-5xl font-black text-slate-800 bg-transparent border-none outline-none placeholder:text-slate-200"
                                     />
                                     <textarea
                                         value={description}
                                         onChange={e => setDescription(e.target.value)}
                                         placeholder="Deskripsi formulir (opsional) — jelaskan tujuan formulir ini..."
-                                        className="w-full text-base text-slate-500 bg-transparent border-none outline-none resize-none min-h-[50px] placeholder:text-slate-300"
+                                        className="w-full text-xl text-slate-500 bg-transparent border-none outline-none resize-none min-h-[60px] placeholder:text-slate-300"
                                     />
                                     <div className="flex items-center gap-2 pt-2">
-                                        <Sparkles size={14} style={{ color: theme.accent }} />
-                                        <span className="text-xs text-slate-400 font-medium">Baknus Form Builder</span>
+                                        <Sparkles size={18} style={{ color: theme.accent }} />
+                                        <span className="text-sm text-slate-400 font-bold tracking-tight">Baknus Form Builder Premium</span>
                                     </div>
                                 </div>
                             </div>
