@@ -119,7 +119,7 @@ export default function Dashboard() {
             if (!scriptExists) {
                 const script = document.createElement('script');
                 script.id = "onlyoffice-api-script";
-                script.src = `${window.location.protocol}//${window.location.hostname}:8084/web-apps/apps/api/documents/api.js`;
+                script.src = `${window.location.protocol}//${window.location.hostname}/office/web-apps/apps/api/documents/api.js`;
                 script.onload = () => {
                     setDocEditor(prev => prev ? { ...prev } : null);
                 };

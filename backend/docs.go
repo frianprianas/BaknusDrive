@@ -78,15 +78,15 @@ func GetDocConfig(c *gin.Context) {
 	config.Document.Key = fmt.Sprintf("%d-%d", file.ID, file.UpdatedAt.Unix())
 	config.Document.Title = file.Name
 
-	// Backend URL needs to be reachable by OnlyOffice and Browser
-	// We use the Host header to detect the public address
+	// OnlyOffice container needs to reach the backend via internal Docker network
+	internalURL := "http://backend:8080"
 	publicURL := "http://" + c.Request.Host
 	if c.Request.TLS != nil {
 		publicURL = "https://" + c.Request.Host
 	}
 
-	config.Document.URL = fmt.Sprintf("%s/api/drive/file/raw/%d?token=%s", publicURL, file.ID, "INTERNAL_DOC_TOKEN") // We'll handle this special raw endpoint
-	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", publicURL, file.ID)
+	config.Document.URL = fmt.Sprintf("%s/api/drive/file/raw/%d?token=%s", internalURL, file.ID, "INTERNAL_DOC_TOKEN")
+	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", internalURL, file.ID)
 	config.EditorConfig.User.ID = user.ID
 	config.EditorConfig.User.Name = user.FullName
 
