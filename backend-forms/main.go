@@ -9,6 +9,7 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -18,14 +19,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const BACKEND_URL = "http://backend:8080"
+var BACKEND_URL = "http://backend:8080"
 const BAKNUSFORM_FOLDER = "Baknusform"
 
 func main() {
 	InitDB()
 	InitRedis()
 
-	r := gin.Default()
+	if envURL := os.Getenv("BACKEND_URL"); envURL != "" {
+		BACKEND_URL = envURL
+	}
+	log.Printf("[Main] Using BACKEND_URL: %s", BACKEND_URL)
 
 	r.Use(cors.New(cors.Config{
 		AllowOriginFunc: func(origin string) bool { return true },
@@ -148,10 +152,17 @@ func ensureBaknusFormFolder(authHeader string) (uint, error) {
 
 // uploadCSVToDrive uploads a CSV buffer to the Drive under folderID.
 func uploadCSVToDrive(authHeader string, folderID uint, filename string, csvBuf *bytes.Buffer) error {
+	contentSize := csvBuf.Len()
+	log.Printf("[uploadCSVToDrive] Attempting upload: %s (size: %d) to folderID: %d", filename, contentSize, folderID)
+
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	part, _ := writer.CreateFormFile("file", filename)
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		log.Printf("[uploadCSVToDrive] Error creating multipart form file: %v", err)
+		return err
+	}
 	io.Copy(part, csvBuf)
 	writer.WriteField("folder_id", fmt.Sprintf("%d", folderID))
 	writer.Close()
@@ -164,13 +175,18 @@ func uploadCSVToDrive(authHeader string, folderID uint, filename string, csvBuf 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Printf("[uploadCSVToDrive] Network error connecting to %s: %v", uploadURL, err)
 		return err
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode >= 400 {
 		b, _ := io.ReadAll(resp.Body)
+		log.Printf("[uploadCSVToDrive] Backend error %d: %s", resp.StatusCode, string(b))
 		return fmt.Errorf("upload gagal (%d): %s", resp.StatusCode, string(b))
 	}
+
+	log.Printf("[uploadCSVToDrive] SUCCESS: Uploaded %s", filename)
 	return nil
 }
 
@@ -327,13 +343,18 @@ func CreateForm(c *gin.Context) {
 		csvBuf, err := buildCSV(qMap, []models.FormResponse{})
 		if err == nil {
 			filename := fmt.Sprintf("Respon_%s.csv", req.Title)
+			log.Printf("[CreateForm] Triggering initial CSV upload: %s", filename)
 			errUpload := uploadCSVToDrive(authHeader, folderID, filename, csvBuf)
 			if errUpload != nil {
-				log.Printf("[CreateForm] Warning: gagal upload CSV awal: %v", errUpload)
+				log.Printf("[CreateForm] ERROR: Failed initial CSV upload: %v", errUpload)
 			} else {
-				log.Printf("[CreateForm] Initial CSV created: %s", filename)
+				log.Printf("[CreateForm] Initial CSV successfully uploaded: %s", filename)
 			}
+		} else {
+			log.Printf("[CreateForm] Error building initial CSV: %v", err)
 		}
+	} else {
+		log.Printf("[CreateForm] Skipping CSV upload: folderID is 0")
 	}
 
 	c.JSON(http.StatusCreated, form)
