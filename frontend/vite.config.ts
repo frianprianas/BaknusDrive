@@ -24,21 +24,25 @@ export default defineConfig({
       },
       '/browser': {
         target: 'http://collabora:9980',
-        changeOrigin: true,
+        changeOrigin: false,
+        xfwd: true,
       },
       '/hosting': {
         target: 'http://collabora:9980',
-        changeOrigin: true,
+        changeOrigin: false,
+        xfwd: true,
       },
       '/cool': {
         target: 'http://collabora:9980',
-        changeOrigin: true,
+        changeOrigin: false,
         ws: true,
+        xfwd: true,
       },
       '/coolws': {
         target: 'http://collabora:9980',
-        changeOrigin: true,
+        changeOrigin: false,
         ws: true,
+        xfwd: true,
       }
     }
   },
