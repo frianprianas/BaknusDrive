@@ -140,7 +140,7 @@ export default function Dashboard() {
                     console.log("DEBUG: Fetched OnlyOffice Config:", config);
 
                     // @ts-ignore
-                    const docEditorInstance = new window.DocsAPI.DocEditor("onlyoffice-editor-container", config);
+                    const docEditorInstance = new window.DocsAPI.DocEditor("onlyoffice-container", config);
                 } catch (error) {
                     console.error("Failed to load OnlyOffice config", error);
                     alert("Gagal memuat editor dokumen.");
