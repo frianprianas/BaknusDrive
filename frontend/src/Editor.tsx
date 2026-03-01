@@ -25,7 +25,7 @@ const Editor: React.FC = () => {
                 script.id = "onlyoffice-api-script";
                 script.src = `${window.location.protocol}//${window.location.hostname}/office/web-apps/apps/api/documents/api.js`;
                 script.onload = () => {
-                    initEditor();
+                    initEditor(true);
                 };
                 script.onerror = () => {
                     setError("Failed to load OnlyOffice API script.");
@@ -47,7 +47,7 @@ const Editor: React.FC = () => {
         };
     }, [id]);
 
-    const initEditor = async () => {
+    const initEditor = async (isRetry = false) => {
         try {
             const token = localStorage.getItem('token');
             if (!token) {
