@@ -79,10 +79,8 @@ func GetDocConfig(c *gin.Context) {
 		publicURL = "https://" + c.Request.Host
 	}
 
-	// Use internal Docker URL with port 8080 for OnlyOffice communication.
-	internalURL := "http://backend:8080"
 	config.Document.URL = fmt.Sprintf("%s/api/raw/doc/%d/%s?token=%s", publicURL, file.ID, url.PathEscape(file.Name), "INTERNAL_DOC_TOKEN")
-	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", internalURL, file.ID)
+	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", publicURL, file.ID)
 	log.Printf("Preparing Doc Config: Document.URL=%s, CallbackURL=%s", config.Document.URL, config.EditorConfig.CallbackURL)
 	config.EditorConfig.User.ID = user.ID
 	config.EditorConfig.User.Name = user.FullName
