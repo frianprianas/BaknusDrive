@@ -67,7 +67,7 @@ services:
     image: collabora/code:latest
     restart: always
     ports:
-      - "0.0.0.0:8084:9980"
+      - "0.0.0.0:8085:9980"
     environment:
       - aliasgroup1=http://backend:8080,http://localhost:8082
       - extra_params=--o:ssl.enable=false --o:ssl.termination=false --o:net.post_allow.host=.* --o:storage.wopi.alias_groups.mode=first
