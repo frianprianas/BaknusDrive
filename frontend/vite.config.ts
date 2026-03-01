@@ -22,10 +22,18 @@ export default defineConfig({
         target: 'http://backend:8080',
         changeOrigin: true,
       },
-      '/office': {
-        target: 'http://onlyoffice-ds:80',
+      '/browser': {
+        target: 'http://collabora:9980',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/office/, '')
+      },
+      '/hosting': {
+        target: 'http://collabora:9980',
+        changeOrigin: true,
+      },
+      '/cool': {
+        target: 'http://collabora:9980',
+        changeOrigin: true,
+        ws: true,
       }
     }
   },

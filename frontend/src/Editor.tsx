@@ -32,9 +32,8 @@ const Editor: React.FC = () => {
     // Construct the WOPISrc for internal docker routing
     const wopiSrc = encodeURIComponent(`http://backend:8080/wopi/files/${id}`);
 
-    // Using current Collabora Online endpoint (cool.html or loleaflet.html based on version)
-    const host = window.location.hostname;
-    const collaboraUrl = `http://${host}:8085/browser/dist/cool.html?WOPISrc=${wopiSrc}`;
+    // Using relative URL so it goes through Vite proxy and works over HTTPS
+    const collaboraUrl = `/browser/dist/cool.html?WOPISrc=${wopiSrc}`;
 
     return (
         <div className="fixed inset-0 flex flex-col bg-white dark:bg-slate-900 z-[1000] overflow-hidden">
