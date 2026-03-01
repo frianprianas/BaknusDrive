@@ -137,8 +137,14 @@ export default function Dashboard() {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                     const config = resp.data;
+                    console.log("DEBUG: Fetched OnlyOffice Config:", config);
+
+                    // User Request: "Sepertinya begitu file dibuat harusnya masuk ke tab baru untuk memastikan alamatnya benar"
+                    console.log("DEBUG: Document URL to open:", config.document.url);
+                    window.open(config.document.url, '_blank'); // Open the direct link for debugging
+
                     // @ts-ignore
-                    new window.DocsAPI.DocEditor("onlyoffice-container", config);
+                    const docEditorInstance = new window.DocsAPI.DocEditor("onlyoffice-editor-container", config);
                 } catch (error) {
                     console.error("Failed to load OnlyOffice config", error);
                     alert("Gagal memuat editor dokumen.");
