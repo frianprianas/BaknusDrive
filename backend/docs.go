@@ -83,7 +83,8 @@ func GetDocConfig(c *gin.Context) {
 	// it should use the internal Docker network for fetching and saving files to bypass Cloudflare/NAT loopback errors.
 	internalURL := "http://backend:8080"
 
-	config.Document.URL = fmt.Sprintf("%s/api/raw/doc/%d/%s?token=%s", internalURL, file.ID, url.PathEscape(file.Name), "INTERNAL_DOC_TOKEN")
+	// Build the document URL without any token query param — OnlyOffice DS will use JWT to verify
+	config.Document.URL = fmt.Sprintf("%s/api/raw/doc/%d/%s", internalURL, file.ID, url.PathEscape(file.Name))
 	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", internalURL, file.ID)
 
 	log.Printf("Preparing Doc Config: Document.URL=%s, CallbackURL=%s (Internal Routing)", config.Document.URL, config.EditorConfig.CallbackURL)
