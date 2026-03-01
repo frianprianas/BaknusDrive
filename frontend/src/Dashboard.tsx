@@ -25,7 +25,6 @@ export default function Dashboard() {
     const [showSidebar, setShowSidebar] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
-    const [docEditor, setDocEditor] = useState<{ visible: boolean, file: any } | null>(null);
 
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
     const [previewFile, setPreviewFile] = useState<any | null>(null);
@@ -113,43 +112,6 @@ export default function Dashboard() {
         };
     }, [currentView, responsesModal.visible, showFormBuilder]);
 
-    useEffect(() => {
-        if (docEditor?.visible && !window.DocsAPI) {
-            const scriptExists = document.getElementById("onlyoffice-api-script");
-            if (!scriptExists) {
-                const script = document.createElement('script');
-                script.id = "onlyoffice-api-script";
-                script.src = `${window.location.protocol}//${window.location.hostname}/office/web-apps/apps/api/documents/api.js`;
-                script.onload = () => {
-                    setDocEditor(prev => prev ? { ...prev } : null);
-                };
-                document.body.appendChild(script);
-            }
-        }
-    }, [docEditor]);
-
-    useEffect(() => {
-        if (docEditor?.visible && window.DocsAPI) {
-            const initEditor = async () => {
-                try {
-                    const token = localStorage.getItem('token');
-                    const resp = await axios.get(`/api/drive/doc/config/${docEditor.file.id}`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    const config = resp.data;
-                    console.log("DEBUG: Fetched OnlyOffice Config:", config);
-
-                    // @ts-ignore
-                    const docEditorInstance = new window.DocsAPI.DocEditor("onlyoffice-container", config);
-                } catch (error) {
-                    console.error("Failed to load OnlyOffice config", error);
-                    alert("Gagal memuat editor dokumen.");
-                    setDocEditor(null);
-                }
-            };
-            initEditor();
-        }
-    }, [docEditor]);
 
     const fetchUserProfile = async () => {
         try {
@@ -549,7 +511,7 @@ export default function Dashboard() {
     };
 
     const openDocEditor = (file: any) => {
-        setDocEditor({ visible: true, file: file });
+        window.open(`/editor/${file.id}`, '_blank');
     };
 
     const handlePreview = async (f: any) => {
@@ -598,7 +560,11 @@ export default function Dashboard() {
             });
             fetchDriveData();
             setShowNewMenu(false);
-            openDocEditor(resp.data);
+
+            // Auto open the new document in a new tab
+            if (resp.data && resp.data.id) {
+                window.open(`/editor/${resp.data.id}`, '_blank');
+            }
         } catch (error) {
             console.error("Failed to create document", error);
             alert("Failed to create document");
@@ -1966,35 +1932,6 @@ export default function Dashboard() {
                         </div>
                     );
                 })()}
-
-                {docEditor?.visible && (
-                    <div className="fixed inset-0 z-[300] bg-white flex flex-col animate-in fade-in duration-200">
-                        <div className="h-16 border-b flex items-center justify-between px-6 bg-slate-50/80 backdrop-blur-md">
-                            <div className="flex items-center gap-4">
-                                <div className="p-2 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-500/30">
-                                    <FileText size={20} />
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="font-bold text-slate-800 tracking-tight leading-tight">{docEditor.file.name}</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">BaknusDoc</span>
-                                        <span className="text-[11px] text-slate-400 font-medium">Auto-saving enabled</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => {
-                                    setDocEditor(null);
-                                    fetchDriveData();
-                                }}
-                                className="p-2.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-all text-slate-500 hover:text-slate-800"
-                            >
-                                <X size={24} />
-                            </button>
-                        </div>
-                        <div id="onlyoffice-container" className="flex-1 bg-slate-100"></div>
-                    </div>
-                )}
 
             </main>
         </div>
