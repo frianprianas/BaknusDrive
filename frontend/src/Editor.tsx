@@ -17,31 +17,43 @@ const Editor: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        // Load OnlyOffice script if not present
-        if (!window.DocsAPI) {
-            const scriptExists = document.getElementById("onlyoffice-api-script");
-            if (!scriptExists) {
-                const script = document.createElement('script');
-                script.id = "onlyoffice-api-script";
-                script.src = `${window.location.protocol}//${window.location.hostname}/office/web-apps/apps/api/documents/api.js`;
-                script.onload = () => {
-                    initEditor(true);
-                };
-                script.onerror = () => {
-                    setError("Failed to load OnlyOffice API script.");
-                    setLoading(false);
-                };
-                document.body.appendChild(script);
-            } else {
+        const loadScript = () => {
+            // If already loaded by another mount, just init
+            if (window.DocsAPI) {
+                console.log("DEBUG Editor: DocsAPI already present, initializing...");
                 initEditor();
+                return;
             }
-        } else {
-            initEditor();
-        }
+
+            // Clean up any stale script tags first to force reload if needed
+            const existingScript = document.getElementById("onlyoffice-api-script");
+            if (existingScript) {
+                existingScript.remove();
+            }
+
+            const script = document.createElement('script');
+            script.id = "onlyoffice-api-script";
+            // Use relative path with cache buster to ensure it's not cached
+            script.src = `/office/web-apps/apps/api/documents/api.js?v=${new Date().getTime()}`;
+            script.async = true;
+
+            script.onload = () => {
+                console.log("DEBUG Editor: OnlyOffice script onload triggered");
+                initEditor(true);
+            };
+
+            script.onerror = (e) => {
+                console.error("DEBUG Editor: Script load error", e);
+                setError("Gagal memuat script OnlyOffice dari server. Pastikan koneksi stabil.");
+                setLoading(false);
+            };
+
+            document.body.appendChild(script);
+        };
+
+        loadScript();
 
         return () => {
-            // Clean up editor instance if necessary
-            // OnlyOffice usually handles this but we might want to ensure the div is cleared
             const container = document.getElementById("onlyoffice-editor-full");
             if (container) container.innerHTML = "";
         };
@@ -62,13 +74,34 @@ const Editor: React.FC = () => {
             const config = resp.data;
             console.log("DEBUG Editor: Fetched OnlyOffice Config:", config);
 
-            if (window.DocsAPI) {
-                new window.DocsAPI.DocEditor("onlyoffice-editor-full", config);
-                setLoading(false);
-            } else {
-                setError("OnlyOffice DocsAPI not available.");
-                setLoading(false);
-            }
+            // Poll for DocsAPI for up to 5 seconds
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds (100ms * 50)
+
+            const checkAndInit = () => {
+                if (window.DocsAPI) {
+                    console.log("DEBUG Editor: DocsAPI found, initializing editor");
+                    new window.DocsAPI.DocEditor("onlyoffice-editor-full", config);
+                    setLoading(false);
+                    return true;
+                }
+                return false;
+            };
+
+            if (checkAndInit()) return;
+
+            const interval = setInterval(() => {
+                attempts++;
+                if (checkAndInit()) {
+                    clearInterval(interval);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    console.error("DEBUG Editor: DocsAPI never became available");
+                    setError("Sistem gagal mendeteksi OnlyOffice DocsAPI (Timeout 5detik). Harap muat ulang halaman (F5).");
+                    setLoading(false);
+                }
+            }, 100);
+
         } catch (err: any) {
             console.error("Failed to load editor config", err);
             setError("Gagal memuat editor dokumen. Pastikan file tersedia dan Anda memiliki akses.");
