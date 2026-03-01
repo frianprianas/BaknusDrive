@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
+	"time"
 )
 
 // CreateEmptyDocx creates a minimal valid .docx file in memory
@@ -18,6 +19,8 @@ func CreateEmptyDocx() ([]byte, error) {
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
 </Types>`)
 
 	// _rels/.rels
@@ -25,6 +28,8 @@ func CreateEmptyDocx() ([]byte, error) {
 	fmt.Fprint(rels, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
 </Relationships>`)
 
 	// word/document.xml
@@ -32,9 +37,27 @@ func CreateEmptyDocx() ([]byte, error) {
 	fmt.Fprint(doc, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>
-    <w:p><w:r><w:t></w:t></w:r></w:p>
+    <w:p><w:r><w:t>Dokumen Baru BaknusDrive</w:t></w:r></w:p>
   </w:body>
 </w:document>`)
+
+	// docProps/core.xml
+	now := time.Now().Format("2006-01-02T15:04:05Z")
+	core, _ := w.Create("docProps/core.xml")
+	fmt.Fprintf(core, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>BaknusDrive Doc</dc:title>
+  <cp:lastModifiedBy>BaknusDrive</cp:lastModifiedBy>
+  <dcterms:created xsi:type="dcterms:W3CDTF">%s</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">%s</dcterms:modified>
+</cp:coreProperties>`, now, now)
+
+	// docProps/app.xml
+	app, _ := w.Create("docProps/app.xml")
+	fmt.Fprint(app, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Application>BaknusDrive Document Generator</Application>
+</Properties>`)
 
 	if err := w.Close(); err != nil {
 		return nil, err
@@ -56,6 +79,7 @@ func CreateEmptyXlsx() ([]byte, error) {
   <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
   <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
   <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
 </Types>`)
 
 	// _rels/.rels
@@ -63,6 +87,7 @@ func CreateEmptyXlsx() ([]byte, error) {
 	fmt.Fprint(rels, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
 </Relationships>`)
 
 	// xl/workbook.xml
@@ -97,6 +122,16 @@ func CreateEmptyXlsx() ([]byte, error) {
   <cellStyleXfs count="1"><xf/></cellStyleXfs>
   <cellXfs count="1"><xf/></cellXfs>
 </styleSheet>`)
+
+	// docProps/core.xml
+	now := time.Now().Format("2006-01-02T15:04:05Z")
+	core, _ := w.Create("docProps/core.xml")
+	fmt.Fprintf(core, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>BaknusDrive Sheet</dc:title>
+  <dcterms:created xsi:type="dcterms:W3CDTF">%s</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">%s</dcterms:modified>
+</cp:coreProperties>`, now, now)
 
 	if err := w.Close(); err != nil {
 		return nil, err
