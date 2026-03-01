@@ -159,7 +159,15 @@ func RawFileAccess(c *gin.Context) {
 	c.Header("Expires", "0")
 	c.Header("X-Content-Type-Options", "nosniff")
 
-	c.File(file.Path)
+	// Baca file secara manual dan kirim dengan c.Data() agar Content-Type
+	// yang sudah kita set tidak ditimpa oleh deteksi otomatis Gin/http.ServeFile
+	fileBytes, err := os.ReadFile(file.Path)
+	if err != nil {
+		log.Printf("[RawFileAccess] CRITICAL: Cannot read file: %s, err: %v", file.Path, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Cannot read file"})
+		return
+	}
+	c.Data(http.StatusOK, contentType, fileBytes)
 }
 
 func DocCallback(c *gin.Context) {
