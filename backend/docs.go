@@ -122,12 +122,14 @@ func HasAccessToFile(userID string, fileID uint) bool {
 
 // Special raw download endpoint for OnlyOffice Document Server
 func RawFileAccess(c *gin.Context) {
-	fileID := c.Param("id")
-	log.Printf("[RawFileAccess] Request received for file ID: %s", fileID)
+	idParam := c.Param("id")
+	id, _ := strconv.Atoi(idParam)
+
+	log.Printf("[RawFileAccess] Request for file ID: %d", id)
 
 	var file models.File
-	if err := DB.Where("id = ?", fileID).First(&file).Error; err != nil {
-		log.Printf("[RawFileAccess] ERROR: File record not found in DB for ID %s: %v", fileID, err)
+	if err := DB.Where("id = ?", id).First(&file).Error; err != nil {
+		log.Printf("[RawFileAccess] ERROR: File not found for ID %d: %v", id, err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
 		return
 	}
