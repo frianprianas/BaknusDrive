@@ -69,8 +69,9 @@ services:
     ports:
       - "0.0.0.0:8085:9980"
     environment:
-      - aliasgroup1=https://baknusdrive.smkbn666.sch.id:443,http://backend:8080,http://localhost:8082
-      - extra_params=--o:ssl.enable=false --o:ssl.termination=false --o:net.post_allow.host=.* --o:storage.wopi.alias_groups.mode=first --o:net.frame_ancestors=
+      - aliasgroup1=https://baknusdrive.smkbn666.sch.id:443
+      - server_name=baknusdrive.smkbn666.sch.id
+      - extra_params=--o:ssl.enable=false --o:ssl.termination=true --o:net.post_allow.host=.* --o:storage.wopi.alias_groups.mode=first --o:net.content_security_policy=frame-ancestors%20https://baknusdrive.smkbn666.sch.id%20'self'
     networks:
       - baknus_network
   postgres:
