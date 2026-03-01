@@ -71,7 +71,7 @@ services:
     environment:
       - aliasgroup1=http://backend:8080
       - aliasgroup2=https://baknusdrive.smkbn666.sch.id:443
-      - extra_params=--o:ssl.enable=false --o:ssl.termination=true --o:net.post_allow.host=.* --o:storage.wopi.alias_groups.mode=first --o:net.content_security_policy=frame-ancestors%20*%20'self'; --o:logging.level=warning
+      - extra_params=--o:ssl.enable=false --o:ssl.termination=true --o:net.post_allow.host=.* --o:net.content_security_policy=frame-ancestors%20*
     networks:
       - baknus_network
   postgres:
