@@ -32,9 +32,9 @@ const Editor: React.FC = () => {
     // Construct the WOPISrc for internal docker routing
     const wopiSrc = encodeURIComponent(`http://backend:8080/wopi/files/${id}`);
 
-    // Reverting to absolute URL with port 8085 because Vite proxying /browser is causing Refused to Connect on the production domain
-    const host = window.location.hostname;
-    const collaboraUrl = `http://${host}:8085/browser/dist/cool.html?WOPISrc=${wopiSrc}`;
+    // Using relative URL to stay within the same HTTPS context and avoid Mixed Content blocks.
+    // The request will be handled by the Vite/Nginx proxy on the same domain.
+    const collaboraUrl = `/browser/dist/cool.html?WOPISrc=${wopiSrc}`;
 
     return (
         <div className="fixed inset-0 flex flex-col bg-white dark:bg-slate-900 z-[1000] overflow-hidden">

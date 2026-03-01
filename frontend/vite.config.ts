@@ -34,6 +34,11 @@ export default defineConfig({
         target: 'http://collabora:9980',
         changeOrigin: true,
         ws: true,
+      },
+      '/coolws': {
+        target: 'http://collabora:9980',
+        changeOrigin: true,
+        ws: true,
       }
     }
   },
