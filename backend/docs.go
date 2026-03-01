@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
 )
 
 type DocConfig struct {
@@ -41,7 +40,7 @@ type DocConfig struct {
 			} `json:"goback"`
 		} `json:"customization"`
 	} `json:"editorConfig"`
-	Token string `json:"token,omitempty"`
+	// JWT disabled — no token field needed
 }
 
 func GetDocConfig(c *gin.Context) {
@@ -93,16 +92,7 @@ func GetDocConfig(c *gin.Context) {
 
 	config.EditorConfig.Customization.Goback.URL = publicURL + "/dashboard"
 
-	// Sign with JWT if enabled
-	jwtSecret := os.Getenv("ONLYOFFICE_DS_JWT_SECRET")
-	if jwtSecret != "" {
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-			"document":     config.Document,
-			"editorConfig": config.EditorConfig,
-		})
-		tokenString, _ := token.SignedString([]byte(jwtSecret))
-		config.Token = tokenString
-	}
+	// JWT disabled — OnlyOffice runs without JWT verification
 
 	c.JSON(http.StatusOK, config)
 }
