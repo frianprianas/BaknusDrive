@@ -41,6 +41,28 @@ func main() {
 		api.GET("/ping", func(c *gin.Context) {
 			c.JSON(200, gin.H{"message": "BaknusDrive Backend is running!"})
 		})
+
+		// DEBUG: Direct template test
+		api.GET("/debug/template/:type", func(c *gin.Context) {
+			fileType := c.Param("type")
+			var b []byte
+			switch fileType {
+			case "docx":
+				b, _ = CreateEmptyDocx()
+				c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+				c.Header("Content-Disposition", "attachment; filename=\"debug.docx\"")
+			case "xlsx":
+				b, _ = CreateEmptyXlsx()
+				c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+				c.Header("Content-Disposition", "attachment; filename=\"debug.xlsx\"")
+			case "pptx":
+				b, _ = CreateEmptyPptx()
+				c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.presentationml.presentation")
+				c.Header("Content-Disposition", "attachment; filename=\"debug.pptx\"")
+			}
+			c.Data(200, c.Writer.Header().Get("Content-Type"), b)
+		})
+
 		api.POST("/login", LoginHandler)
 		api.GET("/me", AuthMiddleware(), Me)
 		api.GET("/users", ListUsers)

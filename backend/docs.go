@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -72,20 +73,19 @@ func GetDocConfig(c *gin.Context) {
 	config.Document.Key = fmt.Sprintf("%d-%d-%d", file.ID, file.UpdatedAt.Unix(), time.Now().Unix())
 	config.Document.Title = file.Name
 
-	// Use internal Docker URL with port 8080 for OnlyOffice communication.
-	internalURL := "http://backend:8080"
-
-	config.Document.URL = fmt.Sprintf("%s/api/raw/doc/%d/%s?token=%s", internalURL, file.ID, file.Name, "INTERNAL_DOC_TOKEN")
-	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", internalURL, file.ID)
-	log.Printf("Preparing Doc Config: %s", config.Document.URL)
-	config.EditorConfig.User.ID = user.ID
-	config.EditorConfig.User.Name = user.FullName
-
 	// Public URL for browser-facing links
 	publicURL := "http://" + c.Request.Host
 	if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
 		publicURL = "https://" + c.Request.Host
 	}
+
+	// Use internal Docker URL with port 8080 for OnlyOffice communication.
+	internalURL := "http://backend:8080"
+	config.Document.URL = fmt.Sprintf("%s/api/raw/doc/%d/%s?token=%s", publicURL, file.ID, url.PathEscape(file.Name), "INTERNAL_DOC_TOKEN")
+	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", internalURL, file.ID)
+	log.Printf("Preparing Doc Config: Document.URL=%s, CallbackURL=%s", config.Document.URL, config.EditorConfig.CallbackURL)
+	config.EditorConfig.User.ID = user.ID
+	config.EditorConfig.User.Name = user.FullName
 
 	config.EditorConfig.Customization.Goback.URL = publicURL + "/dashboard"
 
@@ -154,7 +154,13 @@ func RawFileAccess(c *gin.Context) {
 	log.Printf("[RawFileAccess] File size: %d bytes", info.Size())
 
 	c.Header("Content-Type", contentType)
+	c.Header("Content-Length", fmt.Sprintf("%d", info.Size()))
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", file.Name))
+	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+	c.Header("Pragma", "no-cache")
+	c.Header("Expires", "0")
+	c.Header("X-Content-Type-Options", "nosniff")
+
 	c.File(file.Path)
 }
 
