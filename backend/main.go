@@ -75,8 +75,8 @@ func main() {
 			driveAPI.POST("/doc/create", CreateDoc)
 			driveAPI.GET("/doc/config/:id", GetDocConfig)
 		}
-		// Public/Internal raw file access for OnlyOffice
-		api.GET("/raw/doc/:id", RawFileAccess)
+		// Public/Internal raw file access for OnlyOffice (with wildcard filename support)
+		api.GET("/raw/doc/:id/*filename", RawFileAccess)
 		api.POST("/doc/callback/:id", DocCallback)
 
 		// Admin APIs
