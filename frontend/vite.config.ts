@@ -34,13 +34,13 @@ export default defineConfig({
       },
       '/cool': {
         target: 'http://collabora:9980',
-        changeOrigin: false,
+        changeOrigin: true,
         ws: true,
         xfwd: true,
       },
       '/coolws': {
         target: 'http://collabora:9980',
-        changeOrigin: false,
+        changeOrigin: true,
         ws: true,
         xfwd: true,
       }
