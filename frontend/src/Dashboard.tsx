@@ -139,10 +139,6 @@ export default function Dashboard() {
                     const config = resp.data;
                     console.log("DEBUG: Fetched OnlyOffice Config:", config);
 
-                    // User Request: "Sepertinya begitu file dibuat harusnya masuk ke tab baru untuk memastikan alamatnya benar"
-                    console.log("DEBUG: Document URL to open:", config.document.url);
-                    window.open(config.document.url, '_blank'); // Open the direct link for debugging
-
                     // @ts-ignore
                     const docEditorInstance = new window.DocsAPI.DocEditor("onlyoffice-editor-container", config);
                 } catch (error) {

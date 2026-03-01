@@ -79,9 +79,14 @@ func GetDocConfig(c *gin.Context) {
 		publicURL = "https://" + c.Request.Host
 	}
 
-	config.Document.URL = fmt.Sprintf("%s/api/raw/doc/%d/%s?token=%s", publicURL, file.ID, url.PathEscape(file.Name), "INTERNAL_DOC_TOKEN")
-	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", publicURL, file.ID)
-	log.Printf("Preparing Doc Config: Document.URL=%s, CallbackURL=%s", config.Document.URL, config.EditorConfig.CallbackURL)
+	// Because OnlyOffice runs in a Docker container alongside the backend,
+	// it should use the internal Docker network for fetching and saving files to bypass Cloudflare/NAT loopback errors.
+	internalURL := "http://backend:8080"
+
+	config.Document.URL = fmt.Sprintf("%s/api/raw/doc/%d/%s?token=%s", internalURL, file.ID, url.PathEscape(file.Name), "INTERNAL_DOC_TOKEN")
+	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", internalURL, file.ID)
+
+	log.Printf("Preparing Doc Config: Document.URL=%s, CallbackURL=%s (Internal Routing)", config.Document.URL, config.EditorConfig.CallbackURL)
 	config.EditorConfig.User.ID = user.ID
 	config.EditorConfig.User.Name = user.FullName
 
