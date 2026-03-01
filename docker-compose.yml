@@ -63,20 +63,16 @@ services:
     networks:
       - baknus_network
 
-  onlyoffice-ds:
-    image: onlyoffice/documentserver:latest
+  collabora:
+    image: collabora/code:latest
     restart: always
     ports:
-      - "0.0.0.0:8084:80"
+      - "0.0.0.0:8084:9980"
     environment:
-      - JWT_ENABLED=false
-      - ALLOW_PRIVATE_IP_ADDRESS=true
-    volumes:
-      - onlyoffice_data:/var/www/onlyoffice/Data
-      - onlyoffice_logs:/var/log/onlyoffice
+      - aliasgroup1=http://backend:8080,http://localhost:8082
+      - extra_params=--o:ssl.enable=false --o:ssl.termination=false --o:net.post_allow.host=.* --o:storage.wopi.alias_groups.mode=first
     networks:
       - baknus_network
-
   postgres:
     image: postgres:15-alpine
     restart: always
@@ -107,8 +103,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  onlyoffice_data:
-  onlyoffice_logs:
+
 
 networks:
   baknus_network:

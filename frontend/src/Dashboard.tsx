@@ -545,28 +545,31 @@ export default function Dashboard() {
     };
 
     const handleCreateDoc = async (type: string) => {
+        setShowNewMenu(false);
         const defaultName = type === 'docx' ? 'New Document' : type === 'xlsx' ? 'New Spreadsheet' : 'New Presentation';
-        const name = prompt(`Enter ${type} name:`, defaultName);
-        if (!name) return;
+
+        const newTab = window.open('about:blank', '_blank');
 
         try {
             const token = localStorage.getItem('token');
             const resp = await axios.post('/api/drive/doc/create', {
-                name: name,
+                name: defaultName,
                 type: type,
                 folder_id: currentFolderId
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             fetchDriveData();
-            setShowNewMenu(false);
 
             // Auto open the new document in a new tab
-            if (resp.data && resp.data.id) {
-                window.open(`/editor/${resp.data.id}`, '_blank');
+            if (resp.data && resp.data.id && newTab) {
+                newTab.location.href = `/editor/${resp.data.id}`;
+            } else if (newTab) {
+                newTab.close();
             }
         } catch (error) {
             console.error("Failed to create document", error);
+            if (newTab) newTab.close();
             alert("Failed to create document");
         }
     };
