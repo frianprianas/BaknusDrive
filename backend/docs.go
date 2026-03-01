@@ -69,7 +69,9 @@ func GetDocConfig(c *gin.Context) {
 	// Build Config
 	config := DocConfig{}
 	config.Document.FileType = strings.TrimPrefix(filepath.Ext(file.Name), ".")
-	config.Document.Key = fmt.Sprintf("%d-%d-%d", file.ID, file.UpdatedAt.Unix(), time.Now().Unix())
+	// Key harus konsisten untuk file yang sama (tidak berubah tiap request).
+	// OnlyOffice akan cache berdasarkan key ini. Gunakan ID + UpdatedAt saja.
+	config.Document.Key = fmt.Sprintf("doc-%d-%d", file.ID, file.UpdatedAt.Unix())
 	config.Document.Title = file.Name
 
 	// Public URL for browser-facing links
@@ -78,11 +80,11 @@ func GetDocConfig(c *gin.Context) {
 		publicURL = "https://" + c.Request.Host
 	}
 
-	// Because OnlyOffice runs in a Docker container alongside the backend,
-	// it should use the internal Docker network for fetching and saving files to bypass Cloudflare/NAT loopback errors.
+	// OnlyOffice DS (dalam Docker) mengambil file via internal network.
+	// Gunakan hanya file ID di URL — tidak perlu nama file (wildcard route handle ini).
 	internalURL := "http://backend:8080"
 
-	// Build the document URL without any token query param — OnlyOffice DS will use JWT to verify
+	// URL dokumen: cukup pakai ID, nama file di path tidak kritis karena RawFileAccess pakai ID
 	config.Document.URL = fmt.Sprintf("%s/api/raw/doc/%d/%s", internalURL, file.ID, url.PathEscape(file.Name))
 	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", internalURL, file.ID)
 
