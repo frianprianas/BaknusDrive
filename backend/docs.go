@@ -19,7 +19,8 @@ import (
 
 // CollaboraPublicURL is the externally accessible URL for Collabora Online.
 // Collabora opens inside an iframe that the browser loads, so this must be reachable by the client browser.
-const CollaboraPublicURL = "https://baknusdrive.smkbn666.sch.id/collabora"
+// Nginx proxies /browser, /cool, /hosting paths to Collabora on port 8085.
+const CollaboraPublicURL = "https://baknusdrive.smkbn666.sch.id"
 
 // WopiBaseURL is the URL Collabora uses to call back to the WOPI host (backend).
 // Must be reachable by the Collabora container (internal Docker network).
@@ -159,38 +160,16 @@ func OpenDoc(c *gin.Context) {
 		return
 	}
 
-	// ── Determine Collabora action URL based on mime type ──
-	// Collabora supports:  edit (read-write)  |  view (read-only)
-	action := "edit"
-	if !canWrite {
-		action = "view"
-	}
-
-	// Map MIME to Collabora app path
-	var appPath string
-	switch file.MimeType {
-	case "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-		"application/msword":
-		appPath = "/loleaflet/dist/loleaflet.html"
-	case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-		"application/vnd.ms-excel":
-		appPath = "/loleaflet/dist/loleaflet.html"
-	case "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-		"application/vnd.ms-powerpoint":
-		appPath = "/loleaflet/dist/loleaflet.html"
-	default:
-		appPath = "/loleaflet/dist/loleaflet.html"
-	}
-	_ = appPath
-	_ = action
-
-	// ── Build WOPI src URL (what Collabora fetches to get file info) ──
+	// ── Build WOPI src URL (Collabora uses this to call back to backend for file info) ──
+	// WopiPublicBaseURL must be reachable by the Collabora container (internal Docker: http://backend:8080)
 	wopiSrc := fmt.Sprintf("%s/wopi/files/%d", WopiPublicBaseURL, fileID)
 
 	// ── Build the final Collabora URL ──
-	// Format: https://<collabora>/loleaflet/<version>/loleaflet.html?WOPISrc=<src>&access_token=<token>
+	// Modern Collabora CODE uses /browser/dist/cool.html (not the old /loleaflet path)
+	// CollaboraPublicURL = https://baknusdrive.smkbn666.sch.id
+	// Nginx routes /browser and /cool to Collabora container on port 8085
 	collaboraURL := fmt.Sprintf(
-		"%s/loleaflet/dist/loleaflet.html?WOPISrc=%s&access_token=%s&lang=id",
+		"%s/browser/dist/cool.html?WOPISrc=%s&access_token=%s&lang=id",
 		CollaboraPublicURL,
 		url.QueryEscape(wopiSrc),
 		url.QueryEscape(token),
