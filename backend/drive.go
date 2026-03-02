@@ -520,6 +520,33 @@ func ListStarred(c *gin.Context) {
 	})
 }
 
+func ListRecent(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+
+	var files []models.File
+
+	// For recent, we fetch the latest updated files up to 50
+	DB.Preload("User").
+		Where("user_id = ?", userID).
+		Order("updated_at desc").
+		Limit(50).
+		Find(&files)
+
+	for i := range files {
+		if files[i].UserID != userID {
+			files[i].OwnerName = files[i].User.FullName
+		}
+		var count int64
+		DB.Model(&models.Share{}).Where("file_id = ?", files[i].ID).Count(&count)
+		files[i].IsShared = count > 0
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"folders": []models.Folder{}, // Typically we only show recent files, not folders, but keep format consistent.
+		"files":   files,
+	})
+}
+
 func DeleteFolder(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	folderID := c.Param("id")

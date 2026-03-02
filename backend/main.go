@@ -93,6 +93,9 @@ func main() {
 			driveAPI.PUT("/folder/:id/star", ToggleFolderStar)
 			driveAPI.GET("/starred", ListStarred)
 
+			// Recent APIs
+			driveAPI.GET("/recent", ListRecent)
+
 			// Trash APIs
 			driveAPI.GET("/trash", ListTrash)
 			driveAPI.POST("/trash/:type/:id/restore", RestoreItem)

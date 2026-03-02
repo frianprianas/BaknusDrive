@@ -187,6 +187,10 @@ export default function Dashboard() {
                 const resp = await axios.get('/api/drive/starred', { headers: { Authorization: `Bearer ${token}` } });
                 setFolders(resp.data.folders || []);
                 setFiles(resp.data.files || []);
+            } else if (currentView === 'recent') {
+                const resp = await axios.get('/api/drive/recent', { headers: { Authorization: `Bearer ${token}` } });
+                setFolders(resp.data.folders || []);
+                setFiles(resp.data.files || []);
             } else if (currentView === 'trash') {
                 const resp = await axios.get('/api/drive/trash', { headers: { Authorization: `Bearer ${token}` } });
                 setFolders(resp.data.folders || []);
