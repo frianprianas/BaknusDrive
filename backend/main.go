@@ -95,6 +95,7 @@ func main() {
 
 			// Recent APIs
 			driveAPI.GET("/recent", ListRecent)
+			driveAPI.GET("/search", SearchDrive)
 
 			// Trash APIs
 			driveAPI.GET("/trash", ListTrash)

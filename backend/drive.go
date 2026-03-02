@@ -547,6 +547,44 @@ func ListRecent(c *gin.Context) {
 	})
 }
 
+func SearchDrive(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	queryStr := c.Query("q")
+
+	var folders []models.Folder
+	var files []models.File
+
+	if queryStr != "" {
+		likeQuery := "%" + queryStr + "%"
+		// Only search user's own items for now.
+		// You could expand to search shared items as well if you join tables, but keeping it simple.
+		DB.Preload("User").Where("user_id = ? AND name ILIKE ?", userID, likeQuery).Find(&folders)
+		DB.Preload("User").Where("user_id = ? AND name ILIKE ?", userID, likeQuery).Find(&files)
+	}
+
+	for i := range folders {
+		if folders[i].UserID != userID {
+			folders[i].OwnerName = folders[i].User.FullName
+		}
+		var count int64
+		DB.Model(&models.Share{}).Where("folder_id = ?", folders[i].ID).Count(&count)
+		folders[i].IsShared = count > 0
+	}
+	for i := range files {
+		if files[i].UserID != userID {
+			files[i].OwnerName = files[i].User.FullName
+		}
+		var count int64
+		DB.Model(&models.Share{}).Where("file_id = ?", files[i].ID).Count(&count)
+		files[i].IsShared = count > 0
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"folders": folders,
+		"files":   files,
+	})
+}
+
 func DeleteFolder(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	folderID := c.Param("id")

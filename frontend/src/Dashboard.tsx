@@ -64,6 +64,7 @@ export default function Dashboard() {
     const [uploadProgress, setUploadProgress] = useState<{ active: boolean, percent: number, fileName: string }>({ active: false, percent: 0, fileName: "" });
     const [downloading, setDownloading] = useState<boolean>(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [formStatusFilter, setFormStatusFilter] = useState("Semua");
     const [newDocModal, setNewDocModal] = useState<{ visible: boolean, type: string, name: string }>({ visible: false, type: '', name: '' });
 
@@ -92,10 +93,29 @@ export default function Dashboard() {
     }, [contextMenu.visible]);
 
     useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchQuery]);
+
+    useEffect(() => {
+        if (debouncedSearchQuery.trim() !== '') {
+            if (currentView !== 'search') setCurrentView('search');
+            setCurrentFolderId(null);
+            setBreadcrumb([{ id: null, name: `Search results for "${debouncedSearchQuery}"` }]);
+        } else if (currentView === 'search') {
+            setCurrentView('drive');
+            setCurrentFolderId(null);
+            setBreadcrumb([{ id: null, name: 'My Drive' }]);
+        }
+    }, [debouncedSearchQuery]);
+
+    useEffect(() => {
         fetchUserProfile();
         fetchDriveData();
         fetchUsers();
-    }, [currentFolderId, currentView, selectedDevice]);
+    }, [currentFolderId, currentView, selectedDevice, debouncedSearchQuery]);
 
     // Fast polling for forms to give a "real-time" feel for response counts
     useEffect(() => {
@@ -189,6 +209,13 @@ export default function Dashboard() {
                 setFiles(resp.data.files || []);
             } else if (currentView === 'recent') {
                 const resp = await axios.get('/api/drive/recent', { headers: { Authorization: `Bearer ${token}` } });
+                setFolders(resp.data.folders || []);
+                setFiles(resp.data.files || []);
+            } else if (currentView === 'search') {
+                const resp = await axios.get('/api/drive/search', {
+                    params: { q: debouncedSearchQuery },
+                    headers: { Authorization: `Bearer ${token}` }
+                });
                 setFolders(resp.data.folders || []);
                 setFiles(resp.data.files || []);
             } else if (currentView === 'trash') {
