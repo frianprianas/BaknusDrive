@@ -46,7 +46,8 @@ export default function Dashboard() {
     const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
     const [currentView, setCurrentView] = useState('drive');
     const [breadcrumb, setBreadcrumb] = useState<{ id: number | string | null, name: string }[]>([{ id: null, name: 'My Drive' }]);
-    const [contextMenu, setContextMenu] = useState<{ visible: boolean, x: number, y: number, item: any, type: 'file' | 'folder' | null }>({ visible: false, x: 0, y: 0, item: null, type: null });
+    const [contextMenu, setContextMenu] = useState<{ visible: boolean, x: number, y: number, item: any, type: 'file' | 'folder' | 'background' | null }>({ visible: false, x: 0, y: 0, item: null, type: null });
+    const [clipboard, setClipboard] = useState<{ item: any, type: 'file' | 'folder', action: 'copy' | 'cut' } | null>(null);
 
     const [shareModal, setShareModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null }>({ visible: false, item: null, type: null });
     const [usersList, setUsersList] = useState<any[]>([]); // also used for admin users view
@@ -486,34 +487,70 @@ export default function Dashboard() {
         }
     };
 
-    const handleCopyFile = async (id: number) => {
+    const handleClipboardCut = (item: any, type: 'file' | 'folder') => {
+        setClipboard({ item, type, action: 'cut' });
+        setContextMenu({ ...contextMenu, visible: false });
+    };
+
+    const handleClipboardCopy = (item: any, type: 'file' | 'folder') => {
+        setClipboard({ item, type, action: 'copy' });
+        setContextMenu({ ...contextMenu, visible: false });
+    };
+
+    const handleClipboardPaste = async () => {
+        if (!clipboard) return;
         try {
             const token = localStorage.getItem('token');
             const data = { target_folder_id: currentFolderId };
 
-            await axios.post(`/api/drive/file/${id}/copy`, data, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            if (clipboard.action === 'copy') {
+                if (clipboard.type === 'file') {
+                    await axios.post(`/api/drive/file/${clipboard.item.id}/copy`, data, { headers: { Authorization: `Bearer ${token}` } });
+                } else {
+                    alert("Folder copying is not yet supported. You can only cut folders.");
+                    return;
+                }
+            } else if (clipboard.action === 'cut') {
+                if (clipboard.type === 'file') {
+                    await axios.put(`/api/drive/file/${clipboard.item.id}/move`, data, { headers: { Authorization: `Bearer ${token}` } });
+                } else {
+                    await axios.put(`/api/drive/folder/${clipboard.item.id}/move`, data, { headers: { Authorization: `Bearer ${token}` } });
+                }
+                setClipboard(null); // Clear clipboard after successful cut & paste
+            }
             fetchDriveData();
             setContextMenu({ ...contextMenu, visible: false });
         } catch (error: any) {
-            console.error("Failed to copy file", error);
+            console.error("Paste failed", error);
             if (error.response?.data?.error) {
-                alert("Gagal menyalin file: " + error.response.data.error);
+                alert("Gagal melakukan paste: " + error.response.data.error);
             } else {
-                alert("Failed to copy file.");
+                alert("Failed to paste item.");
             }
         }
     };
 
     const handleContextMenu = (e: React.MouseEvent, item: any, type: 'file' | 'folder') => {
         e.preventDefault();
+        e.stopPropagation();
         setContextMenu({
             visible: true,
             x: e.pageX,
             y: e.pageY,
             item,
             type
+        });
+    };
+
+    const handleBackgroundContextMenu = (e: React.MouseEvent) => {
+        if (currentView !== 'drive' || e.target !== e.currentTarget) return;
+        e.preventDefault();
+        setContextMenu({
+            visible: true,
+            x: e.pageX,
+            y: e.pageY,
+            item: null,
+            type: 'background'
         });
     };
 
@@ -729,7 +766,7 @@ export default function Dashboard() {
 
     const handleShareMenu = () => {
         if (!contextMenu.item || !contextMenu.type) return;
-        setShareModal({ visible: true, item: contextMenu.item, type: contextMenu.type });
+        setShareModal({ visible: true, item: contextMenu.item, type: contextMenu.type as 'file' | 'folder' });
         setContextMenu({ ...contextMenu, visible: false });
     };
 
@@ -1134,7 +1171,10 @@ export default function Dashboard() {
                 )}
 
                 {/* File List Content */}
-                <div className="flex-1 overflow-y-auto w-full relative">
+                <div
+                    className="flex-1 overflow-y-auto w-full relative"
+                    onContextMenu={handleBackgroundContextMenu}
+                >
                     {loading && (
                         <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center z-10">
                             <Loader2 size={32} className="animate-spin text-baknus-500" />
@@ -1605,67 +1645,88 @@ export default function Dashboard() {
                 </div>
 
                 {/* Right Click Context Menu */}
-                {contextMenu.visible && contextMenu.item && (
+                {contextMenu.visible && contextMenu.type !== null && (
                     <div
                         className="fixed bg-white dark:bg-slate-800 shadow-xl rounded-lg py-2 border border-slate-100 dark:border-slate-700 z-[100] min-w-[200px]"
                         style={{ top: contextMenu.y, left: contextMenu.x }}
                     >
-                        {(contextMenu.type === 'file' || contextMenu.type === 'folder') && (
-                            <>
-                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => {
-                                    if (contextMenu.type === 'file') {
-                                        handleDownloadFile(contextMenu.item.id, contextMenu.item.name)
-                                    } else {
-                                        handleDownloadFolder(contextMenu.item.id, contextMenu.item.name)
-                                    }
-                                }}>
-                                    <Download size={16} className="text-slate-500 dark:text-slate-400" />
-                                    Download
-                                </button>
-                                <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
-                            </>
-                        )}
-                        {currentView === 'trash' ? (
-                            <button
-                                className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-green-600 transition-colors"
-                                onClick={handleRestoreItem}
-                            >
-                                <RotateCcw size={16} className="text-green-500" />
-                                Restore
-                            </button>
-                        ) : currentView === 'shared' ? (
-                            null
-
-                        ) : (
-                            <>
-                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleShareMenu}>
-                                    <Share2 size={16} className="text-slate-500 dark:text-slate-400" />
-                                    Share
-                                </button>
-                                <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
-                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleRenameMenu}>
-                                    <Edit2 size={16} className="text-slate-500 dark:text-slate-400" />
-                                    Rename
-                                </button>
-                                {contextMenu.type === 'file' && (
-                                    <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => handleCopyFile(contextMenu.item.id)}>
-                                        <Copy size={16} className="text-slate-500 dark:text-slate-400" />
-                                        Make a copy
-                                    </button>
-                                )}
-                                <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                        {contextMenu.type === 'background' ? (
+                            clipboard && clipboard.action !== null ? (
                                 <button
-                                    className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-red-600 transition-colors"
-                                    onClick={() => {
-                                        contextMenu.type === 'file' ? handleDeleteFile(contextMenu.item.id) : handleDeleteFolder(contextMenu.item.id);
-                                        setContextMenu({ ...contextMenu, visible: false });
-                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors"
+                                    onClick={handleClipboardPaste}
                                 >
-                                    <Trash size={16} className="text-red-500" />
-                                    Remove
+                                    <ClipboardList size={16} className="text-slate-500 dark:text-slate-400" />
+                                    Paste
                                 </button>
+                            ) : (
+                                <div className="px-4 py-2 text-sm text-slate-400 dark:text-slate-500">
+                                    No actions available
+                                </div>
+                            )
+                        ) : contextMenu.item ? (
+                            <>
+                                {(contextMenu.type === 'file' || contextMenu.type === 'folder') && (
+                                    <>
+                                        <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => {
+                                            if (contextMenu.type === 'file') {
+                                                handleDownloadFile(contextMenu.item.id, contextMenu.item.name)
+                                            } else {
+                                                handleDownloadFolder(contextMenu.item.id, contextMenu.item.name)
+                                            }
+                                        }}>
+                                            <Download size={16} className="text-slate-500 dark:text-slate-400" />
+                                            Download
+                                        </button>
+                                        <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                                    </>
+                                )}
+                                {currentView === 'trash' ? (
+                                    <button
+                                        className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-green-600 transition-colors"
+                                        onClick={handleRestoreItem}
+                                    >
+                                        <RotateCcw size={16} className="text-green-500" />
+                                        Restore
+                                    </button>
+                                ) : currentView === 'shared' ? (
+                                    null
+                                ) : (
+                                    <>
+                                        <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleShareMenu}>
+                                            <Share2 size={16} className="text-slate-500 dark:text-slate-400" />
+                                            Share
+                                        </button>
+                                        <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                                        <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleRenameMenu}>
+                                            <Edit2 size={16} className="text-slate-500 dark:text-slate-400" />
+                                            Rename
+                                        </button>
+                                        {contextMenu.type === 'file' && (
+                                            <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => handleClipboardCopy(contextMenu.item, 'file')}>
+                                                <Copy size={16} className="text-slate-500 dark:text-slate-400" />
+                                                Copy
+                                            </button>
+                                        )}
+                                        <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => handleClipboardCut(contextMenu.item, contextMenu.type as 'file' | 'folder')}>
+                                            <ClipboardList size={16} className="text-slate-500 dark:text-slate-400" />
+                                            Cut
+                                        </button>
+                                        <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                                        <button
+                                            className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-red-600 transition-colors"
+                                            onClick={() => {
+                                                contextMenu.type === 'file' ? handleDeleteFile(contextMenu.item.id) : handleDeleteFolder(contextMenu.item.id);
+                                                setContextMenu({ ...contextMenu, visible: false });
+                                            }}
+                                        >
+                                            <Trash size={16} className="text-red-500" />
+                                            Remove
+                                        </button>
+                                    </>
+                                )}
                             </>
-                        )}
+                        ) : null}
                     </div>
                 )}
 
