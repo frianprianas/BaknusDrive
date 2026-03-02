@@ -707,9 +707,21 @@ export default function Dashboard() {
         }
     };
 
-    const getFileIcon = (mimeType: string) => {
-        if (mimeType.startsWith('image/')) return <ImageIcon size={22} className="text-red-500" />;
-        return <FileText size={22} className="text-blue-500" />;
+    const getFileIcon = (fileName: string, mimeType: string) => {
+        const name = (fileName || '').toLowerCase();
+        if (name.endsWith('.docx') || name.endsWith('.doc'))
+            return <FileText size={22} className="text-blue-600" />;
+        if (name.endsWith('.xlsx') || name.endsWith('.xls'))
+            return <FileSpreadsheet size={22} className="text-green-600" />;
+        if (name.endsWith('.pptx') || name.endsWith('.ppt'))
+            return <Presentation size={22} className="text-orange-500" />;
+        if (mimeType === 'application/pdf' || name.endsWith('.pdf'))
+            return <FileText size={22} className="text-red-500" />;
+        if (mimeType.startsWith('image/'))
+            return <ImageIcon size={22} className="text-pink-500" />;
+        if (mimeType.startsWith('video/'))
+            return <FileIcon size={22} className="text-purple-500" />;
+        return <FileText size={22} className="text-slate-500" />;
     };
 
     const formatSize = (bytes: number) => {
@@ -1385,7 +1397,7 @@ export default function Dashboard() {
                                         >
                                             <div className="col-span-10 md:col-span-6 flex items-center gap-4">
                                                 <div className="relative flex-shrink-0">
-                                                    {getFileIcon(f.mime_type)}
+                                                    {getFileIcon(f.name, f.mime_type)}
                                                     {f.is_shared && (
                                                         <div className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-[1px] shadow-sm">
                                                             <Users size={10} className="text-slate-600 dark:text-slate-400" />
@@ -1445,10 +1457,10 @@ export default function Dashboard() {
                                             className="flex flex-col bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer overflow-hidden group"
                                         >
                                             <div className="h-32 bg-slate-100 dark:bg-slate-900/50 flex items-center justify-center p-4 border-b border-slate-200 dark:border-slate-700">
-                                                <div className="transform scale-[2]">{getFileIcon(f.mime_type)}</div>
+                                                <div className="transform scale-[2]">{getFileIcon(f.name, f.mime_type)}</div>
                                             </div>
                                             <div className="p-3 flex items-center gap-3">
-                                                {getFileIcon(f.mime_type)}
+                                                {getFileIcon(f.name, f.mime_type)}
                                                 <div className="flex flex-col min-w-0 flex-1">
                                                     <span className="text-[13px] font-medium text-slate-700 dark:text-slate-300 truncate">{f.name}</span>
                                                 </div>
