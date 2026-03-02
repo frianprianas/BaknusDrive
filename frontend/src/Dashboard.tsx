@@ -1955,22 +1955,26 @@ export default function Dashboard() {
 
                 {/* ===== NEW DOC MODAL ===== */}
                 {newDocModal.visible && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setNewDocModal(prev => ({ ...prev, visible: false }))}>
-                        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 w-full max-w-md mx-4 border border-slate-100 dark:border-slate-700" onClick={e => e.stopPropagation()}>
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setNewDocModal(prev => ({ ...prev, visible: false }))}>
+                        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-12 w-full max-w-2xl mx-6 border border-slate-100 dark:border-slate-700" onClick={e => e.stopPropagation()}>
+
                             {/* Icon & Title */}
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-md ${newDocModal.type === 'docx' ? 'bg-blue-50 dark:bg-blue-900/30' : newDocModal.type === 'xlsx' ? 'bg-green-50 dark:bg-green-900/30' : 'bg-orange-50 dark:bg-orange-900/30'}`}>
-                                    {newDocModal.type === 'docx' && <FileText size={28} className="text-blue-600 dark:text-blue-400" />}
-                                    {newDocModal.type === 'xlsx' && <FileSpreadsheet size={28} className="text-green-600 dark:text-green-400" />}
-                                    {newDocModal.type === 'pptx' && <Presentation size={28} className="text-orange-600 dark:text-orange-400" />}
+                            <div className="flex items-center gap-6 mb-10">
+                                <div className={`w-24 h-24 rounded-3xl flex items-center justify-center shadow-lg flex-shrink-0 ${newDocModal.type === 'docx' ? 'bg-blue-50 dark:bg-blue-900/30' : newDocModal.type === 'xlsx' ? 'bg-green-50 dark:bg-green-900/30' : 'bg-orange-50 dark:bg-orange-900/30'}`}>
+                                    {newDocModal.type === 'docx' && <FileText size={52} className="text-blue-600 dark:text-blue-400" />}
+                                    {newDocModal.type === 'xlsx' && <FileSpreadsheet size={52} className="text-green-600 dark:text-green-400" />}
+                                    {newDocModal.type === 'pptx' && <Presentation size={52} className="text-orange-600 dark:text-orange-400" />}
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-semibold text-slate-800 dark:text-white">
+                                    <h3 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">
                                         {newDocModal.type === 'docx' ? 'Buat Dokumen Baru' : newDocModal.type === 'xlsx' ? 'Buat Spreadsheet Baru' : 'Buat Presentasi Baru'}
                                     </h3>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400">Masukkan nama file sebelum membuat</p>
+                                    <p className="text-lg text-slate-500 dark:text-slate-400">Masukkan nama file sebelum membuat</p>
                                 </div>
                             </div>
+
+                            {/* Label */}
+                            <label className="block text-base font-semibold text-slate-700 dark:text-slate-300 mb-3">Nama File</label>
 
                             {/* Input */}
                             <input
@@ -1978,26 +1982,26 @@ export default function Dashboard() {
                                 value={newDocModal.name}
                                 onChange={e => setNewDocModal(prev => ({ ...prev, name: e.target.value }))}
                                 onKeyDown={e => { if (e.key === 'Enter') handleConfirmCreateDoc(); if (e.key === 'Escape') setNewDocModal(prev => ({ ...prev, visible: false })); }}
-                                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 mb-6 transition-all"
-                                placeholder="Nama file..."
+                                className="w-full px-6 py-5 rounded-2xl border-2 border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white text-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 mb-10 transition-all"
+                                placeholder="Contoh: Laporan Keuangan Maret..."
                                 autoFocus
                                 onFocus={e => e.target.select()}
                             />
 
                             {/* Buttons */}
-                            <div className="flex gap-3">
+                            <div className="flex gap-5">
                                 <button
                                     onClick={() => setNewDocModal(prev => ({ ...prev, visible: false }))}
-                                    className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                                    className="flex-1 py-5 rounded-2xl border-2 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                                 >
                                     Batal
                                 </button>
                                 <button
                                     onClick={handleConfirmCreateDoc}
                                     disabled={!newDocModal.name.trim()}
-                                    className={`flex-1 py-3 rounded-xl text-white text-sm font-semibold shadow-sm transition-all ${newDocModal.type === 'docx' ? 'bg-blue-600 hover:bg-blue-700' : newDocModal.type === 'xlsx' ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-600 hover:bg-orange-700'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                    className={`flex-1 py-5 rounded-2xl text-white text-xl font-bold shadow-lg transition-all ${newDocModal.type === 'docx' ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800' : newDocModal.type === 'xlsx' ? 'bg-green-600 hover:bg-green-700 active:bg-green-800' : 'bg-orange-600 hover:bg-orange-700 active:bg-orange-800'} disabled:opacity-40 disabled:cursor-not-allowed`}
                                 >
-                                    Buat & Buka
+                                    ✨ Buat &amp; Buka
                                 </button>
                             </div>
                         </div>
