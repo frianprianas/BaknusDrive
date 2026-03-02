@@ -94,8 +94,9 @@ func main() {
 			driveAPI.POST("/share", ShareItem)
 			driveAPI.GET("/shared-with-me", ListSharedWithMe)
 
-			// BaknusDoc (OnlyOffice) APIs
+			// BaknusDoc (Collabora) APIs
 			driveAPI.POST("/doc/create", CreateDoc)
+			driveAPI.GET("/doc/open/:id", OpenDoc) // returns Collabora editor URL with per-user WOPI token
 		}
 
 		// Admin APIs

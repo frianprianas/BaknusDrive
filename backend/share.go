@@ -2,13 +2,106 @@
 package main
 
 import (
+	"crypto/tls"
+	"fmt"
+	"log"
 	"net/http"
+	"net/smtp"
 	"strings"
 
 	"baknusdrive/models"
 
 	"github.com/gin-gonic/gin"
 )
+
+// ─── Mailcow SMTP config ────────────────────────────────────────────────────
+const (
+	SMTPHost   = "mail.smk.baktinusantara666.sch.id"
+	SMTPPort   = "587" // STARTTLS
+	SMTPUser   = "noreply@smk.baktinusantara666.sch.id"
+	SMTPPass   = "925B68-0FF6BB-36B760-F6C051-AAF343" // same as Mailcow API key — change if separate
+	SMTPFrom   = "BaknusDrive <noreply@smk.baktinusantara666.sch.id>"
+	AppBaseURL = "https://baknusdrive.smkbn666.sch.id"
+)
+
+// sendShareNotification sends a Mailcow SMTP email to the target user
+// notifying them that a file/folder was shared with them.
+func sendShareNotification(toEmail, senderName, itemType, itemName string) {
+	subject := fmt.Sprintf("[BaknusDrive] %s berbagi %s dengan Anda", senderName, itemType)
+	body := fmt.Sprintf(`Halo,
+
+%s telah berbagi %s "%s" dengan Anda di BaknusDrive.
+
+Anda dapat membuka dan mengedit dokumen tersebut secara langsung di:
+%s
+
+Salam,
+Tim BaknusDrive - SMK Bakti Nusantara 666
+`, senderName, itemType, itemName, AppBaseURL)
+
+	msg := "From: " + SMTPFrom + "\r\n" +
+		"To: " + toEmail + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"MIME-Version: 1.0\r\n" +
+		"Content-Type: text/plain; charset=UTF-8\r\n" +
+		"\r\n" +
+		body
+
+	go func() {
+		addr := SMTPHost + ":" + SMTPPort
+
+		// Try STARTTLS first (port 587)
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify: true,
+			ServerName:         SMTPHost,
+		}
+
+		conn, err := smtp.Dial(addr)
+		if err != nil {
+			log.Printf("[SMTP] Dial failed: %v", err)
+			return
+		}
+		defer conn.Close()
+
+		if ok, _ := conn.Extension("STARTTLS"); ok {
+			if err = conn.StartTLS(tlsConfig); err != nil {
+				log.Printf("[SMTP] STARTTLS failed: %v", err)
+				return
+			}
+		}
+
+		auth := smtp.PlainAuth("", SMTPUser, SMTPPass, SMTPHost)
+		if err = conn.Auth(auth); err != nil {
+			log.Printf("[SMTP] Auth failed: %v", err)
+			return
+		}
+
+		if err = conn.Mail(SMTPUser); err != nil {
+			log.Printf("[SMTP] MAIL FROM failed: %v", err)
+			return
+		}
+		if err = conn.Rcpt(toEmail); err != nil {
+			log.Printf("[SMTP] RCPT TO failed: %v", err)
+			return
+		}
+
+		wc, err := conn.Data()
+		if err != nil {
+			log.Printf("[SMTP] DATA failed: %v", err)
+			return
+		}
+		defer wc.Close()
+
+		if _, err = fmt.Fprint(wc, msg); err != nil {
+			log.Printf("[SMTP] Write failed: %v", err)
+			return
+		}
+
+		log.Printf("[SMTP] Share notification sent to %s", toEmail)
+	}()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 func ListUsers(c *gin.Context) {
 	var users []models.User
@@ -31,6 +124,17 @@ func ShareItem(c *gin.Context) {
 		return
 	}
 
+	// Load sender info for notification
+	var sender models.User
+	DB.Where("id = ?", userID).First(&sender)
+	senderName := sender.FullName
+	if senderName == "" {
+		senderName = userID
+	}
+
+	var targetEmail string
+	var itemName string
+
 	if !strings.HasPrefix(req.SharedWith, "ROLE:") {
 		// Verify target user exists
 		var targetUser models.User
@@ -38,11 +142,11 @@ func ShareItem(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User to share with not found"})
 			return
 		}
-
 		if targetUser.ID == userID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot share with yourself"})
 			return
 		}
+		targetEmail = targetUser.Email
 	}
 
 	var share models.Share
@@ -50,37 +154,35 @@ func ShareItem(c *gin.Context) {
 	share.SharedWith = req.SharedWith
 
 	if req.Type == "file" {
-		// Verify ownership
 		var file models.File
 		if err := DB.Where("id = ? AND user_id = ?", req.ID, userID).First(&file).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "File not found or unauthorized"})
 			return
 		}
-
 		// Check if already shared
 		var existing models.Share
 		if err := DB.Where("file_id = ? AND shared_with = ?", req.ID, req.SharedWith).First(&existing).Error; err == nil {
 			c.JSON(http.StatusOK, gin.H{"message": "Already shared"})
 			return
 		}
-		
 		share.FileID = &req.ID
+		itemName = file.Name
+
 	} else if req.Type == "folder" {
-		// Verify ownership
 		var folder models.Folder
 		if err := DB.Where("id = ? AND user_id = ?", req.ID, userID).First(&folder).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found or unauthorized"})
 			return
 		}
-
 		// Check if already shared
 		var existing models.Share
 		if err := DB.Where("folder_id = ? AND shared_with = ?", req.ID, req.SharedWith).First(&existing).Error; err == nil {
 			c.JSON(http.StatusOK, gin.H{"message": "Already shared"})
 			return
 		}
-
 		share.FolderID = &req.ID
+		itemName = folder.Name
+
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid type"})
 		return
@@ -89,6 +191,21 @@ func ShareItem(c *gin.Context) {
 	if err := DB.Create(&share).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to share item"})
 		return
+	}
+
+	// ── Send email notification (non-blocking) ──
+	if targetEmail != "" && itemName != "" {
+		sendShareNotification(targetEmail, senderName, req.Type, itemName)
+	} else if strings.HasPrefix(req.SharedWith, "ROLE:") {
+		// Broadcast to all users with that role
+		roleName := strings.TrimPrefix(req.SharedWith, "ROLE:")
+		var roleUsers []models.User
+		DB.Where("role = ?", roleName).Find(&roleUsers)
+		for _, u := range roleUsers {
+			if u.Email != userID {
+				sendShareNotification(u.Email, senderName, req.Type, itemName)
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Item shared successfully", "share": share})

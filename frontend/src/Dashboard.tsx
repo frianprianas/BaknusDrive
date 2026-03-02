@@ -511,8 +511,27 @@ export default function Dashboard() {
         }
     };
 
-    const openDocEditor = (file: any) => {
-        window.open(`/editor/${file.id}`, '_blank');
+    // Opens a Collabora Online editor tab for a given file.
+    // Calls /api/drive/doc/open/:id which generates a per-user WOPI token
+    // so that multiple users opening the same file join the SAME collaborative session.
+    const openDocEditor = async (file: any) => {
+        const newTab = window.open('about:blank', '_blank');
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await axios.get(`/api/drive/doc/open/${file.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const { url } = resp.data;
+            if (url && newTab) {
+                newTab.location.href = url;
+            } else {
+                // Fallback: old editor route
+                if (newTab) newTab.location.href = `/editor/${file.id}`;
+            }
+        } catch (err) {
+            console.error('Failed to open editor', err);
+            if (newTab) newTab.location.href = `/editor/${file.id}`;
+        }
     };
 
     const handlePreview = async (f: any) => {
@@ -559,7 +578,8 @@ export default function Dashboard() {
         const newTab = window.open('about:blank', '_blank');
         try {
             const token = localStorage.getItem('token');
-            const resp = await axios.post('/api/drive/doc/create', {
+            // 1. Create the file
+            const createResp = await axios.post('/api/drive/doc/create', {
                 name: name.trim(),
                 type,
                 folder_id: currentFolderId
@@ -567,10 +587,18 @@ export default function Dashboard() {
                 headers: { Authorization: `Bearer ${token}` }
             });
             fetchDriveData();
-            if (resp.data && resp.data.id && newTab) {
-                newTab.location.href = `/editor/${resp.data.id}`;
+            const newFileId = createResp.data?.id;
+            if (!newFileId) { if (newTab) newTab.close(); return; }
+
+            // 2. Get collaborative Collabora URL with per-user WOPI token
+            const openResp = await axios.get(`/api/drive/doc/open/${newFileId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const editorUrl = openResp.data?.url;
+            if (editorUrl && newTab) {
+                newTab.location.href = editorUrl;
             } else if (newTab) {
-                newTab.close();
+                newTab.location.href = `/editor/${newFileId}`;
             }
         } catch (error) {
             console.error("Failed to create document", error);
@@ -1619,7 +1647,7 @@ export default function Dashboard() {
                         <div className="flex items-center justify-between p-4 px-6 text-white border-b border-white/10 bg-black/40">
                             <div className="flex items-center gap-4">
                                 <div className="p-2 bg-white/10 rounded-xl">
-                                    {getFileIcon(previewFile.mime_type)}
+                                    {getFileIcon(previewFile.name, previewFile.mime_type)}
                                 </div>
                                 <span className="text-lg font-medium tracking-wide">{previewFile.name}</span>
                             </div>
