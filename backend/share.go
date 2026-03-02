@@ -265,3 +265,70 @@ func ListSharedWithMe(c *gin.Context) {
 		"files":   files,
 	})
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Public Link Feature
+
+func ToggleFilePublic(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	fileID := c.Param("id")
+
+	var file models.File
+	if err := DB.Where("id = ? AND user_id = ?", fileID, userID).First(&file).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+
+	file.IsPublic = !file.IsPublic
+	if err := DB.Save(&file).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update public status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Status updated", "is_public": file.IsPublic})
+}
+
+func ToggleFolderPublic(c *gin.Context) {
+	// Folder public link is not fully supported yet in frontend/backend models,
+	// returning 400 for structural simplicity.
+	c.JSON(http.StatusBadRequest, gin.H{"error": "Public link for folders is not supported yet"})
+}
+
+func ViewPublicFileMetadata(c *gin.Context) {
+	fileID := c.Param("id")
+	var file models.File
+	if err := DB.Preload("User").Where("id = ? AND is_public = ?", fileID, true).First(&file).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found or not public"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":         file.ID,
+		"name":       file.Name,
+		"size":       file.Size,
+		"mime_type":  file.MimeType,
+		"created_at": file.CreatedAt,
+		"owner":      file.User.FullName,
+	})
+}
+
+func DownloadPublicFile(c *gin.Context) {
+	fileID := c.Param("id")
+	var file models.File
+	if err := DB.Where("id = ? AND is_public = ?", fileID, true).First(&file).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found or not public"})
+		return
+	}
+
+	c.Header("Content-Disposition", "attachment; filename=\""+file.Name+"\"")
+	c.Header("Content-Type", file.MimeType)
+	c.File(file.Path)
+}
+
+func ViewPublicFolderMetadata(c *gin.Context) {
+	c.JSON(http.StatusBadRequest, gin.H{"error": "Public link for folders is not supported yet"})
+}
+
+func DownloadPublicFolder(c *gin.Context) {
+	c.JSON(http.StatusBadRequest, gin.H{"error": "Public link for folders is not supported yet"})
+}

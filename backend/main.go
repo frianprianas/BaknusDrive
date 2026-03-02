@@ -68,6 +68,15 @@ func main() {
 		api.GET("/me", AuthMiddleware(), Me)
 		api.GET("/users", ListUsers)
 
+		// Public Shared APIs (No Auth required)
+		publicAPI := api.Group("/public")
+		{
+			publicAPI.GET("/file/:id", ViewPublicFileMetadata)
+			publicAPI.GET("/file/:id/download", DownloadPublicFile)
+			publicAPI.GET("/folder/:id", ViewPublicFolderMetadata)
+			publicAPI.GET("/folder/:id/download", DownloadPublicFolder)
+		}
+
 		// Protected Drive APIs
 		driveAPI := api.Group("/drive")
 		driveAPI.Use(AuthMiddleware())
@@ -105,6 +114,8 @@ func main() {
 			// Share APIs
 			driveAPI.POST("/share", ShareItem)
 			driveAPI.GET("/shared-with-me", ListSharedWithMe)
+			driveAPI.PUT("/file/:id/public", ToggleFilePublic)
+			driveAPI.PUT("/folder/:id/public", ToggleFolderPublic)
 
 			// BaknusDoc (Collabora) APIs
 			driveAPI.POST("/doc/create", CreateDoc)

@@ -9,7 +9,7 @@ import {
     Star, Trash2, Folder as FolderIcon, File as FileIcon, Image as ImageIcon, FileText, FileSpreadsheet, Presentation,
     Cloud, Plus, Download, FolderPlus, Upload, FileUp, Check,
     Edit2, Copy, Trash, RotateCcw, Share2, Sun, Moon, Eye, Shield, Lock, Unlock,
-    HelpCircle, Grip, UserX, Loader2, ExternalLink, ClipboardList, Pencil
+    HelpCircle, Grip, UserX, Loader2, ExternalLink, ClipboardList, Pencil, Link
 } from 'lucide-react';
 
 const isImageFile = (f: any) => f?.mime_type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(f?.name || '');
@@ -845,6 +845,37 @@ export default function Dashboard() {
         } catch (error) {
             console.error("Failed to toggle star", error);
             alert("Failed to update starred status");
+        }
+    };
+
+    const handleTogglePublic = async () => {
+        if (!contextMenu.item || !contextMenu.type) return;
+        if (contextMenu.type === 'folder') {
+            alert("Public link for folders is not supported yet.");
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('token');
+            const endpoint = `/api/drive/${contextMenu.type}/${contextMenu.item.id}/public`;
+            await axios.put(endpoint, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            // If it wasn't public before, it is now. Let's copy the link to clipboard automatically.
+            if (!contextMenu.item.is_public) {
+                const link = `${window.location.origin}/api/public/${contextMenu.type}/${contextMenu.item.id}/download`;
+                navigator.clipboard.writeText(link);
+                alert("Link status changed to Public. The download link has been copied to your clipboard!");
+            } else {
+                alert("Public link access has been turned off.");
+            }
+
+            fetchDriveData();
+            setContextMenu({ ...contextMenu, visible: false });
+        } catch (error) {
+            console.error("Failed to toggle public status", error);
+            alert("Failed to update public status");
         }
     };
 
@@ -1818,6 +1849,12 @@ export default function Dashboard() {
                                             <Star size={16} className={contextMenu.item.is_starred ? "text-yellow-400 fill-yellow-400" : "text-slate-500 dark:text-slate-400"} />
                                             {contextMenu.item.is_starred ? "Remove from starred" : "Add to starred"}
                                         </button>
+                                        {contextMenu.type === 'file' && (
+                                            <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleTogglePublic}>
+                                                <Link size={16} className={contextMenu.item.is_public ? "text-green-500" : "text-slate-500 dark:text-slate-400"} />
+                                                {contextMenu.item.is_public ? "Turn off public link" : "Get public link"}
+                                            </button>
+                                        )}
                                         <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
                                         <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleRenameMenu}>
                                             <Edit2 size={16} className="text-slate-500 dark:text-slate-400" />
