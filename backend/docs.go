@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -15,223 +14,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
-type DocConfig struct {
-	Document struct {
-		FileType string `json:"fileType"`
-		Key      string `json:"key"`
-		Title    string `json:"title"`
-		URL      string `json:"url"`
-	} `json:"document"`
-	EditorConfig struct {
-		CallbackURL string `json:"callbackUrl"`
-		User        struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
-		} `json:"user"`
-		Customization struct {
-			Logo struct {
-				Image        string `json:"image"`
-				ImageInverse string `json:"imageInverse"`
-				URL          string `json:"url"`
-			} `json:"logo"`
-			Goback struct {
-				URL string `json:"url"`
-			} `json:"goback"`
-		} `json:"customization"`
-	} `json:"editorConfig"`
-	// JWT disabled — no token field needed
-}
-
-func GetDocConfig(c *gin.Context) {
-	userID := c.MustGet("userID").(string)
-	fileIDStr := c.Param("id")
-	fileID, _ := strconv.Atoi(fileIDStr)
-
-	var file models.File
-	if err := DB.Where("id = ? AND (user_id = ? OR id IN (SELECT file_id FROM shares WHERE shared_with = ? OR shared_with = ?))", fileID, userID, userID, "ROLE:ADMIN").First(&file).Error; err != nil {
-		// Fallback check shared with email
-		var user models.User
-		DB.Where("id = ?", userID).First(&user)
-		if err := DB.Where("id = ? AND id IN (SELECT file_id FROM shares WHERE shared_with = ?)", fileID, user.Email).First(&file).Error; err != nil {
-			// Check folder shared access
-			if !HasAccessToFile(userID, uint(fileID)) {
-				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-				return
-			}
-			DB.Where("id = ?", fileID).First(&file)
-		}
-	}
-
-	var user models.User
-	DB.Where("id = ?", userID).First(&user)
-
-	// Build Config
-	config := DocConfig{}
-	config.Document.FileType = strings.TrimPrefix(filepath.Ext(file.Name), ".")
-	// Key harus konsisten untuk file yang sama (tidak berubah tiap request).
-	// OnlyOffice akan cache berdasarkan key ini. Gunakan ID + UpdatedAt saja.
-	config.Document.Key = fmt.Sprintf("doc-%d-%d", file.ID, file.UpdatedAt.Unix())
-	config.Document.Title = file.Name
-
-	// Public URL for browser-facing links
-	publicURL := "http://" + c.Request.Host
-	if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
-		publicURL = "https://" + c.Request.Host
-	}
-
-	// OnlyOffice DS (dalam Docker) mengambil file via internal network.
-	// Gunakan hanya file ID di URL — tidak perlu nama file (wildcard route handle ini).
-	internalURL := "http://backend:8080"
-
-	// URL dokumen: cukup pakai ID, nama file di path tidak kritis karena RawFileAccess pakai ID
-	config.Document.URL = fmt.Sprintf("%s/api/raw/doc/%d/%s", internalURL, file.ID, url.PathEscape(file.Name))
-	config.EditorConfig.CallbackURL = fmt.Sprintf("%s/api/doc/callback/%d", internalURL, file.ID)
-
-	log.Printf("Preparing Doc Config: Document.URL=%s, CallbackURL=%s (Internal Routing)", config.Document.URL, config.EditorConfig.CallbackURL)
-	config.EditorConfig.User.ID = user.ID
-	config.EditorConfig.User.Name = user.FullName
-
-	config.EditorConfig.Customization.Goback.URL = publicURL + "/dashboard"
-
-	// JWT disabled — OnlyOffice runs without JWT verification
-
-	c.JSON(http.StatusOK, config)
-}
-
-func HasAccessToFile(userID string, fileID uint) bool {
-	var file models.File
-	if err := DB.Where("id = ?", fileID).First(&file).Error; err != nil {
-		return false
-	}
-	if file.UserID == userID {
-		return true
-	}
-	if file.FolderID != nil {
-		return HasAccessToFolder(userID, *file.FolderID)
-	}
-	return false
-}
-
-// Special raw download endpoint for OnlyOffice Document Server
-func RawFileAccess(c *gin.Context) {
-	idParam := c.Param("id")
-	id, _ := strconv.Atoi(idParam)
-
-	log.Printf("[RawFileAccess] Request for file ID: %d", id)
-
-	var file models.File
-	if err := DB.Where("id = ?", id).First(&file).Error; err != nil {
-		log.Printf("[RawFileAccess] ERROR: File not found for ID %d: %v", id, err)
-		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
-		return
-	}
-
-	// Set correct Content-Type for OnlyOffice
-	ext := strings.ToLower(filepath.Ext(file.Name))
-	contentType := "application/octet-stream"
-	switch ext {
-	case ".docx":
-		contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-	case ".xlsx":
-		contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-	case ".pptx":
-		contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-	}
-
-	log.Printf("[RawFileAccess] Serving file: %s (Mime: %s, Path: %s)", file.Name, contentType, file.Path)
-
-	// Explicit existence check
-	if _, err := os.Stat(file.Path); os.IsNotExist(err) {
-		log.Printf("[RawFileAccess] CRITICAL: File not found on disk: %s", file.Path)
-		c.JSON(http.StatusNotFound, gin.H{"error": "Physical file missing"})
-		return
-	}
-
-	info, _ := os.Stat(file.Path)
-	log.Printf("[RawFileAccess] File size: %d bytes", info.Size())
-
-	c.Header("Content-Type", contentType)
-	c.Header("Content-Length", fmt.Sprintf("%d", info.Size()))
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", file.Name))
-	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
-	c.Header("Pragma", "no-cache")
-	c.Header("Expires", "0")
-	c.Header("X-Content-Type-Options", "nosniff")
-
-	// Baca file secara manual dan kirim dengan c.Data() agar Content-Type
-	// yang sudah kita set tidak ditimpa oleh deteksi otomatis Gin/http.ServeFile
-	fileBytes, err := os.ReadFile(file.Path)
-	if err != nil {
-		log.Printf("[RawFileAccess] CRITICAL: Cannot read file: %s, err: %v", file.Path, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Cannot read file"})
-		return
-	}
-	c.Data(http.StatusOK, contentType, fileBytes)
-}
-
-func DocCallback(c *gin.Context) {
-	fileIDStr := c.Param("id")
-	fileID, _ := strconv.Atoi(fileIDStr)
-
-	var req struct {
-		Status int      `json:"status"`
-		URL    string   `json:"url"`
-		Users  []string `json:"users"`
-		Key    string   `json:"key"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(200, gin.H{"error": 0}) // Always return 0 to OnlyOffice unless we want it to retry
-		return
-	}
-
-	// Status 2: Document is ready for saving
-	// Status 3: Document saving error
-	// Status 6: Being edited, but we can save version
-	if req.Status == 2 || req.Status == 6 {
-		log.Printf("OnlyOffice Callback: Saving file %d, status %d", fileID, req.Status)
-		resp, err := http.Get(req.URL)
-		if err != nil {
-			log.Printf("Callback error: failed to download file from %s: %v", req.URL, err)
-			c.JSON(200, gin.H{"error": 1})
-			return
-		}
-		defer resp.Body.Close()
-
-		var file models.File
-		if err := DB.Where("id = ?", fileID).First(&file).Error; err != nil {
-			c.JSON(200, gin.H{"error": 1})
-			return
-		}
-
-		// Save new content to a temporary file first
-		newPath := file.Path + ".new"
-		out, err := os.Create(newPath)
-		if err != nil {
-			c.JSON(200, gin.H{"error": 1})
-			return
-		}
-
-		size, err := io.Copy(out, resp.Body)
-		out.Close()
-		if err != nil {
-			os.Remove(newPath)
-			c.JSON(200, gin.H{"error": 1})
-			return
-		}
-
-		// Replace old file
-		os.Remove(file.Path)
-		os.Rename(newPath, file.Path)
-
-		// Update metadata
-		file.Size = size
-		DB.Save(&file)
-	}
-
-	c.JSON(200, gin.H{"error": 0})
-}
 
 func CreateDoc(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
@@ -305,4 +87,97 @@ func CreateDoc(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, fileRecord)
+}
+
+// WopiCheckFileInfo provides file metadata for Collabora Online.
+func WopiCheckFileInfo(c *gin.Context) {
+	fileIDStr := c.Param("file_id")
+	fileID, _ := strconv.Atoi(fileIDStr)
+
+	var file models.File
+	if err := DB.Where("id = ?", fileID).First(&file).Error; err != nil {
+		log.Printf("[WOPI] File not found %d", fileID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+
+	var user models.User
+	DB.Where("id = ?", file.UserID).First(&user)
+
+	info, err := os.Stat(file.Path)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Physical file missing"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"BaseFileName":            file.Name,
+		"OwnerId":                 file.UserID,
+		"Size":                    info.Size(),
+		"UserId":                  file.UserID,
+		"Version":                 fmt.Sprintf("%d", file.UpdatedAt.Unix()),
+		"UserFriendlyName":        user.FullName,
+		"UserCanWrite":            true,
+		"SupportsUpdate":          true,
+		"UserCanNotWriteRelative": true,
+	})
+}
+
+// WopiGetFile provides file content for Collabora Online.
+func WopiGetFile(c *gin.Context) {
+	fileIDStr := c.Param("file_id")
+	fileID, _ := strconv.Atoi(fileIDStr)
+
+	var file models.File
+	if err := DB.Where("id = ?", fileID).First(&file).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+
+	fileBytes, err := os.ReadFile(file.Path)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Cannot read file"})
+		return
+	}
+
+	c.Data(http.StatusOK, "application/octet-stream", fileBytes)
+}
+
+// WopiPutFile receives updated file content from Collabora Online.
+func WopiPutFile(c *gin.Context) {
+	fileIDStr := c.Param("file_id")
+	fileID, _ := strconv.Atoi(fileIDStr)
+
+	var file models.File
+	if err := DB.Where("id = ?", fileID).First(&file).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read body"})
+		return
+	}
+	defer c.Request.Body.Close()
+
+	if len(bodyBytes) > 0 {
+		err = os.WriteFile(file.Path, bodyBytes, 0644)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Cannot save file"})
+			return
+		}
+		file.Size = int64(len(bodyBytes))
+		file.UpdatedAt = time.Now()
+		DB.Save(&file)
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func WopiRouter(r *gin.Engine) {
+	wopi := r.Group("/wopi")
+	wopi.GET("/files/:file_id", WopiCheckFileInfo)
+	wopi.GET("/files/:file_id/contents", WopiGetFile)
+	wopi.POST("/files/:file_id/contents", WopiPutFile)
 }
