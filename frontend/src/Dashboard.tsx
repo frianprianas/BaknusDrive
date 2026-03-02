@@ -512,26 +512,9 @@ export default function Dashboard() {
     };
 
     // Opens a Collabora Online editor tab for a given file.
-    // Calls /api/drive/doc/open/:id which generates a per-user WOPI token
-    // so that multiple users opening the same file join the SAME collaborative session.
-    const openDocEditor = async (file: any) => {
-        const newTab = window.open('about:blank', '_blank');
-        try {
-            const token = localStorage.getItem('token');
-            const resp = await axios.get(`/api/drive/doc/open/${file.id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const { url } = resp.data;
-            if (url && newTab) {
-                newTab.location.href = url;
-            } else {
-                // Fallback: old editor route
-                if (newTab) newTab.location.href = `/editor/${file.id}`;
-            }
-        } catch (err) {
-            console.error('Failed to open editor', err);
-            if (newTab) newTab.location.href = `/editor/${file.id}`;
-        }
+    // The Editor page (/editor/:id) will fetch the WOPI token and Collabora URL itself.
+    const openDocEditor = (file: any) => {
+        window.open(`/editor/${file.id}`, '_blank');
     };
 
     const handlePreview = async (f: any) => {
@@ -590,14 +573,8 @@ export default function Dashboard() {
             const newFileId = createResp.data?.id;
             if (!newFileId) { if (newTab) newTab.close(); return; }
 
-            // 2. Get collaborative Collabora URL with per-user WOPI token
-            const openResp = await axios.get(`/api/drive/doc/open/${newFileId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const editorUrl = openResp.data?.url;
-            if (editorUrl && newTab) {
-                newTab.location.href = editorUrl;
-            } else if (newTab) {
+            // 2. Open editor page — Editor.tsx will fetch Collabora URL itself
+            if (newTab) {
                 newTab.location.href = `/editor/${newFileId}`;
             }
         } catch (error) {

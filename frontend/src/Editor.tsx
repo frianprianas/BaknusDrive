@@ -1,13 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
+import axios from 'axios';
 import logo from './assets/logo.png';
 
 const Editor: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const token = localStorage.getItem('token');
-    const formRef = useRef<HTMLFormElement>(null);
+
+    const [collaboraUrl, setCollaboraUrl] = useState<string | null>(null);
+    const [fileName, setFileName] = useState<string>('');
+    const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -16,30 +20,33 @@ const Editor: React.FC = () => {
             return;
         }
 
-        // We auto-submit the form to the Collabora iframe
-        if (formRef.current) {
-            formRef.current.submit();
-        }
-
-        // Hide loading after a few seconds assuming it loads
-        const timer = setTimeout(() => {
-            setLoading(false);
-        }, 1500);
-
-        return () => clearTimeout(timer);
+        // Fetch per-user WOPI token + Collabora URL from backend
+        axios.get(`/api/drive/doc/open/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(resp => {
+                const { url, file_name } = resp.data;
+                if (!url) {
+                    setError('Gagal mendapatkan URL editor dari server.');
+                    return;
+                }
+                setCollaboraUrl(url);
+                setFileName(file_name || '');
+            })
+            .catch(err => {
+                console.error('Failed to open doc:', err);
+                const msg = err.response?.data?.error || 'Gagal membuka editor. Coba lagi.';
+                setError(msg);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
     }, [id, token, navigate]);
-
-    // Construct the WOPISrc for internal docker routing
-    const wopiSrc = encodeURIComponent(`http://backend:8080/wopi/files/${id}`);
-
-    // Using relative URL to stay within the same HTTPS context and avoid Mixed Content blocks.
-    // The request will be handled by the Vite/Nginx proxy on the same domain.
-    const collaboraUrl = `/browser/dist/cool.html?WOPISrc=${wopiSrc}`;
 
     return (
         <div className="fixed inset-0 flex flex-col bg-white dark:bg-slate-900 z-[1000] overflow-hidden">
             {/* Header */}
-            <div className={`h-14 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 bg-[#f8fafd] dark:bg-slate-900`}>
+            <div className="h-14 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 bg-[#f8fafd] dark:bg-slate-900 shrink-0">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => window.close()}
@@ -49,43 +56,55 @@ const Editor: React.FC = () => {
                         <ArrowLeft size={20} />
                     </button>
                     <img src={logo} alt="BaknusDrive" className="w-8 h-8 object-contain" />
-                    <span className="font-semibold text-slate-700 dark:text-slate-200">BaknusDoc (Collabora Editor)</span>
-                    <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-700 mx-1"></div>
-                    <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Live & Stabil</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">BaknusDoc</span>
+                    {fileName && (
+                        <>
+                            <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-700 mx-1" />
+                            <span className="text-sm text-slate-500 dark:text-slate-400 truncate max-w-xs">{fileName}</span>
+                        </>
+                    )}
+                    <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-700 mx-1" />
+                    <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
+                        Kolaborasi
+                    </span>
                 </div>
             </div>
 
-            {/* Hidden Form for WOPI POST */}
-            <form
-                ref={formRef}
-                action={collaboraUrl}
-                method="POST"
-                target="collabora-iframe"
-                style={{ display: 'none' }}
-            >
-                {/* Send token as access_token for WOPI validation if needed */}
-                <input type="text" name="access_token" value={token || ''} readOnly />
-                <input type="text" name="access_token_ttl" value="0" readOnly />
-            </form>
-
-            {/* Collabora iframe target */}
-            <iframe
-                name="collabora-iframe"
-                title="Collabora Editor"
-                className="w-full flex-1 border-none"
-                style={{ backgroundColor: '#f8f9fa' }}
-                allowFullScreen
-            />
-
-            {/* Loading Overlay */}
+            {/* Loading State */}
             {loading && (
-                <div className="absolute inset-0 top-14 flex flex-col items-center justify-center bg-white dark:bg-slate-900 z-[1100]">
+                <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-slate-900">
                     <img src={logo} alt="BaknusDrive" className="w-20 h-20 mb-6 animate-pulse" />
                     <div className="flex items-center gap-3 text-slate-600 dark:text-slate-400 font-medium">
                         <Loader2 className="animate-spin" size={24} />
-                        <span className="text-lg">Mempersiapkan Collabora Online...</span>
+                        <span className="text-lg">Mempersiapkan Editor Kolaborasi...</span>
                     </div>
                 </div>
+            )}
+
+            {/* Error State */}
+            {!loading && error && (
+                <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-slate-900 gap-4">
+                    <AlertCircle size={48} className="text-red-400" />
+                    <p className="text-slate-600 dark:text-slate-400 text-lg font-medium">{error}</p>
+                    <button
+                        onClick={() => window.close()}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                        Tutup
+                    </button>
+                </div>
+            )}
+
+            {/* Collabora iframe */}
+            {!loading && collaboraUrl && (
+                <iframe
+                    src={collaboraUrl}
+                    title="Collabora Editor"
+                    className="w-full flex-1 border-none"
+                    style={{ backgroundColor: '#f8f9fa' }}
+                    allowFullScreen
+                />
             )}
         </div>
     );
