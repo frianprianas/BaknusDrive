@@ -42,7 +42,7 @@ export default function Login() {
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-baknus-400 via-white to-baknus-600"></div>
 
                 <div className="flex flex-col items-center mb-8">
-                    <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-xl mb-4 transform group-hover:scale-110 transition-transform duration-500 border border-white/30 p-2">
+                    <div className="w-32 h-32 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-xl mb-4 transform group-hover:scale-110 transition-transform duration-500 border border-white/30 p-2">
                         <img src={logo} alt="BaknusDrive Logo" className="w-full h-full object-contain drop-shadow-lg" />
                     </div>
                     <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 tracking-tight">BaknusDrive</h1>

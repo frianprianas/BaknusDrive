@@ -1071,7 +1071,7 @@ export default function Dashboard() {
             <aside className={`fixed inset-y-0 left-0 z-50 bg-[#f8fafd] dark:bg-slate-900 w-[256px] transform transition-transform duration-300 ease-in-out ${showSidebar ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 md:flex flex-col pt-3 pb-4 border-r border-slate-200 dark:border-slate-800 md:border-none shadow-2xl md:shadow-none`}>
                 <div className="flex items-center justify-between px-6 mb-6 gap-2 mt-2 md:mt-0">
                     <div className="flex items-center gap-2">
-                        <img src={logo} alt="BaknusDrive logo" className="w-10 h-10 object-contain" />
+                        <img src={logo} alt="BaknusDrive logo" className="w-14 h-14 object-contain" />
                         <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400 mb-1 tracking-tight">BaknusDrive</span>
                     </div>
                     <button className="md:hidden p-2 text-slate-500 dark:text-slate-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800" onClick={() => setShowSidebar(false)}>
