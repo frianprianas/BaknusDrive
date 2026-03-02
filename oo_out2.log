@@ -1,0 +1,66 @@
+[2026-03-01T04:31:06.474] [WARN] [localhost] [docId] [userId] nodeJS - Express server starting...
+[2026-03-01T04:31:06.523] [WARN] [localhost] [docId] [userId] nodeJS - notifyLicenseExpiration(): expiration date is not defined
+[2026-03-01T04:31:06.525] [WARN] [localhost] [docId] [userId] nodeJS - notifyLicenseExpiration(): expiration date is not defined
+[2026-03-01T04:31:07.347] [WARN] [localhost] [docId] [userId] nodeJS - Express server listening on port 8000 in production-linux mode. Version: 9.3.0. Build: 138
+[2026-03-01T04:32:10.529] [WARN] [localhost] [docId] [userId] nodeJS - Express server starting...
+[2026-03-01T04:32:10.542] [WARN] [localhost] [docId] [userId] nodeJS - notifyLicenseExpiration(): expiration date is not defined
+[2026-03-01T04:32:10.543] [WARN] [localhost] [docId] [userId] nodeJS - notifyLicenseExpiration(): expiration date is not defined
+[2026-03-01T04:32:10.842] [WARN] [localhost] [docId] [userId] nodeJS - Express server listening on port 8000 in production-linux mode. Version: 9.3.0. Build: 138
+[2026-03-01T06:18:41.232] [WARN] [localhost] [docId] [userId] nodeJS - start shutdown:true
+[2026-03-01T06:18:41.237] [WARN] [localhost] [docId] [userId] nodeJS - active connections: 0
+[2026-03-01T06:18:41.237] [WARN] [localhost] [docId] [userId] nodeJS - end shutdown
+[2026-03-01T06:21:22.696] [WARN] [localhost] [docId] [userId] nodeJS - Express server starting...
+[2026-03-01T06:21:22.702] [WARN] [localhost] [docId] [userId] nodeJS - Set services.CoAuthoring.token.enable.browser, services.CoAuthoring.token.enable.request.inbox, services.CoAuthoring.token.enable.request.outbox in the Document Server config to prevent an unauthorized access to your documents and the substitution of important parameters in Document Server requests.
+[2026-03-01T06:21:22.754] [WARN] [localhost] [docId] [userId] nodeJS - notifyLicenseExpiration(): expiration date is not defined
+[2026-03-01T06:21:22.757] [WARN] [localhost] [docId] [userId] nodeJS - notifyLicenseExpiration(): expiration date is not defined
+[2026-03-01T06:21:24.190] [WARN] [localhost] [docId] [userId] nodeJS - Express server listening on port 8000 in production-linux mode. Version: 9.3.0. Build: 138
+[2026-03-01T06:23:15.328] [WARN] [localhost] [docId] [userId] nodeJS - Express server starting...
+[2026-03-01T06:23:15.331] [WARN] [localhost] [docId] [userId] nodeJS - Set services.CoAuthoring.token.enable.browser, services.CoAuthoring.token.enable.request.inbox, services.CoAuthoring.token.enable.request.outbox in the Document Server config to prevent an unauthorized access to your documents and the substitution of important parameters in Document Server requests.
+[2026-03-01T06:23:15.346] [WARN] [localhost] [docId] [userId] nodeJS - notifyLicenseExpiration(): expiration date is not defined
+[2026-03-01T06:23:15.348] [WARN] [localhost] [docId] [userId] nodeJS - notifyLicenseExpiration(): expiration date is not defined
+[2026-03-01T06:23:15.575] [WARN] [localhost] [docId] [userId] nodeJS - Express server listening on port 8000 in production-linux mode. Version: 9.3.0. Build: 138
+[2026-03-01T06:23:19.716] [ERROR] [localhost] [10-1772346152-1772346177] [rendy@smk.baktinusantara666.sch.id] nodeJS - postData error: url = http://backend:8080/api/doc/callback/10;data = {"key":"10-1772346152-1772346177","status":1,"users":["rendy@smk.baktinusantara666.sch.id"],"actions":[{"type":1,"userid":"rendy@smk.baktinusantara666.sch.id"}]} Error: DNS lookup 172.18.0.6(family:4, host:backend) is not allowed. Because, It is private IP address.
+    at Function.from (/snapshot/server/Common/node_modules/axios/dist/node/axios.cjs)
+    at RedirectableRequest.handleRequestError (/snapshot/server/Common/node_modules/axios/dist/node/axios.cjs)
+    at RedirectableRequest.emit (node:events:536:35)
+    at ClientRequest.<anonymous> (/snapshot/server/Common/node_modules/follow-redirects/index.js:49:24)
+    at ClientRequest.emit (node:events:524:28)
+    at emitErrorEvent (node:_http_client:101:11)
+    at Socket.socketErrorListener (node:_http_client:504:5)
+    at Socket.emit (node:events:524:28)
+    at emitErrorNT (node:internal/streams/destroy:169:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:128:3)
+    at Axios.request (/snapshot/server/Common/node_modules/axios/dist/node/axios.cjs)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Object.postRequestPromise (/snapshot/server/Common/sources/utils.js)
+    at async sendServerRequest (/snapshot/server/DocService/sources/DocsCoServer.js)
+    at async sendStatusDocument (/snapshot/server/DocService/sources/DocsCoServer.js)
+[2026-03-01T08:36:39.253] [ERROR] [localhost] [10-1772346152-1772346177] [rendy@smk.baktinusantara666.sch.id1] nodeJS - postData error: url = http://backend:8080/api/doc/callback/10;data = {"key":"10-1772346152-1772346177","status":4,"actions":[{"type":0,"userid":"rendy@smk.baktinusantara666.sch.id"}]} Error: DNS lookup 172.18.0.6(family:4, host:backend) is not allowed. Because, It is private IP address.
+    at Function.from (/snapshot/server/Common/node_modules/axios/dist/node/axios.cjs)
+    at RedirectableRequest.handleRequestError (/snapshot/server/Common/node_modules/axios/dist/node/axios.cjs)
+    at RedirectableRequest.emit (node:events:536:35)
+    at ClientRequest.<anonymous> (/snapshot/server/Common/node_modules/follow-redirects/index.js:49:24)
+    at ClientRequest.emit (node:events:524:28)
+    at emitErrorEvent (node:_http_client:101:11)
+    at Socket.socketErrorListener (node:_http_client:504:5)
+    at Socket.emit (node:events:524:28)
+    at emitErrorNT (node:internal/streams/destroy:169:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:128:3)
+    at Axios.request (/snapshot/server/Common/node_modules/axios/dist/node/axios.cjs)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Object.postRequestPromise (/snapshot/server/Common/sources/utils.js)
+    at async sendServerRequest (/snapshot/server/DocService/sources/DocsCoServer.js)
+    at async sendStatusDocument (/snapshot/server/DocService/sources/DocsCoServer.js)
+[2026-03-01T08:49:55.742] [WARN] [localhost] [docId] [userId] nodeJS - start shutdown:true
+[2026-03-01T08:49:55.743] [WARN] [localhost] [docId] [userId] nodeJS - active connections: 0
+[2026-03-01T08:49:55.743] [WARN] [localhost] [docId] [userId] nodeJS - end shutdown
+[2026-03-01T08:50:31.871] [WARN] [localhost] [docId] [userId] nodeJS - Express server starting...
+[2026-03-01T08:50:31.875] [WARN] [localhost] [docId] [userId] nodeJS - Set services.CoAuthoring.token.enable.browser, services.CoAuthoring.token.enable.request.inbox, services.CoAuthoring.token.enable.request.outbox in the Document Server config to prevent an unauthorized access to your documents and the substitution of important parameters in Document Server requests.
+[2026-03-01T08:50:31.899] [WARN] [localhost] [docId] [userId] nodeJS - notifyLicenseExpiration(): expiration date is not defined
+[2026-03-01T08:50:31.900] [WARN] [localhost] [docId] [userId] nodeJS - notifyLicenseExpiration(): expiration date is not defined
+[2026-03-01T08:50:32.151] [WARN] [localhost] [docId] [userId] nodeJS - Express server listening on port 8000 in production-linux mode. Version: 9.3.0. Build: 138
+[2026-03-01T08:51:28.542] [WARN] [localhost] [docId] [userId] nodeJS - Express server starting...
+[2026-03-01T08:51:28.545] [WARN] [localhost] [docId] [userId] nodeJS - Set services.CoAuthoring.token.enable.browser, services.CoAuthoring.token.enable.request.inbox, services.CoAuthoring.token.enable.request.outbox in the Document Server config to prevent an unauthorized access to your documents and the substitution of important parameters in Document Server requests.
+[2026-03-01T08:51:28.554] [WARN] [localhost] [docId] [userId] nodeJS - notifyLicenseExpiration(): expiration date is not defined
+[2026-03-01T08:51:28.555] [WARN] [localhost] [docId] [userId] nodeJS - notifyLicenseExpiration(): expiration date is not defined
+[2026-03-01T08:51:28.723] [WARN] [localhost] [docId] [userId] nodeJS - Express server listening on port 8000 in production-linux mode. Version: 9.3.0. Build: 138

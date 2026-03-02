@@ -1,0 +1,9 @@
+﻿src/Dashboard.tsx(7,5): error TS6133: 'User' is declared but its value is never read.
+src/Dashboard.tsx(7,43): error TS6133: 'MoreVertical' is declared but its value is never read.
+src/Dashboard.tsx(362,11): error TS6133: 'toggleStar' is declared but its value is never read.
+src/Dashboard.tsx(362,42): error TS6133: 'type' is declared but its value is never read.
+src/Dashboard.tsx(743,59): error TS2322: Type 'string' is not assignable to type 'number'.
+src/Dashboard.tsx(746,11): error TS6133: 'navigateToBreadcrumb' is declared but its value is never read.
+src/Dashboard.tsx(753,20): error TS2367: This comparison appears to be unintentional because the types 'number | null' and 'string' have no overlap.
+src/Dashboard.tsx(1053,79): error TS2345: Argument of type '{ id: number | null; name: string; }[]' is not assignable to parameter of type 'string'.
+src/FormSubmission.tsx(6,39): error TS6133: 'User' is declared but its value is never read.

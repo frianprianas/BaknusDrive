@@ -1,0 +1,95 @@
+﻿backend-1  | [00] Starting service
+backend-1  | [00] go: downloading github.com/golang-jwt/jwt/v4 v4.5.2
+backend-1  | [00] 2026/03/01 01:58:08 PostgreSQL connected successfully with optimized connection pool
+backend-1  | [00] 2026/03/01 01:58:08 Database migration completed
+backend-1  | [00] 2026/03/01 01:58:08 Redis connected successfully
+backend-1  | [00] [GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+backend-1  | [00] 
+backend-1  | [00] [GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+backend-1  | [00]  - using env:	export GIN_MODE=release
+backend-1  | [00]  - using code:	gin.SetMode(gin.ReleaseMode)
+backend-1  | [00] 
+backend-1  | [00] [GIN-debug] GET    /downloads/*filepath      --> github.com/gin-gonic/gin.(*RouterGroup).createStaticHandler.func1 (4 handlers)
+backend-1  | [00] [GIN-debug] HEAD   /downloads/*filepath      --> github.com/gin-gonic/gin.(*RouterGroup).createStaticHandler.func1 (4 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/ping                 --> main.main.func3 (4 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/login                --> main.LoginHandler (4 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/me                   --> main.Me (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/users                --> main.ListUsers (4 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive                --> main.ListDrive (5 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/drive/folder         --> main.CreateFolder (5 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/drive/upload         --> main.UploadFile (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive/file/:id/download --> main.DownloadFile (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive/folder/:id/download --> main.DownloadFolder (5 handlers)
+backend-1  | [00] [GIN-debug] DELETE /api/drive/file/:id       --> main.DeleteFile (5 handlers)
+backend-1  | [00] [GIN-debug] DELETE /api/drive/folder/:id     --> main.DeleteFolder (5 handlers)
+backend-1  | [00] [GIN-debug] PUT    /api/drive/file/:id/rename --> main.RenameFile (5 handlers)
+backend-1  | [00] [GIN-debug] PUT    /api/drive/folder/:id/rename --> main.RenameFolder (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive/quota          --> main.GetStorageQuota (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive/devices        --> main.ListDevices (5 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/drive/devices        --> main.RegisterDevice (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive/trash          --> main.ListTrash (5 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/drive/trash/:type/:id/restore --> main.RestoreItem (5 handlers)
+backend-1  | [00] [GIN-debug] DELETE /api/drive/trash/empty    --> main.EmptyTrash (5 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/drive/share          --> main.ShareItem (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive/shared-with-me --> main.ListSharedWithMe (5 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/drive/doc/create     --> main.CreateDoc (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive/doc/config/:id --> main.GetDocConfig (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/raw/doc/:id          --> main.RawFileAccess (4 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/doc/callback/:id     --> main.DocCallback (4 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/admin/users          --> main.GetAdminUsers (6 handlers)
+backend-1  | [00] [GIN-debug] PUT    /api/admin/user/:id       --> main.AdminUpdateUser (6 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/admin/drive          --> main.AdminListDrive (6 handlers)
+backend-1  | [00] 2026/03/01 01:58:08 Starting server on :8888
+backend-1  | [00] [GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+backend-1  | [00] Please check https://github.com/gin-gonic/gin/blob/master/docs/doc.md#dont-trust-all-proxies for details.
+backend-1  | [00] [GIN-debug] Listening and serving HTTP on :8888
+backend-1  | [00] 2026/03/01 01:58:29 Successfully synced 239 mailboxes from Mailcow with internal integration
+backend-1  | Interrupted (terminated). Cleaning up children...
+backend-1  | [00] ^Csignal: interrupt
+backend-1  | [00] Sending SIGINT signal...
+backend-1  | [00] Starting service
+backend-1  | [00] 2026/03/01 03:17:02 PostgreSQL connected successfully with optimized connection pool
+backend-1  | [00] 2026/03/01 03:17:02 Database migration completed
+backend-1  | [00] 2026/03/01 03:17:02 Redis connected successfully
+backend-1  | [00] [GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+backend-1  | [00] 
+backend-1  | [00] [GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+backend-1  | [00]  - using env:	export GIN_MODE=release
+backend-1  | [00]  - using code:	gin.SetMode(gin.ReleaseMode)
+backend-1  | [00] 
+backend-1  | [00] [GIN-debug] GET    /downloads/*filepath      --> github.com/gin-gonic/gin.(*RouterGroup).createStaticHandler.func1 (4 handlers)
+backend-1  | [00] [GIN-debug] HEAD   /downloads/*filepath      --> github.com/gin-gonic/gin.(*RouterGroup).createStaticHandler.func1 (4 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/ping                 --> main.main.func3 (4 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/debug/template/:type --> main.main.func4 (4 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/login                --> main.LoginHandler (4 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/me                   --> main.Me (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/users                --> main.ListUsers (4 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive                --> main.ListDrive (5 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/drive/folder         --> main.CreateFolder (5 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/drive/upload         --> main.UploadFile (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive/file/:id/download --> main.DownloadFile (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive/folder/:id/download --> main.DownloadFolder (5 handlers)
+backend-1  | [00] [GIN-debug] DELETE /api/drive/file/:id       --> main.DeleteFile (5 handlers)
+backend-1  | [00] [GIN-debug] DELETE /api/drive/folder/:id     --> main.DeleteFolder (5 handlers)
+backend-1  | [00] [GIN-debug] PUT    /api/drive/file/:id/rename --> main.RenameFile (5 handlers)
+backend-1  | [00] [GIN-debug] PUT    /api/drive/folder/:id/rename --> main.RenameFolder (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive/quota          --> main.GetStorageQuota (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive/devices        --> main.ListDevices (5 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/drive/devices        --> main.RegisterDevice (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive/trash          --> main.ListTrash (5 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/drive/trash/:type/:id/restore --> main.RestoreItem (5 handlers)
+backend-1  | [00] [GIN-debug] DELETE /api/drive/trash/empty    --> main.EmptyTrash (5 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/drive/share          --> main.ShareItem (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive/shared-with-me --> main.ListSharedWithMe (5 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/drive/doc/create     --> main.CreateDoc (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/drive/doc/config/:id --> main.GetDocConfig (5 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/raw/doc/:id/*filename --> main.RawFileAccess (4 handlers)
+backend-1  | [00] [GIN-debug] POST   /api/doc/callback/:id     --> main.DocCallback (4 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/admin/users          --> main.GetAdminUsers (6 handlers)
+backend-1  | [00] [GIN-debug] PUT    /api/admin/user/:id       --> main.AdminUpdateUser (6 handlers)
+backend-1  | [00] [GIN-debug] GET    /api/admin/drive          --> main.AdminListDrive (6 handlers)
+backend-1  | [00] 2026/03/01 03:17:02 Starting server on :8080
+backend-1  | [00] [GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+backend-1  | [00] Please check https://github.com/gin-gonic/gin/blob/master/docs/doc.md#dont-trust-all-proxies for details.
+backend-1  | [00] [GIN-debug] Listening and serving HTTP on :8080
+backend-1  | [00] 2026/03/01 03:17:38 Successfully synced 239 mailboxes from Mailcow with internal integration

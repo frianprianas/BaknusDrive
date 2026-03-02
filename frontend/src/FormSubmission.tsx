@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
     Send, ClipboardList, CheckCircle2,
-    AlertCircle, Loader2, Home, Lock, User
+    AlertCircle, Loader2, Home, Lock
 } from 'lucide-react';
 
 // Works on localhost (no base = same origin) and on production

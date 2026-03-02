@@ -81,6 +81,8 @@ func main() {
 			driveAPI.DELETE("/folder/:id", DeleteFolder)
 			driveAPI.PUT("/file/:id/rename", RenameFile)
 			driveAPI.PUT("/folder/:id/rename", RenameFolder)
+			driveAPI.PUT("/file/:id/move", MoveFile)
+			driveAPI.PUT("/folder/:id/move", MoveFolder)
 			driveAPI.GET("/quota", GetStorageQuota)
 			driveAPI.GET("/devices", ListDevices)
 			driveAPI.POST("/devices", RegisterDevice)

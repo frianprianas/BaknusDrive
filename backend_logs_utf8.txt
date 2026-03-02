@@ -1,0 +1,30 @@
+[00] [GIN] 2026/03/01 - 12:07:16 |[97;42m 200 [0m|    3.081797ms |      172.18.0.4 |[97;44m GET     [0m "/api/users"
+[00] 2026/03/01 12:07:16 DEBUG: External info for rendy@smk.baktinusantara666.sch.id: WA=
+[00] [GIN] 2026/03/01 - 12:07:16 |[97;42m 200 [0m|   41.128421ms |      172.18.0.4 |[97;44m GET     [0m "/api/me"
+[00] 2026/03/01 12:07:17 DEBUG: Me handler called for email: [rendy@smk.baktinusantara666.sch.id]
+[00] [GIN] 2026/03/01 - 12:07:17 |[97;42m 200 [0m|   86.724626ms |      172.18.0.4 |[97;44m GET     [0m "/api/drive"
+[00] 2026/03/01 12:07:17 DEBUG: External info for rendy@smk.baktinusantara666.sch.id: WA=
+[00] [GIN] 2026/03/01 - 12:07:17 |[97;42m 200 [0m|   39.492017ms |      172.18.0.4 |[97;44m GET     [0m "/api/me"
+[00] [GIN] 2026/03/01 - 12:07:17 |[97;42m 200 [0m|   14.381916ms |      172.18.0.4 |[97;44m GET     [0m "/api/drive"
+[00] [GIN] 2026/03/01 - 12:07:17 |[97;42m 200 [0m|   24.314549ms |      172.18.0.4 |[97;44m GET     [0m "/api/drive/quota"
+[00] [GIN] 2026/03/01 - 12:07:17 |[97;42m 200 [0m|    7.757995ms |      172.18.0.4 |[97;44m GET     [0m "/api/drive/quota"
+[00] [GIN] 2026/03/01 - 12:16:30 |[90;43m 401 [0m|    4.297916ms |      172.18.0.1 |[97;46m POST    [0m "/api/drive/doc/create"
+[00] 2026/03/01 12:23:12 DEBUG: Me handler called for email: [rendy@smk.baktinusantara666.sch.id]
+[00] [GIN] 2026/03/01 - 12:23:12 |[97;42m 200 [0m|   10.818592ms |      172.18.0.4 |[97;44m GET     [0m "/api/users"
+[00] [GIN] 2026/03/01 - 12:23:12 |[97;42m 200 [0m|   12.576634ms |      172.18.0.4 |[97;44m GET     [0m "/api/drive"
+[00] [GIN] 2026/03/01 - 12:23:12 |[97;42m 200 [0m|    6.552604ms |      172.18.0.4 |[97;44m GET     [0m "/api/drive/quota"
+[00] 2026/03/01 12:23:12 DEBUG: External info for rendy@smk.baktinusantara666.sch.id: WA=
+[00] [GIN] 2026/03/01 - 12:23:12 |[97;42m 200 [0m|  116.599679ms |      172.18.0.4 |[97;44m GET     [0m "/api/me"
+[00] 2026/03/01 12:24:37 DEBUG: Me handler called for email: [rendy@smk.baktinusantara666.sch.id]
+[00] [GIN] 2026/03/01 - 12:24:37 |[97;42m 200 [0m|   11.813333ms |      172.18.0.4 |[97;44m GET     [0m "/api/drive"
+[00] [GIN] 2026/03/01 - 12:24:37 |[97;42m 200 [0m|    6.020097ms |      172.18.0.4 |[97;44m GET     [0m "/api/drive"
+[00] [GIN] 2026/03/01 - 12:24:37 |[97;42m 200 [0m|    54.89276ms |      172.18.0.4 |[97;44m GET     [0m "/api/users"
+[00] [GIN] 2026/03/01 - 12:24:37 |[97;42m 200 [0m|    3.796307ms |      172.18.0.4 |[97;44m GET     [0m "/api/users"
+[00] [GIN] 2026/03/01 - 12:24:37 |[97;42m 200 [0m|   22.078856ms |      172.18.0.4 |[97;44m GET     [0m "/api/drive/quota"
+[00] 2026/03/01 12:24:37 DEBUG: External info for rendy@smk.baktinusantara666.sch.id: WA=
+[00] [GIN] 2026/03/01 - 12:24:37 |[97;42m 200 [0m|  122.682843ms |      172.18.0.4 |[97;44m GET     [0m "/api/me"
+[00] [GIN] 2026/03/01 - 12:24:37 |[97;42m 200 [0m|   17.060726ms |      172.18.0.4 |[97;44m GET     [0m "/api/drive/quota"
+[00] 2026/03/01 12:24:37 DEBUG: Me handler called for email: [rendy@smk.baktinusantara666.sch.id]
+[00] 2026/03/01 12:24:37 DEBUG: External info for rendy@smk.baktinusantara666.sch.id: WA=
+[00] [GIN] 2026/03/01 - 12:24:37 |[97;42m 200 [0m|   29.882327ms |      172.18.0.4 |[97;44m GET     [0m "/api/me"
+[00] [GIN] 2026/03/01 - 12:24:47 |[97;42m 200 [0m|   46.862566ms |      172.18.0.5 |[97;44m GET     [0m "/wopi/files/11?access_token=baknus_rendy%40smk.baktinusantara666.sch.id_20260301120716&access_token_ttl=0"

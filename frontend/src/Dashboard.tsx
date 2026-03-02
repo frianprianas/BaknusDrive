@@ -4,7 +4,7 @@ import logo from './assets/logo.png';
 import FormBuilder from './FormBuilder';
 import {
     Search, Menu, X, Filter, LayoutGrid, Clock, Users, Database,
-    User, Settings, LogOut, ChevronRight, MoreVertical,
+    Settings, LogOut, ChevronRight,
     Grid, List, AlertCircle, HardDrive, MonitorSmartphone,
     Star, Trash2, Folder as FolderIcon, File as FileIcon, Image as ImageIcon, FileText, FileSpreadsheet, Presentation,
     Cloud, Plus, Download, FolderPlus, Upload, FileUp, Check,
@@ -45,7 +45,7 @@ export default function Dashboard() {
 
     const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
     const [currentView, setCurrentView] = useState('drive');
-    const [breadcrumb, setBreadcrumb] = useState<{ id: number | null, name: string }[]>([{ id: null, name: 'My Drive' }]);
+    const [breadcrumb, setBreadcrumb] = useState<{ id: number | string | null, name: string }[]>([{ id: null, name: 'My Drive' }]);
     const [contextMenu, setContextMenu] = useState<{ visible: boolean, x: number, y: number, item: any, type: 'file' | 'folder' | null }>({ visible: false, x: 0, y: 0, item: null, type: null });
 
     const [shareModal, setShareModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null }>({ visible: false, item: null, type: null });
@@ -359,12 +359,12 @@ export default function Dashboard() {
         }
     };
 
-    const toggleStar = async (item: any, type: 'file' | 'folder') => {
-        // Star logic not fully implemented in backend models yet, keeping UI state
-        item.is_starred = !item.is_starred;
-        setFiles([...files]);
-        setFolders([...folders]);
-    };
+    // const toggleStar = async (item: any, type: 'file' | 'folder') => {
+    //     // Star logic not fully implemented in backend models yet, keeping UI state
+    //     item.is_starred = !item.is_starred;
+    //     setFiles([...files]);
+    //     setFolders([...folders]);
+    // };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         setShowNewMenu(false);
@@ -509,6 +509,89 @@ export default function Dashboard() {
             console.error("Failed to restore", error);
             alert("Failed to restore");
         }
+    };
+
+    // Drag and Drop (Move) Logic
+    const handleMoveItem = async (draggedId: string, draggedType: 'file' | 'folder', targetFolderId: number | null) => {
+        try {
+            const token = localStorage.getItem('token');
+            const data = { target_folder_id: targetFolderId };
+
+            if (draggedType === 'file') {
+                await axios.put(`/api/drive/file/${draggedId}/move`, data, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } else {
+                if (parseInt(draggedId) === targetFolderId) return;
+                await axios.put(`/api/drive/folder/${draggedId}/move`, data, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            }
+            fetchDriveData();
+        } catch (error) {
+            console.error("Failed to move item", error);
+            alert("Failed to move item. Ensure you have the necessary permissions.");
+        }
+    };
+
+    const handleDragStartItem = (e: React.DragEvent, id: number, type: 'file' | 'folder') => {
+        if (currentView !== 'my-drive' && currentView !== 'computer') return;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData('application/json', JSON.stringify({ id, type }));
+        // Add visual feedback (need requestAnimationFrame so drag image reflects original state before opacity is set)
+        if (e.target instanceof HTMLElement) {
+            const target = e.target;
+            requestAnimationFrame(() => {
+                target.classList.add('opacity-40', 'scale-95', 'z-50');
+            });
+        }
+    };
+
+    const handleDragEndItem = (e: React.DragEvent) => {
+        if (e.target instanceof HTMLElement) {
+            e.target.classList.remove('opacity-40', 'scale-95', 'z-50');
+        }
+    };
+
+    const handleDropOnFolder = (e: React.DragEvent, targetFolderId: number | null) => {
+        e.preventDefault();
+        e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/40', 'ring-2', 'ring-[#007b83]');
+
+        try {
+            const dataStr = e.dataTransfer.getData('application/json');
+            if (!dataStr) return; // Means it's likely dragging from desktop
+            const data = JSON.parse(dataStr);
+            if (data && data.id && data.type) {
+                if (data.type === 'folder' && parseInt(data.id) === targetFolderId) return;
+                // Avoid dropping to its direct parent if it's already there
+                const isAlreadyInTarget = breadcrumb.length > 0
+                    ? breadcrumb[breadcrumb.length - 1].id === targetFolderId
+                    : targetFolderId === null;
+                if (!isAlreadyInTarget) {
+                    handleMoveItem(data.id.toString(), data.type, targetFolderId);
+                }
+            }
+        } catch (err) {
+            // Probably a file from desktop, ignore here since global dropzone handles it
+        }
+    };
+
+    const handleDragOverFolder = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+    };
+
+    const handleDragEnterFolder = (e: React.DragEvent) => {
+        e.preventDefault();
+        // Only highlight if dragging an item
+        if (e.dataTransfer.types.includes('application/json')) {
+            e.currentTarget.classList.add('bg-blue-50', 'dark:bg-blue-900/40', 'ring-2', 'ring-[#007b83]');
+        }
+    };
+
+    const handleDragLeaveFolder = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/40', 'ring-2', 'ring-[#007b83]');
     };
 
     // Opens a Collabora Online editor tab for a given file.
@@ -670,7 +753,7 @@ export default function Dashboard() {
         } else if (target.id === 'device') {
             setCurrentFolderId(null);
         } else {
-            setCurrentFolderId(target.id);
+            setCurrentFolderId(target.id as number | null);
         }
 
         setBreadcrumb(breadcrumb.slice(0, index + 1));
@@ -967,7 +1050,7 @@ export default function Dashboard() {
                         {breadcrumb.map((crumb: any, idx: number) => (
                             <React.Fragment key={idx}>
                                 <button
-                                    onClick={() => navigateToFolder(crumb.id, breadcrumb.slice(0, idx + 1))}
+                                    onClick={() => navigateToBreadcrumb(idx)}
                                     className="hover:text-indigo-600 hover:underline transition-all"
                                 >
                                     {crumb.name === 'My Drive' ? 'Beranda' : crumb.name}
@@ -1329,13 +1412,20 @@ export default function Dashboard() {
                                     viewMode === 'list' ? (
                                         <div
                                             key={`folder-${f.id}`}
+                                            draggable
+                                            onDragStart={(e: React.DragEvent) => handleDragStartItem(e, f.id, 'folder')}
+                                            onDragEnd={handleDragEndItem}
+                                            onDrop={(e: React.DragEvent) => handleDropOnFolder(e, f.id)}
+                                            onDragOver={handleDragOverFolder}
+                                            onDragEnter={handleDragEnterFolder}
+                                            onDragLeave={handleDragLeaveFolder}
                                             onClick={() => {
                                                 // Close sidebar if navigating on mobile
                                                 if (window.innerWidth < 768) setShowSidebar(false);
                                                 navigateToFolder(f.id, f.name);
                                             }}
-                                            onContextMenu={(e) => handleContextMenu(e, f, 'folder')}
-                                            className="px-5 py-3 md:py-2 grid grid-cols-12 gap-4 items-center group cursor-pointer hover:bg-[#f3fbfa] dark:hover:bg-slate-700/50 border-b border-slate-100 dark:border-slate-800 md:border-transparent last:border-none"
+                                            onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, f, 'folder')}
+                                            className="px-5 py-3 md:py-2 grid grid-cols-12 gap-4 items-center group cursor-pointer hover:bg-[#f3fbfa] dark:hover:bg-slate-700/50 border-b border-slate-100 dark:border-slate-800 md:border-transparent last:border-none transition-colors"
                                         >
                                             <div className="col-span-10 md:col-span-6 flex items-center gap-4">
                                                 <div className="relative flex-shrink-0">
@@ -1363,7 +1453,7 @@ export default function Dashboard() {
                                                 <span className="hidden md:inline">—</span>
                                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                                                     {currentView !== 'shared' && (
-                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(f.id); }} className="p-2 hover:bg-slate-200 rounded-full text-red-500" title="Delete folder">
+                                                        <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDeleteFolder(f.id); }} className="p-2 hover:bg-slate-200 rounded-full text-red-500" title="Delete folder">
                                                             <Trash2 size={18} />
                                                         </button>
                                                     )}
@@ -1373,12 +1463,19 @@ export default function Dashboard() {
                                     ) : (
                                         <div
                                             key={`folder-${f.id}`}
+                                            draggable
+                                            onDragStart={(e: React.DragEvent) => handleDragStartItem(e, f.id, 'folder')}
+                                            onDragEnd={handleDragEndItem}
+                                            onDrop={(e: React.DragEvent) => handleDropOnFolder(e, f.id)}
+                                            onDragOver={handleDragOverFolder}
+                                            onDragEnter={handleDragEnterFolder}
+                                            onDragLeave={handleDragLeaveFolder}
                                             onClick={() => {
                                                 if (window.innerWidth < 768) setShowSidebar(false);
                                                 navigateToFolder(f.id, f.name);
                                             }}
-                                            onContextMenu={(e) => handleContextMenu(e, f, 'folder')}
-                                            className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer group"
+                                            onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, f, 'folder')}
+                                            className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer group transition-colors"
                                         >
                                             <div className="relative flex-shrink-0">
                                                 <FolderIcon size={24} fill="#5f6368" className="text-slate-500 dark:text-slate-400 shadow-sm border-none" />
@@ -1396,8 +1493,11 @@ export default function Dashboard() {
                                     viewMode === 'list' ? (
                                         <div
                                             key={`file-${f.id}`}
+                                            draggable
+                                            onDragStart={(e: React.DragEvent) => handleDragStartItem(e, f.id, 'file')}
+                                            onDragEnd={handleDragEndItem}
                                             onDoubleClick={() => handlePreview(f)}
-                                            onContextMenu={(e) => handleContextMenu(e, f, 'file')}
+                                            onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, f, 'file')}
                                             className="px-5 py-3 md:py-2 grid grid-cols-12 gap-4 items-center group cursor-pointer hover:bg-[#f3fbfa] dark:hover:bg-slate-700/50 border-b border-slate-100 dark:border-slate-800 md:border-transparent last:border-none"
                                         >
                                             <div className="col-span-10 md:col-span-6 flex items-center gap-4">
@@ -1434,19 +1534,19 @@ export default function Dashboard() {
                                                 <span className="hidden md:inline">{formatSize(f.size)}</span>
                                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                                                     {currentView === 'trash' ? (
-                                                        <button onClick={(e) => { e.stopPropagation(); setContextMenu({ item: f, type: 'file', visible: false, x: 0, y: 0 }); handleRestoreItem(); }} className="p-2 hover:bg-slate-200 rounded-full text-green-500" title="Restore">
+                                                        <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); setContextMenu({ item: f, type: 'file', visible: false, x: 0, y: 0 }); handleRestoreItem(); }} className="p-2 hover:bg-slate-200 rounded-full text-green-500" title="Restore">
                                                             <RotateCcw size={18} />
                                                         </button>
                                                     ) : currentView === 'shared' ? (
-                                                        <button onClick={(e) => { e.stopPropagation(); handleDownloadFile(f.id, f.name); }} className="p-2 hover:bg-slate-200 rounded-full text-blue-500" title="Download">
+                                                        <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDownloadFile(f.id, f.name); }} className="p-2 hover:bg-slate-200 rounded-full text-blue-500" title="Download">
                                                             <Download size={18} />
                                                         </button>
                                                     ) : (
                                                         <>
-                                                            <button onClick={(e) => { e.stopPropagation(); handleDownloadFile(f.id, f.name); }} className="p-2 hover:bg-slate-200 rounded-full text-blue-500" title="Download">
+                                                            <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDownloadFile(f.id, f.name); }} className="p-2 hover:bg-slate-200 rounded-full text-blue-500" title="Download">
                                                                 <Download size={18} />
                                                             </button>
-                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteFile(f.id); }} className="p-2 hover:bg-slate-200 rounded-full text-red-500" title="Delete">
+                                                            <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDeleteFile(f.id); }} className="p-2 hover:bg-slate-200 rounded-full text-red-500" title="Delete">
                                                                 <Trash2 size={18} />
                                                             </button>
                                                         </>
@@ -1457,9 +1557,12 @@ export default function Dashboard() {
                                     ) : (
                                         <div
                                             key={`file-${f.id}`}
+                                            draggable
+                                            onDragStart={(e: React.DragEvent) => handleDragStartItem(e, f.id, 'file')}
+                                            onDragEnd={handleDragEndItem}
                                             onDoubleClick={() => handlePreview(f)}
-                                            onContextMenu={(e) => handleContextMenu(e, f, 'file')}
-                                            className="flex flex-col bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer overflow-hidden group"
+                                            onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, f, 'file')}
+                                            className="flex flex-col bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer overflow-hidden group transition-colors"
                                         >
                                             <div className="h-32 bg-slate-100 dark:bg-slate-900/50 flex items-center justify-center p-4 border-b border-slate-200 dark:border-slate-700">
                                                 <div className="transform scale-[2]">{getFileIcon(f.name, f.mime_type)}</div>
@@ -1605,7 +1708,7 @@ export default function Dashboard() {
                                                 </div>
                                             </div>
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); submitShare(u.email); }}
+                                                onClick={(e: React.MouseEvent) => { e.stopPropagation(); submitShare(u.email); }}
                                                 className="mt-3 sm:mt-0 text-[14px] font-medium bg-[#f0f4f9] hover:bg-[#e1e5ea] text-[#1f1f1f] px-5 py-2 rounded-full transition-colors shrink-0 flex items-center gap-1.5"
                                             >
                                                 Bagikan

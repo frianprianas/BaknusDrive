@@ -465,6 +465,89 @@ func RenameFolder(c *gin.Context) {
 	c.JSON(http.StatusOK, folder)
 }
 
+type MoveReq struct {
+	TargetFolderID *uint `json:"target_folder_id"` // null means move to root
+}
+
+func MoveFile(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	fileID := c.Param("id")
+
+	var req MoveReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	var file models.File
+	if err := DB.Where("id = ? AND user_id = ?", fileID, userID).First(&file).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+
+	if req.TargetFolderID != nil {
+		var targetFolder models.Folder
+		if err := DB.Where("id = ?", *req.TargetFolderID).First(&targetFolder).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Target folder not found"})
+			return
+		}
+		if targetFolder.UserID != userID && !HasAccessToFolder(userID, *req.TargetFolderID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "No access to target folder"})
+			return
+		}
+	}
+
+	file.FolderID = req.TargetFolderID
+	if err := DB.Save(&file).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to move file"})
+		return
+	}
+
+	c.JSON(http.StatusOK, file)
+}
+
+func MoveFolder(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	folderID := c.Param("id")
+
+	var req MoveReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	var folder models.Folder
+	if err := DB.Where("id = ? AND user_id = ?", folderID, userID).First(&folder).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found"})
+		return
+	}
+
+	if req.TargetFolderID != nil && *req.TargetFolderID == folder.ID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot move folder into itself"})
+		return
+	}
+
+	if req.TargetFolderID != nil {
+		var targetFolder models.Folder
+		if err := DB.Where("id = ?", *req.TargetFolderID).First(&targetFolder).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Target folder not found"})
+			return
+		}
+		if targetFolder.UserID != userID && !HasAccessToFolder(userID, *req.TargetFolderID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "No access to target folder"})
+			return
+		}
+	}
+
+	folder.ParentID = req.TargetFolderID
+	if err := DB.Save(&folder).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to move folder"})
+		return
+	}
+
+	c.JSON(http.StatusOK, folder)
+}
+
 func ListTrash(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 

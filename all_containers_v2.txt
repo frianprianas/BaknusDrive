@@ -1,0 +1,7 @@
+﻿CONTAINER ID   IMAGE                              COMMAND                  CREATED          STATUS                  PORTS                                         NAMES
+a6a24ef917b6   onlyoffice/documentserver:latest   "/app/ds/run-documenΓÇª"   48 seconds ago   Up 28 seconds           0.0.0.0:8084->80/tcp                          baknusdrive-onlyoffice-ds-1
+ea0403fd9cf7   baknusdrive-backend                "reflex -c reflex.coΓÇª"   3 hours ago      Up About an hour        0.0.0.0:8082->8888/tcp                        baknusdrive-backend-1
+f363e246a732   baknusdrive-frontend               "docker-entrypoint.sΓÇª"   18 hours ago     Up 18 hours             0.0.0.0:5173->5173/tcp, [::]:5173->5173/tcp   baknusdrive-frontend-1
+253b6cbc6d39   baknusdrive-forms                  "reflex -c reflex.coΓÇª"   18 hours ago     Up 18 hours             0.0.0.0:8083->8080/tcp                        baknusdrive-forms-1
+26d2b3bfa298   postgres:15-alpine                 "docker-entrypoint.sΓÇª"   35 hours ago     Up 19 hours (healthy)   5432/tcp                                      baknusdrive-postgres-1
+fa0e5a7137da   redis:7-alpine                     "docker-entrypoint.sΓÇª"   35 hours ago     Up 19 hours             6379/tcp                                      baknusdrive-redis-1

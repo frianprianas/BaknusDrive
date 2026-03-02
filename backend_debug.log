@@ -1,0 +1,30 @@
+docker : time="2026-03-01T16:0
+8:09+07:00" level=warning msg=
+"C:\\Users\\Administrator\\Doc
+uments\\website_baknus\\baknus
+drive\\docker-compose.yml: 
+the attribute `version` is 
+obsolete, it will be ignored, 
+please remove it to avoid 
+potential confusion"
+At line:1 char:54
++ ... /app.log . 2>&1; docker 
+compose logs backend --since 
+30m 2>&1 | Out-F ...
++                      ~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~
+    + CategoryInfo          : 
+    NotSpecified: (time="202  
+  6-03-0...tial confusion":   
+ String) [], RemoteExcepti    
+on
+    + FullyQualifiedErrorId : 
+    NativeCommandError
+ 
+backend-1  | [00] [GIN] 2026/03/01 - 08:48:21 |[97;42m 200 [0m|      57.204??s |      172.18.0.4 |[97;44m GET     [0m "/api/ping"
+backend-1  | [00] [GIN] 2026/03/01 - 08:48:36 |[97;42m 200 [0m|      88.906??s |      172.18.0.4 |[97;46m POST    [0m "/api/doc/callback/1"
+backend-1  | [00] 2026/03/01 09:07:37 [RawFileAccess] Request for file ID: 10
+backend-1  | [00] 2026/03/01 09:07:37 [RawFileAccess] Serving file: tes.docx (Mime: application/vnd.openxmlformats-officedocument.wordprocessingml.document, Path: storage/rendy@smk.baktinusantara666.sch.id/1772346152552593052_tes.docx)
+backend-1  | [00] 2026/03/01 09:07:37 [RawFileAccess] File size: 36563 bytes
+backend-1  | [00] [GIN] 2026/03/01 - 09:07:37 |[97;42m 200 [0m|    55.65157ms |      172.18.0.4 |[97;44m GET     [0m "/api/raw/doc/10/percobaan.docx"
