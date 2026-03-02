@@ -57,6 +57,7 @@ export default function Dashboard() {
     const [searchUser, setSearchUser] = useState("");
     const [roleFilter, setRoleFilter] = useState("Semua");
     const [storageInfo, setStorageInfo] = useState<{ used: number, quota: number } | null>(null);
+    const [selectedItems, setSelectedItems] = useState<{ id: number, type: 'file' | 'folder', item: any }[]>([]);
     const [adminTargetUser, setAdminTargetUser] = useState<string | null>(null);
     const [quotaModal, setQuotaModal] = useState<{ visible: boolean, user: any }>({ visible: false, user: null });
     const [tempQuotaGB, setTempQuotaGB] = useState<string>("");
@@ -85,8 +86,15 @@ export default function Dashboard() {
             document.documentElement.classList.remove('dark');
         }
 
-        const handleGlobalClick = () => {
+        const handleGlobalClick = (e: MouseEvent) => {
             if (contextMenu.visible) setContextMenu(prev => ({ ...prev, visible: false }));
+
+            // Clear selection if clicking outside valid item area 
+            // We rely on stopPropagation on item clicks
+            const target = e.target as HTMLElement;
+            if (!target.closest('.selectable-item') && !target.closest('.bulk-action-bar')) {
+                setSelectedItems([]);
+            }
         };
         document.addEventListener('click', handleGlobalClick);
         return () => document.removeEventListener('click', handleGlobalClick);
@@ -1569,21 +1577,31 @@ export default function Dashboard() {
                                             onDragOver={handleDragOverFolder}
                                             onDragEnter={handleDragEnterFolder}
                                             onDragLeave={handleDragLeaveFolder}
-                                            onClick={() => {
-                                                // Close sidebar if navigating on mobile
-                                                if (window.innerWidth < 768) setShowSidebar(false);
-                                                navigateToFolder(f.id, f.name);
+                                            onClick={(e) => {
+                                                if (e.ctrlKey || e.metaKey || selectedItems.length > 0) {
+                                                    e.stopPropagation();
+                                                    toggleSelection(f, 'folder');
+                                                } else {
+                                                    if (window.innerWidth < 768) setShowSidebar(false);
+                                                    navigateToFolder(f.id, f.name);
+                                                }
                                             }}
                                             onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, f, 'folder')}
-                                            className="px-5 py-3 md:py-2 grid grid-cols-12 gap-4 items-center group cursor-pointer hover:bg-[#f3fbfa] dark:hover:bg-slate-700/50 border-b border-slate-100 dark:border-slate-800 md:border-transparent last:border-none transition-colors"
+                                            className={`px-5 py-3 md:py-2 grid grid-cols-12 gap-4 items-center group cursor-pointer border-b border-slate-100 dark:border-slate-800 md:border-transparent last:border-none transition-colors selectable-item ${isSelected(f.id, 'folder') ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-[#f3fbfa] dark:hover:bg-slate-700/50'}`}
                                         >
                                             <div className="col-span-10 md:col-span-6 flex items-center gap-4">
                                                 <div className="relative flex-shrink-0">
-                                                    <FolderIcon size={22} fill="#5f6368" className="text-slate-500 dark:text-slate-400 border-none" />
-                                                    {f.is_shared && (
-                                                        <div className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-[1px] shadow-sm">
-                                                            <Users size={10} className="text-slate-600 dark:text-slate-400" />
-                                                        </div>
+                                                    {isSelected(f.id, 'folder') ? (
+                                                        <div className="w-5 h-5 rounded bg-[#1a73e8] flex items-center justify-center text-white"><Check size={14} /></div>
+                                                    ) : (
+                                                        <>
+                                                            <FolderIcon size={22} fill="#5f6368" className="text-slate-500 dark:text-slate-400 border-none" />
+                                                            {f.is_shared && (
+                                                                <div className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-[1px] shadow-sm">
+                                                                    <Users size={10} className="text-slate-600 dark:text-slate-400" />
+                                                                </div>
+                                                            )}
+                                                        </>
                                                     )}
                                                 </div>
                                                 <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white truncate flex items-center gap-2">
@@ -1622,15 +1640,24 @@ export default function Dashboard() {
                                             onDragOver={handleDragOverFolder}
                                             onDragEnter={handleDragEnterFolder}
                                             onDragLeave={handleDragLeaveFolder}
-                                            onClick={() => {
-                                                if (window.innerWidth < 768) setShowSidebar(false);
-                                                navigateToFolder(f.id, f.name);
+                                            onClick={(e) => {
+                                                if (e.ctrlKey || e.metaKey || selectedItems.length > 0) {
+                                                    e.stopPropagation();
+                                                    toggleSelection(f, 'folder');
+                                                } else {
+                                                    if (window.innerWidth < 768) setShowSidebar(false);
+                                                    navigateToFolder(f.id, f.name);
+                                                }
                                             }}
                                             onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, f, 'folder')}
-                                            className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer group transition-colors"
+                                            className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer group transition-colors selectable-item ${isSelected(f.id, 'folder') ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700' : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
                                         >
                                             <div className="relative flex-shrink-0">
-                                                <FolderIcon size={24} fill="#5f6368" className="text-slate-500 dark:text-slate-400 shadow-sm border-none" />
+                                                {isSelected(f.id, 'folder') ? (
+                                                    <div className="w-[24px] h-[24px] rounded bg-[#1a73e8] flex items-center justify-center text-white"><Check size={16} /></div>
+                                                ) : (
+                                                    <FolderIcon size={24} fill="#5f6368" className="text-slate-500 dark:text-slate-400 shadow-sm border-none" />
+                                                )}
                                             </div>
                                             <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 truncate flex items-center gap-2">
                                                 {f.name} {f.is_starred && <Star size={14} className="text-yellow-400 fill-yellow-400" />}
@@ -1651,16 +1678,28 @@ export default function Dashboard() {
                                             onDragStart={(e: React.DragEvent) => handleDragStartItem(e, f.id, 'file')}
                                             onDragEnd={handleDragEndItem}
                                             onDoubleClick={() => handlePreview(f)}
+                                            onClick={(e) => {
+                                                if (e.ctrlKey || e.metaKey || selectedItems.length > 0) {
+                                                    e.stopPropagation();
+                                                    toggleSelection(f, 'file');
+                                                }
+                                            }}
                                             onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, f, 'file')}
-                                            className="px-5 py-3 md:py-2 grid grid-cols-12 gap-4 items-center group cursor-pointer hover:bg-[#f3fbfa] dark:hover:bg-slate-700/50 border-b border-slate-100 dark:border-slate-800 md:border-transparent last:border-none"
+                                            className={`px-5 py-3 md:py-2 grid grid-cols-12 gap-4 items-center group cursor-pointer border-b border-slate-100 dark:border-slate-800 md:border-transparent last:border-none transition-colors selectable-item ${isSelected(f.id, 'file') ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-[#f3fbfa] dark:hover:bg-slate-700/50'}`}
                                         >
                                             <div className="col-span-10 md:col-span-6 flex items-center gap-4">
                                                 <div className="relative flex-shrink-0">
-                                                    {getFileIcon(f.name, f.mime_type)}
-                                                    {f.is_shared && (
-                                                        <div className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-[1px] shadow-sm">
-                                                            <Users size={10} className="text-slate-600 dark:text-slate-400" />
-                                                        </div>
+                                                    {isSelected(f.id, 'file') ? (
+                                                        <div className="w-6 h-6 rounded bg-[#1a73e8] flex items-center justify-center text-white"><Check size={16} /></div>
+                                                    ) : (
+                                                        <>
+                                                            {getFileIcon(f.name, f.mime_type)}
+                                                            {f.is_shared && (
+                                                                <div className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-[1px] shadow-sm">
+                                                                    <Users size={10} className="text-slate-600 dark:text-slate-400" />
+                                                                </div>
+                                                            )}
+                                                        </>
                                                     )}
                                                 </div>
                                                 <div className="flex flex-col min-w-0">
@@ -1715,10 +1754,19 @@ export default function Dashboard() {
                                             onDragStart={(e: React.DragEvent) => handleDragStartItem(e, f.id, 'file')}
                                             onDragEnd={handleDragEndItem}
                                             onDoubleClick={() => handlePreview(f)}
+                                            onClick={(e) => {
+                                                if (e.ctrlKey || e.metaKey || selectedItems.length > 0) {
+                                                    e.stopPropagation();
+                                                    toggleSelection(f, 'file');
+                                                }
+                                            }}
                                             onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, f, 'file')}
-                                            className="flex flex-col bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer overflow-hidden group transition-colors"
+                                            className={`flex flex-col border rounded-xl cursor-pointer overflow-hidden group transition-colors selectable-item ${isSelected(f.id, 'file') ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700' : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
                                         >
-                                            <div className="h-32 bg-slate-100 dark:bg-slate-900/50 flex items-center justify-center p-4 border-b border-slate-200 dark:border-slate-700">
+                                            <div className="h-32 bg-slate-100 dark:bg-slate-900/50 flex items-center justify-center p-4 border-b border-slate-200 dark:border-slate-700 relative">
+                                                {isSelected(f.id, 'file') && (
+                                                    <div className="absolute top-2 left-2 w-6 h-6 rounded bg-[#1a73e8] flex items-center justify-center text-white shadow-sm z-10"><Check size={16} /></div>
+                                                )}
                                                 <div className="transform scale-[2]">{getFileIcon(f.name, f.mime_type)}</div>
                                             </div>
                                             <div className="p-3 flex items-center gap-3">
@@ -1739,6 +1787,20 @@ export default function Dashboard() {
                         </>
                     )}
                 </div>
+
+                {/* Floating Bulk Action Bar */}
+                {selectedItems.length > 0 && (
+                    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-700 shadow-2xl rounded-full px-5 py-3 flex items-center gap-4 z-[90] pointer-events-auto bulk-action-bar">
+                        <span className="text-sm font-medium text-white whitespace-nowrap">{selectedItems.length} selected</span>
+                        <div className="w-px h-5 bg-slate-600"></div>
+                        <button onClick={handleBulkDelete} className="p-2 hover:bg-slate-800 text-slate-300 hover:text-red-400 rounded-full transition-colors flex items-center justify-center group" title="Delete Selected">
+                            <Trash2 size={20} />
+                        </button>
+                        <button onClick={() => setSelectedItems([])} className="p-2 hover:bg-slate-800 text-slate-300 rounded-full transition-colors flex items-center justify-center" title="Batal">
+                            <X size={20} />
+                        </button>
+                    </div>
+                )}
 
                 {/* Rename Modal */}
                 {renameModal.visible && (
