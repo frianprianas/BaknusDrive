@@ -1103,7 +1103,7 @@ export default function Dashboard() {
 
                 {/* Subheader / Breadcrumbs */}
                 <div className="px-5 py-2 flex items-center justify-between">
-                    <div className="flex items-center text-xs text-slate-400 font-medium">
+                    <div className="flex items-center text-sm md:text-[15px] text-slate-500 dark:text-slate-400 font-medium tracking-tight">
                         {breadcrumb.map((crumb: any, idx: number) => (
                             <React.Fragment key={idx}>
                                 <button
@@ -1112,7 +1112,7 @@ export default function Dashboard() {
                                 >
                                     {crumb.name === 'My Drive' ? 'Beranda' : crumb.name}
                                 </button>
-                                {idx < breadcrumb.length - 1 && <ChevronRight size={12} className="mx-1 opacity-50" />}
+                                {idx < breadcrumb.length - 1 && <ChevronRight size={16} className="mx-1.5 opacity-50" />}
                             </React.Fragment>
                         ))}
                     </div>
