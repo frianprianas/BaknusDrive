@@ -45,7 +45,7 @@ func CreateFolder(c *gin.Context) {
 	}
 
 	folder := models.Folder{
-		Name:     req.Name,
+		Name:     GetUniqueFolderName(userID, req.ParentID, req.Name),
 		ParentID: req.ParentID,
 		UserID:   userID,
 		DeviceID: req.DeviceID,
@@ -393,6 +393,63 @@ func DeleteFile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "File deleted successfully"})
 }
 
+func GetUniqueFileName(userID string, folderID *uint, name string) string {
+	baseName := name
+	extension := ""
+	extIdx := -1
+	for i := len(name) - 1; i >= 0; i-- {
+		if name[i] == '.' {
+			extIdx = i
+			break
+		}
+	}
+
+	if extIdx > 0 {
+		baseName = name[:extIdx]
+		extension = name[extIdx:]
+	}
+
+	finalName := name
+	counter := 1
+	for {
+		var count int64
+		query := DB.Model(&models.File{}).Where("name = ? AND user_id = ?", finalName, userID)
+		if folderID != nil {
+			query = query.Where("folder_id = ?", *folderID)
+		} else {
+			query = query.Where("folder_id IS NULL")
+		}
+		query.Count(&count)
+		if count == 0 {
+			break
+		}
+		finalName = fmt.Sprintf("%s (%d)%s", baseName, counter, extension)
+		counter++
+	}
+	return finalName
+}
+
+func GetUniqueFolderName(userID string, parentID *uint, name string) string {
+	finalName := name
+	counter := 1
+	for {
+		var count int64
+		query := DB.Model(&models.Folder{}).Where("name = ? AND user_id = ?", finalName, userID)
+		if parentID != nil {
+			query = query.Where("parent_id = ?", *parentID)
+		} else {
+			query = query.Where("parent_id IS NULL")
+		}
+		query.Count(&count)
+		if count == 0 {
+			break
+		}
+		finalName = fmt.Sprintf("%s (%d)", name, counter)
+		counter++
+	}
+	return finalName
+}
+
 func DeleteFolder(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	folderID := c.Param("id")
@@ -431,7 +488,7 @@ func RenameFile(c *gin.Context) {
 		return
 	}
 
-	file.Name = req.Name
+	file.Name = GetUniqueFileName(userID, file.FolderID, req.Name)
 	if err := DB.Save(&file).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to rename file"})
 		return
@@ -515,7 +572,7 @@ func CopyFile(c *gin.Context) {
 
 	// Create new record
 	newFile := models.File{
-		Name:     "Copy of " + file.Name,
+		Name:     GetUniqueFileName(userID, req.TargetFolderID, "Copy of "+file.Name),
 		MimeType: file.MimeType,
 		Size:     file.Size,
 		Path:     savePath,
@@ -551,7 +608,7 @@ func RenameFolder(c *gin.Context) {
 		return
 	}
 
-	folder.Name = req.Name
+	folder.Name = GetUniqueFolderName(userID, folder.ParentID, req.Name)
 	if err := DB.Save(&folder).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to rename folder"})
 		return

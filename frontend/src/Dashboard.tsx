@@ -50,6 +50,9 @@ export default function Dashboard() {
     const [clipboard, setClipboard] = useState<{ item: any, type: 'file' | 'folder', action: 'copy' | 'cut' } | null>(null);
 
     const [shareModal, setShareModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null }>({ visible: false, item: null, type: null });
+    const [renameModal, setRenameModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null }>({ visible: false, item: null, type: null });
+    const [tempRenameName, setTempRenameName] = useState("");
+    const [deleteModal, setDeleteModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null }>({ visible: false, item: null, type: null });
     const [usersList, setUsersList] = useState<any[]>([]); // also used for admin users view
     const [searchUser, setSearchUser] = useState("");
     const [roleFilter, setRoleFilter] = useState("Semua");
@@ -459,31 +462,28 @@ export default function Dashboard() {
         }
     };
 
-    const handleDeleteFile = async (id: number) => {
-        if (!confirm("Are you sure you want to delete this file?")) return;
-        try {
-            const token = localStorage.getItem('token');
-            await axios.delete(`/api/drive/file/${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            fetchDriveData();
-        } catch (error) {
-            console.error("Failed to delete file", error);
-            alert("Failed to delete file");
-        }
+    const handleDeleteFile = (f: any) => {
+        setDeleteModal({ visible: true, item: f, type: 'file' });
+        if (contextMenu.visible) setContextMenu({ ...contextMenu, visible: false });
     };
 
-    const handleDeleteFolder = async (id: number) => {
-        if (!confirm("Are you sure you want to delete this folder?")) return;
+    const handleDeleteFolder = (f: any) => {
+        setDeleteModal({ visible: true, item: f, type: 'folder' });
+        if (contextMenu.visible) setContextMenu({ ...contextMenu, visible: false });
+    };
+
+    const submitDelete = async () => {
+        if (!deleteModal.item || !deleteModal.type) return;
         try {
             const token = localStorage.getItem('token');
-            await axios.delete(`/api/drive/folder/${id}`, {
+            await axios.delete(`/api/drive/${deleteModal.type}/${deleteModal.item.id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             fetchDriveData();
+            setDeleteModal({ visible: false, item: null, type: null });
         } catch (error) {
-            console.error("Failed to delete folder", error);
-            alert("Failed to delete folder");
+            console.error("Failed to delete", error);
+            alert("Failed to delete item");
         }
     };
 
@@ -744,20 +744,28 @@ export default function Dashboard() {
         }
     };
 
-    const handleRenameMenu = async () => {
+    const handleRenameMenu = () => {
         if (!contextMenu.item || !contextMenu.type) return;
-        const itemName = contextMenu.item.name;
-        const newName = prompt("Rename to:", itemName);
-        if (!newName || newName === itemName) return;
+        setTempRenameName(contextMenu.item.name);
+        setRenameModal({ visible: true, item: contextMenu.item, type: contextMenu.type as 'file' | 'folder' });
+        setContextMenu({ ...contextMenu, visible: false });
+    };
+
+    const submitRename = async () => {
+        if (!renameModal.item || !renameModal.type || !tempRenameName.trim()) return;
+        if (tempRenameName === renameModal.item.name) {
+            setRenameModal({ visible: false, item: null, type: null });
+            return;
+        }
 
         try {
             const token = localStorage.getItem('token');
-            const endpoint = `/api/drive/${contextMenu.type}/${contextMenu.item.id}/rename`;
-            await axios.put(endpoint, { name: newName }, {
+            const endpoint = `/api/drive/${renameModal.type}/${renameModal.item.id}/rename`;
+            await axios.put(endpoint, { name: tempRenameName }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             fetchDriveData();
-            setContextMenu({ ...contextMenu, visible: false });
+            setRenameModal({ visible: false, item: null, type: null });
         } catch (error) {
             console.error("Failed to rename", error);
             alert("Failed to rename");
@@ -1606,7 +1614,7 @@ export default function Dashboard() {
                                                             <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDownloadFile(f.id, f.name); }} className="p-2 hover:bg-slate-200 rounded-full text-blue-500" title="Download">
                                                                 <Download size={18} />
                                                             </button>
-                                                            <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDeleteFile(f.id); }} className="p-2 hover:bg-slate-200 rounded-full text-red-500" title="Delete">
+                                                            <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDeleteFile(f); }} className="p-2 hover:bg-slate-200 rounded-full text-red-500" title="Delete">
                                                                 <Trash2 size={18} />
                                                             </button>
                                                         </>
@@ -1643,6 +1651,58 @@ export default function Dashboard() {
                         </>
                     )}
                 </div>
+
+                {/* Rename Modal */}
+                {renameModal.visible && (
+                    <div className="fixed inset-0 bg-slate-900/40 z-[110] flex items-center justify-center p-4">
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+                            <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700">
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                    <Edit2 size={20} className="text-blue-500" /> Rename
+                                </h3>
+                            </div>
+                            <div className="p-6">
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">Please enter a new name for the item:</p>
+                                <input
+                                    type="text"
+                                    value={tempRenameName}
+                                    onChange={(e) => setTempRenameName(e.target.value)}
+                                    className="w-full border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-200"
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3 rounded-b-2xl border-t border-slate-100 dark:border-slate-700">
+                                <button className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors" onClick={() => setRenameModal({ visible: false, item: null, type: null })}>Cancel</button>
+                                <button className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors disabled:opacity-50" onClick={submitRename} disabled={!tempRenameName.trim() || tempRenameName === renameModal.item?.name}>Save</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Delete Modal */}
+                {deleteModal.visible && (
+                    <div className="fixed inset-0 bg-slate-900/40 z-[110] flex items-center justify-center p-4">
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+                            <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700">
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                    <Trash2 size={20} className="text-red-500" /> Move to Trash?
+                                </h3>
+                            </div>
+                            <div className="p-6">
+                                <p className="text-slate-600 dark:text-slate-300">
+                                    Are you sure you want to delete <strong>{deleteModal.item?.name}</strong>?
+                                </p>
+                                <p className="text-xs text-slate-500 dark:text-slate-500 mt-2">
+                                    You can restore items from the Trash later if needed.
+                                </p>
+                            </div>
+                            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3 rounded-b-2xl border-t border-slate-100 dark:border-slate-700">
+                                <button className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors" onClick={() => setDeleteModal({ visible: false, item: null, type: null })}>Cancel</button>
+                                <button className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors" onClick={submitDelete}>Move to Trash</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Right Click Context Menu */}
                 {contextMenu.visible && contextMenu.type !== null && (
@@ -1716,7 +1776,7 @@ export default function Dashboard() {
                                         <button
                                             className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-red-600 transition-colors"
                                             onClick={() => {
-                                                contextMenu.type === 'file' ? handleDeleteFile(contextMenu.item.id) : handleDeleteFolder(contextMenu.item.id);
+                                                contextMenu.type === 'file' ? handleDeleteFile(contextMenu.item) : handleDeleteFolder(contextMenu.item);
                                                 setContextMenu({ ...contextMenu, visible: false });
                                             }}
                                         >
