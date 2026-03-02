@@ -320,7 +320,7 @@ func DownloadPublicFile(c *gin.Context) {
 		return
 	}
 
-	c.Header("Content-Disposition", "attachment; filename=\""+file.Name+"\"")
+	c.Header("Content-Disposition", "inline; filename=\""+file.Name+"\"")
 	c.Header("Content-Type", file.MimeType)
 	c.File(file.Path)
 }
