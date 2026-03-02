@@ -23,9 +23,6 @@ func main() {
 	// Increase memory limit for multipart forms to handle large uploads smoothly
 	r.MaxMultipartMemory = 512 << 20 // 512 MiB
 
-	// Wildcard to support filenames with spaces (encoded as %20)
-	r.GET("/api/raw/doc/:id/*filename", RawFileAccess)
-
 	// CORS Setup
 	r.Use(cors.New(cors.Config{
 		AllowOriginFunc: func(origin string) bool {
@@ -37,6 +34,7 @@ func main() {
 		AllowCredentials: true,
 	}))
 
+	WopiRouter(r)
 	r.Static("/downloads", "./static")
 
 	api := r.Group("/api")
@@ -98,10 +96,7 @@ func main() {
 
 			// BaknusDoc (OnlyOffice) APIs
 			driveAPI.POST("/doc/create", CreateDoc)
-			driveAPI.GET("/doc/config/:id", GetDocConfig)
 		}
-		// NOTE: /api/raw/doc is registered at root level (above) to support wildcard filenames
-		api.POST("/doc/callback/:id", DocCallback)
 
 		// Admin APIs
 		adminAPI := api.Group("/admin")
