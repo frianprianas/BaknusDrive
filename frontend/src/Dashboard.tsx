@@ -769,26 +769,26 @@ export default function Dashboard() {
 
                     {/* New Menu Dropdown */}
                     {showNewMenu && (
-                        <div className="absolute left-6 top-16 mt-2 w-64 bg-white dark:bg-slate-800 shadow-xl border border-slate-100 dark:border-slate-700 rounded-xl py-2 z-[60]">
-                            <button onClick={handleCreateFolder} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-800 dark:text-slate-200">
-                                <FolderPlus size={18} className="text-slate-600 dark:text-slate-400" /> New folder
+                        <div className="absolute left-6 top-16 mt-2 w-72 bg-white dark:bg-slate-800 shadow-xl border border-slate-100 dark:border-slate-700 rounded-2xl py-3 z-[60]">
+                            <button onClick={handleCreateFolder} className="w-full flex items-center gap-4 px-6 py-3 hover:bg-slate-100 dark:hover:bg-slate-700 text-base font-medium text-slate-800 dark:text-slate-200">
+                                <FolderPlus size={22} className="text-slate-600 dark:text-slate-400" /> New folder
                             </button>
-                            <button onClick={() => { setShowNewMenu(false); setShowFormBuilder(true); }} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-800 dark:text-slate-200">
-                                <ClipboardList size={18} className="text-indigo-600 dark:text-indigo-400" /> New Baknus Form
+                            <button onClick={() => { setShowNewMenu(false); setShowFormBuilder(true); }} className="w-full flex items-center gap-4 px-6 py-3 hover:bg-slate-100 dark:hover:bg-slate-700 text-base font-medium text-slate-800 dark:text-slate-200">
+                                <ClipboardList size={22} className="text-indigo-600 dark:text-indigo-400" /> New Baknus Form
                             </button>
-                            <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
-                            <button onClick={() => handleCreateDoc('docx')} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-800 dark:text-slate-200">
-                                <FileText size={18} className="text-blue-600 dark:text-blue-400" /> Baknus Write (Doc)
+                            <div className="border-t border-slate-100 dark:border-slate-700 my-2"></div>
+                            <button onClick={() => handleCreateDoc('docx')} className="w-full flex items-center gap-4 px-6 py-3 hover:bg-slate-100 dark:hover:bg-slate-700 text-base font-medium text-slate-800 dark:text-slate-200">
+                                <FileText size={22} className="text-blue-600 dark:text-blue-400" /> Baknus Write (Doc)
                             </button>
-                            <button onClick={() => handleCreateDoc('xlsx')} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-800 dark:text-slate-200">
-                                <FileSpreadsheet size={18} className="text-green-600 dark:text-green-400" /> Baknus Calc (Sheet)
+                            <button onClick={() => handleCreateDoc('xlsx')} className="w-full flex items-center gap-4 px-6 py-3 hover:bg-slate-100 dark:hover:bg-slate-700 text-base font-medium text-slate-800 dark:text-slate-200">
+                                <FileSpreadsheet size={22} className="text-green-600 dark:text-green-400" /> Baknus Calc (Sheet)
                             </button>
-                            <button onClick={() => handleCreateDoc('pptx')} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-800 dark:text-slate-200">
-                                <Presentation size={18} className="text-orange-600 dark:text-orange-400" /> Baknus Impress (Slide)
+                            <button onClick={() => handleCreateDoc('pptx')} className="w-full flex items-center gap-4 px-6 py-3 hover:bg-slate-100 dark:hover:bg-slate-700 text-base font-medium text-slate-800 dark:text-slate-200">
+                                <Presentation size={22} className="text-orange-600 dark:text-orange-400" /> Baknus Impress (Slide)
                             </button>
-                            <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
-                            <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-800 dark:text-slate-200">
-                                <Upload size={18} className="text-slate-600 dark:text-slate-400" /> File upload
+                            <div className="border-t border-slate-100 dark:border-slate-700 my-2"></div>
+                            <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center gap-4 px-6 py-3 hover:bg-slate-100 dark:hover:bg-slate-700 text-base font-medium text-slate-800 dark:text-slate-200">
+                                <Upload size={22} className="text-slate-600 dark:text-slate-400" /> File upload
                             </button>
                             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
                         </div>
