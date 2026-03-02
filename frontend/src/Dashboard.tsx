@@ -68,6 +68,7 @@ export default function Dashboard() {
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [formStatusFilter, setFormStatusFilter] = useState("Semua");
     const [newDocModal, setNewDocModal] = useState<{ visible: boolean, type: string, name: string }>({ visible: false, type: '', name: '' });
+    const [isDraggingOverBase, setIsDraggingOverBase] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -413,50 +414,58 @@ export default function Dashboard() {
     //     setFolders([...folders]);
     // };
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFilesUpload = async (files: FileList | File[], targetFolderOverride?: number | null) => {
+        if (!files || files.length === 0) return;
         setShowNewMenu(false);
-        const file = e.target.files?.[0];
-        if (!file) return;
+        const token = localStorage.getItem('token');
 
-        const formData = new FormData();
-        formData.append('file', file);
-        if (currentFolderId) {
-            formData.append('folder_id', currentFolderId.toString());
-        } else if (currentView === 'computers' && selectedDevice) {
-            formData.append('device_id', selectedDevice.id.toString());
-        }
+        const folderIdToUse = targetFolderOverride !== undefined ? targetFolderOverride : currentFolderId;
 
-        try {
-            const token = localStorage.getItem('token');
-            setUploadProgress({ active: true, percent: 0, fileName: file.name });
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const formData = new FormData();
+            formData.append('file', file);
+            if (folderIdToUse) {
+                formData.append('folder_id', folderIdToUse.toString());
+            } else if (currentView === 'computers' && selectedDevice) {
+                formData.append('device_id', selectedDevice.id.toString());
+            }
 
-            await axios.post('/api/drive/upload', formData, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'multipart/form-data'
-                },
-                onUploadProgress: (progressEvent: any) => {
-                    const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
-                    setUploadProgress(prev => ({ ...prev, percent: percentCompleted }));
+            try {
+                setUploadProgress({ active: true, percent: 0, fileName: file.name });
+
+                await axios.post('/api/drive/upload', formData, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'multipart/form-data'
+                    },
+                    onUploadProgress: (progressEvent: any) => {
+                        const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+                        setUploadProgress(prev => ({ ...prev, percent: percentCompleted }));
+                    }
+                });
+
+                // Animation for completion
+                setUploadProgress(prev => ({ ...prev, percent: 100 }));
+                await new Promise(resolve => setTimeout(resolve, 800));
+            } catch (error: any) {
+                if (error.response?.data?.error) {
+                    alert(`Upload Gagal (${file.name}): ` + error.response.data.error);
+                } else {
+                    alert(`Failed to upload file: ${file.name}`);
                 }
-            });
-
-            // Animation for completion
-            setUploadProgress(prev => ({ ...prev, percent: 100 }));
-            setTimeout(() => setUploadProgress({ active: false, percent: 0, fileName: "" }), 1000);
-
-            fetchDriveData();
-        } catch (error: any) {
-            setUploadProgress({ active: false, percent: 0, fileName: "" });
-            if (error.response?.data?.error) {
-                alert("Upload Gagal: " + error.response.data.error);
-            } else {
-                alert("Failed to upload file");
             }
         }
 
-        // Reset input
+        setUploadProgress({ active: false, percent: 0, fileName: "" });
+        fetchDriveData();
         if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            handleFilesUpload(e.target.files);
+        }
     };
 
     const handleDownloadFile = async (id: number, name: string) => {
@@ -684,13 +693,53 @@ export default function Dashboard() {
         }
     };
 
+    const handleBaseDragEnter = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer.types.includes('Files')) {
+            setIsDraggingOverBase(true);
+        }
+    };
+
+    const handleBaseDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer.types.includes('Files')) {
+            e.dataTransfer.dropEffect = 'copy';
+        }
+    };
+
+    const handleBaseDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const related = e.relatedTarget as Node | null;
+        if (e.currentTarget.contains(related)) return;
+        setIsDraggingOverBase(false);
+    };
+
+    const handleBaseDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingOverBase(false);
+
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFilesUpload(e.dataTransfer.files);
+        }
+    };
+
     const handleDropOnFolder = (e: React.DragEvent, targetFolderId: number | null) => {
         e.preventDefault();
+        e.stopPropagation();
         e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/40', 'ring-2', 'ring-[#007b83]');
 
         try {
             const dataStr = e.dataTransfer.getData('application/json');
-            if (!dataStr) return; // Means it's likely dragging from desktop
+            if (!dataStr) {
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleFilesUpload(e.dataTransfer.files, targetFolderId);
+                }
+                return;
+            }
             const data = JSON.parse(dataStr);
             if (data && data.id && data.type) {
                 if (data.type === 'folder' && parseInt(data.id) === targetFolderId) return;
@@ -703,7 +752,9 @@ export default function Dashboard() {
                 }
             }
         } catch (err) {
-            // Probably a file from desktop, ignore here since global dropzone handles it
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleFilesUpload(e.dataTransfer.files, targetFolderId);
+            }
         }
     };
 
@@ -714,8 +765,8 @@ export default function Dashboard() {
 
     const handleDragEnterFolder = (e: React.DragEvent) => {
         e.preventDefault();
-        // Only highlight if dragging an item
-        if (e.dataTransfer.types.includes('application/json')) {
+        // Highlight if dragging an item or external files
+        if (e.dataTransfer.types.includes('application/json') || e.dataTransfer.types.includes('Files')) {
             e.currentTarget.classList.add('bg-blue-50', 'dark:bg-blue-900/40', 'ring-2', 'ring-[#007b83]');
         }
     };
@@ -1303,7 +1354,23 @@ export default function Dashboard() {
                 <div
                     className="flex-1 overflow-y-auto w-full relative"
                     onContextMenu={handleBackgroundContextMenu}
+                    onDragEnter={handleBaseDragEnter}
+                    onDragOver={handleBaseDragOver}
+                    onDragLeave={handleBaseDragLeave}
+                    onDrop={handleBaseDrop}
                 >
+                    {isDraggingOverBase && (
+                        <div className="absolute inset-0 z-50 bg-blue-500/10 backdrop-blur-[2px] border-[3px] border-dashed border-blue-400 rounded-xl m-2 flex items-center justify-center pointer-events-none transition-all">
+                            <div className="bg-white dark:bg-slate-800 px-8 py-6 rounded-3xl shadow-2xl flex flex-col items-center pointer-events-none transform scale-105">
+                                <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mb-4 border border-blue-100 dark:border-blue-800">
+                                    <Upload size={40} className="text-blue-500 animate-bounce" />
+                                </div>
+                                <h3 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-white mb-2">Drop files here</h3>
+                                <p className="text-slate-500 dark:text-slate-400 font-medium">Release to upload files to this folder instantly</p>
+                            </div>
+                        </div>
+                    )}
+
                     {loading && (
                         <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center z-10">
                             <Loader2 size={32} className="animate-spin text-baknus-500" />
@@ -1814,10 +1881,10 @@ export default function Dashboard() {
                                                 </div>
                                                 <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto mr-1">
                                                     {f.is_public && (
-                                                        <Link size={12} className="text-green-500 dark:text-green-400" title="Public Link Active" />
+                                                        <span title="Public Link Active"><Link size={12} className="text-green-500 dark:text-green-400" /></span>
                                                     )}
                                                     {f.is_shared && (
-                                                        <Users size={12} className="text-slate-500 dark:text-slate-400" title="Shared" />
+                                                        <span title="Shared"><Users size={12} className="text-slate-500 dark:text-slate-400" /></span>
                                                     )}
                                                 </div>
                                             </div>
