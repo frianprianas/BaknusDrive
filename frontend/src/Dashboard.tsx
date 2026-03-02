@@ -61,6 +61,7 @@ export default function Dashboard() {
     const [downloading, setDownloading] = useState<boolean>(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [formStatusFilter, setFormStatusFilter] = useState("Semua");
+    const [newDocModal, setNewDocModal] = useState<{ visible: boolean, type: string, name: string }>({ visible: false, type: '', name: '' });
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -544,24 +545,28 @@ export default function Dashboard() {
         }
     };
 
-    const handleCreateDoc = async (type: string) => {
+    const handleCreateDoc = (type: string) => {
         setShowNewMenu(false);
-        const defaultName = type === 'docx' ? 'New Document' : type === 'xlsx' ? 'New Spreadsheet' : 'New Presentation';
+        const defaultName = type === 'docx' ? 'Dokumen Baru' : type === 'xlsx' ? 'Spreadsheet Baru' : 'Presentasi Baru';
+        setNewDocModal({ visible: true, type, name: defaultName });
+    };
+
+    const handleConfirmCreateDoc = async () => {
+        const { type, name } = newDocModal;
+        if (!name.trim()) return;
+        setNewDocModal(prev => ({ ...prev, visible: false }));
 
         const newTab = window.open('about:blank', '_blank');
-
         try {
             const token = localStorage.getItem('token');
             const resp = await axios.post('/api/drive/doc/create', {
-                name: defaultName,
-                type: type,
+                name: name.trim(),
+                type,
                 folder_id: currentFolderId
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             fetchDriveData();
-
-            // Auto open the new document in a new tab
             if (resp.data && resp.data.id && newTab) {
                 newTab.location.href = `/editor/${resp.data.id}`;
             } else if (newTab) {
@@ -570,7 +575,7 @@ export default function Dashboard() {
         } catch (error) {
             console.error("Failed to create document", error);
             if (newTab) newTab.close();
-            alert("Failed to create document");
+            alert("Gagal membuat dokumen");
         }
     };
 
@@ -1935,6 +1940,58 @@ export default function Dashboard() {
                         </div>
                     );
                 })()}
+
+                {/* ===== NEW DOC MODAL ===== */}
+                {newDocModal.visible && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setNewDocModal(prev => ({ ...prev, visible: false }))}>
+                        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 w-full max-w-md mx-4 border border-slate-100 dark:border-slate-700" onClick={e => e.stopPropagation()}>
+                            {/* Icon & Title */}
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-md ${newDocModal.type === 'docx' ? 'bg-blue-50 dark:bg-blue-900/30' : newDocModal.type === 'xlsx' ? 'bg-green-50 dark:bg-green-900/30' : 'bg-orange-50 dark:bg-orange-900/30'}`}>
+                                    {newDocModal.type === 'docx' && <FileText size={28} className="text-blue-600 dark:text-blue-400" />}
+                                    {newDocModal.type === 'xlsx' && <FileSpreadsheet size={28} className="text-green-600 dark:text-green-400" />}
+                                    {newDocModal.type === 'pptx' && <Presentation size={28} className="text-orange-600 dark:text-orange-400" />}
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-slate-800 dark:text-white">
+                                        {newDocModal.type === 'docx' ? 'Buat Dokumen Baru' : newDocModal.type === 'xlsx' ? 'Buat Spreadsheet Baru' : 'Buat Presentasi Baru'}
+                                    </h3>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Masukkan nama file sebelum membuat</p>
+                                </div>
+                            </div>
+
+                            {/* Input */}
+                            <input
+                                type="text"
+                                value={newDocModal.name}
+                                onChange={e => setNewDocModal(prev => ({ ...prev, name: e.target.value }))}
+                                onKeyDown={e => { if (e.key === 'Enter') handleConfirmCreateDoc(); if (e.key === 'Escape') setNewDocModal(prev => ({ ...prev, visible: false })); }}
+                                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 mb-6 transition-all"
+                                placeholder="Nama file..."
+                                autoFocus
+                                onFocus={e => e.target.select()}
+                            />
+
+                            {/* Buttons */}
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setNewDocModal(prev => ({ ...prev, visible: false }))}
+                                    className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    onClick={handleConfirmCreateDoc}
+                                    disabled={!newDocModal.name.trim()}
+                                    className={`flex-1 py-3 rounded-xl text-white text-sm font-semibold shadow-sm transition-all ${newDocModal.type === 'docx' ? 'bg-blue-600 hover:bg-blue-700' : newDocModal.type === 'xlsx' ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-600 hover:bg-orange-700'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                >
+                                    Buat & Buka
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {/* ===== END NEW DOC MODAL ===== */}
 
             </main>
         </div>
