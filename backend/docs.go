@@ -295,6 +295,7 @@ func WopiGetFile(c *gin.Context) {
 	if userID == "" {
 		internalToken := os.Getenv("INTERNAL_SYSTEM_TOKEN")
 		if accessToken != internalToken {
+			log.Printf("[WOPI GetFile] Unauthorized token for file %d, token=%q", fileID, accessToken)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid WOPI token"})
 			return
 		}
@@ -302,16 +303,19 @@ func WopiGetFile(c *gin.Context) {
 
 	var file models.File
 	if err := DB.Where("id = ?", fileID).First(&file).Error; err != nil {
+		log.Printf("[WOPI GetFile] File not found in DB: id=%d", fileID)
 		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
 		return
 	}
 
 	fileBytes, err := os.ReadFile(file.Path)
 	if err != nil {
+		log.Printf("[WOPI GetFile] Cannot read file at path=%q: %v", file.Path, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Cannot read file"})
 		return
 	}
 
+	log.Printf("[WOPI GetFile] Serving file %d (%d bytes) path=%q", fileID, len(fileBytes), file.Path)
 	c.Data(http.StatusOK, "application/octet-stream", fileBytes)
 }
 
@@ -322,44 +326,64 @@ func WopiPutFile(c *gin.Context) {
 	fileIDStr := c.Param("file_id")
 	fileID, _ := strconv.Atoi(fileIDStr)
 
-	// Validate token
 	accessToken := c.Query("access_token")
+	log.Printf("[WOPI PutFile] fileID=%d token=%q method=%s", fileID, accessToken, c.Request.Method)
+
+	// Validate token
 	userID, canWrite := resolveWopiToken(accessToken, fileID)
 	if userID == "" {
 		internalToken := os.Getenv("INTERNAL_SYSTEM_TOKEN")
 		if accessToken != internalToken {
+			log.Printf("[WOPI PutFile] UNAUTHORIZED: token=%q fileID=%d", accessToken, fileID)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid WOPI token"})
 			return
 		}
 		canWrite = true
+		userID = "system"
 	}
 	if !canWrite {
+		log.Printf("[WOPI PutFile] FORBIDDEN: user=%s has no write access to file %d", userID, fileID)
 		c.JSON(http.StatusForbidden, gin.H{"error": "Write access denied"})
 		return
 	}
 
 	var file models.File
 	if err := DB.Where("id = ?", fileID).First(&file).Error; err != nil {
+		log.Printf("[WOPI PutFile] File not found in DB: id=%d", fileID)
 		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
 		return
 	}
 
 	bodyBytes, err := io.ReadAll(c.Request.Body)
 	if err != nil {
+		log.Printf("[WOPI PutFile] Failed to read body: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read body"})
 		return
 	}
 	defer c.Request.Body.Close()
 
+	log.Printf("[WOPI PutFile] Received %d bytes for file %d at path=%q", len(bodyBytes), fileID, file.Path)
+
 	if len(bodyBytes) > 0 {
+		// Ensure parent directory exists
+		dir := filepath.Dir(file.Path)
+		if err = os.MkdirAll(dir, 0755); err != nil {
+			log.Printf("[WOPI PutFile] Cannot create directory %q: %v", dir, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Cannot create directory"})
+			return
+		}
+
 		if err = os.WriteFile(file.Path, bodyBytes, 0644); err != nil {
+			log.Printf("[WOPI PutFile] Cannot write file %q: %v", file.Path, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Cannot save file"})
 			return
 		}
 		file.Size = int64(len(bodyBytes))
 		file.UpdatedAt = time.Now()
 		DB.Save(&file)
-		log.Printf("[WOPI PutFile] Saved file %d (%d bytes) by user %s", fileID, len(bodyBytes), userID)
+		log.Printf("[WOPI PutFile] ✅ Saved file %d (%d bytes) by user=%s", fileID, len(bodyBytes), userID)
+	} else {
+		log.Printf("[WOPI PutFile] Empty body received for file %d (lock check?), returning 200", fileID)
 	}
 
 	c.Status(http.StatusOK)
