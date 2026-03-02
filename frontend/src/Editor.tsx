@@ -56,7 +56,7 @@ const Editor: React.FC = () => {
                         <ArrowLeft size={20} />
                     </button>
                     <img src={logo} alt="BaknusDrive" className="w-8 h-8 object-contain" />
-                    <span className="font-semibold text-slate-700 dark:text-slate-200">BaknusDoc</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">BaknusDrive</span>
                     {fileName && (
                         <>
                             <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-700 mx-1" />

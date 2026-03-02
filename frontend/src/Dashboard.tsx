@@ -892,7 +892,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between px-6 mb-6 gap-2 mt-2 md:mt-0">
                     <div className="flex items-center gap-2">
                         <img src={logo} alt="BaknusDrive logo" className="w-10 h-10 object-contain" />
-                        <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400 mb-1 tracking-tight">BaknusDoc</span>
+                        <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400 mb-1 tracking-tight">BaknusDrive</span>
                     </div>
                     <button className="md:hidden p-2 text-slate-500 dark:text-slate-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800" onClick={() => setShowSidebar(false)}>
                         <X size={20} />
@@ -902,9 +902,9 @@ export default function Dashboard() {
                 <div className="px-4 mb-4 relative">
                     <button
                         onClick={() => setShowNewMenu(!showNewMenu)}
-                        className="flex items-center gap-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm ml-2 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm font-medium w-36 dark:text-slate-200"
+                        className="flex items-center gap-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm ml-2 border border-slate-200 dark:border-slate-700 rounded-[1.25rem] px-5 py-4 text-[17px] font-semibold tracking-wide w-36 dark:text-slate-200"
                     >
-                        <Plus size={24} /> New
+                        <Plus size={28} /> New
                     </button>
 
                     {/* New Menu Dropdown */}
