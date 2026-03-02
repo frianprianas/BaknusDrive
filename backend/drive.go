@@ -450,6 +450,76 @@ func GetUniqueFolderName(userID string, parentID *uint, name string) string {
 	return finalName
 }
 
+func ToggleFileStar(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	fileID := c.Param("id")
+
+	var file models.File
+	if err := DB.Where("id = ? AND user_id = ?", fileID, userID).First(&file).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+
+	file.IsStarred = !file.IsStarred
+	if err := DB.Save(&file).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update star status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Status updated", "is_starred": file.IsStarred})
+}
+
+func ToggleFolderStar(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	folderID := c.Param("id")
+
+	var folder models.Folder
+	if err := DB.Where("id = ? AND user_id = ?", folderID, userID).First(&folder).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found"})
+		return
+	}
+
+	folder.IsStarred = !folder.IsStarred
+	if err := DB.Save(&folder).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update star status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Status updated", "is_starred": folder.IsStarred})
+}
+
+func ListStarred(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+
+	var folders []models.Folder
+	var files []models.File
+
+	DB.Preload("User").Where("user_id = ? AND is_starred = ?", userID, true).Find(&folders)
+	DB.Preload("User").Where("user_id = ? AND is_starred = ?", userID, true).Find(&files)
+
+	for i := range folders {
+		if folders[i].UserID != userID {
+			folders[i].OwnerName = folders[i].User.FullName
+		}
+		var count int64
+		DB.Model(&models.Share{}).Where("folder_id = ?", folders[i].ID).Count(&count)
+		folders[i].IsShared = count > 0
+	}
+	for i := range files {
+		if files[i].UserID != userID {
+			files[i].OwnerName = files[i].User.FullName
+		}
+		var count int64
+		DB.Model(&models.Share{}).Where("file_id = ?", files[i].ID).Count(&count)
+		files[i].IsShared = count > 0
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"folders": folders,
+		"files":   files,
+	})
+}
+
 func DeleteFolder(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	folderID := c.Param("id")

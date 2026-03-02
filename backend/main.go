@@ -88,6 +88,11 @@ func main() {
 			driveAPI.GET("/devices", ListDevices)
 			driveAPI.POST("/devices", RegisterDevice)
 
+			// Star APIs
+			driveAPI.PUT("/file/:id/star", ToggleFileStar)
+			driveAPI.PUT("/folder/:id/star", ToggleFolderStar)
+			driveAPI.GET("/starred", ListStarred)
+
 			// Trash APIs
 			driveAPI.GET("/trash", ListTrash)
 			driveAPI.POST("/trash/:type/:id/restore", RestoreItem)

@@ -183,6 +183,10 @@ export default function Dashboard() {
                 });
                 setMyForms(resp.data || []);
                 setBreadcrumb([{ id: null, name: 'Baknus Form' }]);
+            } else if (currentView === 'starred') {
+                const resp = await axios.get('/api/drive/starred', { headers: { Authorization: `Bearer ${token}` } });
+                setFolders(resp.data.folders || []);
+                setFiles(resp.data.files || []);
             } else if (currentView === 'trash') {
                 const resp = await axios.get('/api/drive/trash', { headers: { Authorization: `Bearer ${token}` } });
                 setFolders(resp.data.folders || []);
@@ -794,6 +798,22 @@ export default function Dashboard() {
         } catch (error: any) {
             console.error("Failed to share", error);
             alert(error.response?.data?.error || "Failed to share item");
+        }
+    };
+
+    const handleToggleStar = async () => {
+        if (!contextMenu.item || !contextMenu.type) return;
+        try {
+            const token = localStorage.getItem('token');
+            const endpoint = `/api/drive/${contextMenu.type}/${contextMenu.item.id}/star`;
+            await axios.put(endpoint, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            fetchDriveData();
+            setContextMenu({ ...contextMenu, visible: false });
+        } catch (error) {
+            console.error("Failed to toggle star", error);
+            alert("Failed to update starred status");
         }
     };
 
@@ -1504,7 +1524,9 @@ export default function Dashboard() {
                                                         </div>
                                                     )}
                                                 </div>
-                                                <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white truncate">{f.name}</span>
+                                                <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white truncate flex items-center gap-2">
+                                                    {f.name} {f.is_starred && <Star size={14} className="text-yellow-400 fill-yellow-400" />}
+                                                </span>
                                             </div>
                                             <div className="col-span-2 hidden md:flex items-center gap-2">
                                                 <div className="w-6 h-6 rounded-full bg-[#007b83] text-white flex flex-shrink-0 items-center justify-center text-[10px] font-bold">
@@ -1548,7 +1570,9 @@ export default function Dashboard() {
                                             <div className="relative flex-shrink-0">
                                                 <FolderIcon size={24} fill="#5f6368" className="text-slate-500 dark:text-slate-400 shadow-sm border-none" />
                                             </div>
-                                            <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 truncate">{f.name}</span>
+                                            <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 truncate flex items-center gap-2">
+                                                {f.name} {f.is_starred && <Star size={14} className="text-yellow-400 fill-yellow-400" />}
+                                            </span>
                                         </div>
                                     )
                                 ))}
@@ -1578,8 +1602,8 @@ export default function Dashboard() {
                                                     )}
                                                 </div>
                                                 <div className="flex flex-col min-w-0">
-                                                    <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white truncate">
-                                                        {f.name}
+                                                    <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white truncate flex items-center gap-2">
+                                                        {f.name} {f.is_starred && <Star size={14} className="text-yellow-400 fill-yellow-400" />}
                                                     </span>
                                                     {/* Mobile only subtitle */}
                                                     <span className="text-[12px] text-slate-400 md:hidden mt-0.5 truncate">
@@ -1638,7 +1662,9 @@ export default function Dashboard() {
                                             <div className="p-3 flex items-center gap-3">
                                                 {getFileIcon(f.name, f.mime_type)}
                                                 <div className="flex flex-col min-w-0 flex-1">
-                                                    <span className="text-[13px] font-medium text-slate-700 dark:text-slate-300 truncate">{f.name}</span>
+                                                    <span className="text-[13px] font-medium text-slate-700 dark:text-slate-300 truncate flex items-center gap-2">
+                                                        {f.name} {f.is_starred && <Star size={12} className="text-yellow-400 fill-yellow-400 flex-shrink-0" />}
+                                                    </span>
                                                 </div>
                                                 {f.is_shared && (
                                                     <Users size={12} className="text-slate-500 dark:text-slate-400 mr-1" />
@@ -1756,6 +1782,10 @@ export default function Dashboard() {
                                         <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleShareMenu}>
                                             <Share2 size={16} className="text-slate-500 dark:text-slate-400" />
                                             Share
+                                        </button>
+                                        <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleToggleStar}>
+                                            <Star size={16} className={contextMenu.item.is_starred ? "text-yellow-400 fill-yellow-400" : "text-slate-500 dark:text-slate-400"} />
+                                            {contextMenu.item.is_starred ? "Remove from starred" : "Add to starred"}
                                         </button>
                                         <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
                                         <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleRenameMenu}>
