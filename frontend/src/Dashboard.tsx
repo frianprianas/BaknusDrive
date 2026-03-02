@@ -543,7 +543,7 @@ export default function Dashboard() {
     };
 
     const handleBackgroundContextMenu = (e: React.MouseEvent) => {
-        if (currentView !== 'drive' || e.target !== e.currentTarget) return;
+        if (currentView !== 'drive') return;
         e.preventDefault();
         setContextMenu({
             visible: true,
