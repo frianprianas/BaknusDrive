@@ -486,6 +486,26 @@ export default function Dashboard() {
         }
     };
 
+    const handleCopyFile = async (id: number) => {
+        try {
+            const token = localStorage.getItem('token');
+            const data = { target_folder_id: currentFolderId };
+
+            await axios.post(`/api/drive/file/${id}/copy`, data, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            fetchDriveData();
+            setContextMenu({ ...contextMenu, visible: false });
+        } catch (error: any) {
+            console.error("Failed to copy file", error);
+            if (error.response?.data?.error) {
+                alert("Gagal menyalin file: " + error.response.data.error);
+            } else {
+                alert("Failed to copy file.");
+            }
+        }
+    };
+
     const handleContextMenu = (e: React.MouseEvent, item: any, type: 'file' | 'folder') => {
         e.preventDefault();
         setContextMenu({
@@ -1587,27 +1607,27 @@ export default function Dashboard() {
                 {/* Right Click Context Menu */}
                 {contextMenu.visible && contextMenu.item && (
                     <div
-                        className="fixed bg-white shadow-xl rounded-lg py-2 border border-slate-100 z-[100] min-w-[200px]"
+                        className="fixed bg-white dark:bg-slate-800 shadow-xl rounded-lg py-2 border border-slate-100 dark:border-slate-700 z-[100] min-w-[200px]"
                         style={{ top: contextMenu.y, left: contextMenu.x }}
                     >
                         {(contextMenu.type === 'file' || contextMenu.type === 'folder') && (
                             <>
-                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 text-sm text-slate-700" onClick={() => {
+                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => {
                                     if (contextMenu.type === 'file') {
                                         handleDownloadFile(contextMenu.item.id, contextMenu.item.name)
                                     } else {
                                         handleDownloadFolder(contextMenu.item.id, contextMenu.item.name)
                                     }
                                 }}>
-                                    <Download size={16} className="text-slate-500" />
+                                    <Download size={16} className="text-slate-500 dark:text-slate-400" />
                                     Download
                                 </button>
-                                <div className="border-t border-slate-100 my-1"></div>
+                                <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
                             </>
                         )}
                         {currentView === 'trash' ? (
                             <button
-                                className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 text-sm text-green-600"
+                                className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-green-600 transition-colors"
                                 onClick={handleRestoreItem}
                             >
                                 <RotateCcw size={16} className="text-green-500" />
@@ -1618,24 +1638,24 @@ export default function Dashboard() {
 
                         ) : (
                             <>
-                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 text-sm text-slate-700" onClick={handleShareMenu}>
-                                    <Share2 size={16} className="text-slate-500" />
+                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleShareMenu}>
+                                    <Share2 size={16} className="text-slate-500 dark:text-slate-400" />
                                     Share
                                 </button>
-                                <div className="border-t border-slate-100 my-1"></div>
-                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 text-sm text-slate-700" onClick={handleRenameMenu}>
-                                    <Edit2 size={16} className="text-slate-500" />
+                                <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleRenameMenu}>
+                                    <Edit2 size={16} className="text-slate-500 dark:text-slate-400" />
                                     Rename
                                 </button>
                                 {contextMenu.type === 'file' && (
-                                    <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 text-sm text-slate-700" onClick={() => alert("Make a copy is coming soon!")}>
-                                        <Copy size={16} className="text-slate-500" />
+                                    <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => handleCopyFile(contextMenu.item.id)}>
+                                        <Copy size={16} className="text-slate-500 dark:text-slate-400" />
                                         Make a copy
                                     </button>
                                 )}
-                                <div className="border-t border-slate-100 my-1"></div>
+                                <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
                                 <button
-                                    className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 text-sm text-red-600"
+                                    className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-red-600 transition-colors"
                                     onClick={() => {
                                         contextMenu.type === 'file' ? handleDeleteFile(contextMenu.item.id) : handleDeleteFolder(contextMenu.item.id);
                                         setContextMenu({ ...contextMenu, visible: false });

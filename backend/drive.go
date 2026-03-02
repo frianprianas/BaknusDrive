@@ -440,6 +440,101 @@ func RenameFile(c *gin.Context) {
 	c.JSON(http.StatusOK, file)
 }
 
+type CopyReq struct {
+	TargetFolderID *uint `json:"target_folder_id"` // null means move to root
+}
+
+func CopyFile(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	fileID := c.Param("id")
+
+	var req CopyReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	var file models.File
+	if err := DB.Where("id = ? AND user_id = ?", fileID, userID).First(&file).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+
+	if req.TargetFolderID != nil {
+		var targetFolder models.Folder
+		if err := DB.Where("id = ?", *req.TargetFolderID).First(&targetFolder).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Target folder not found"})
+			return
+		}
+		if targetFolder.UserID != userID && !HasAccessToFolder(userID, *req.TargetFolderID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "No access to target folder"})
+			return
+		}
+	}
+
+	// Read old physical file
+	sourceFile, err := os.Open(file.Path)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read source file"})
+		return
+	}
+	defer sourceFile.Close()
+
+	// Verify Quota
+	var currentUser models.User
+	if err := DB.Where("id = ?", userID).First(&currentUser).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "User not found"})
+		return
+	}
+
+	var totalSize int64
+	DB.Model(&models.File{}).Where("user_id = ?", userID).Select("COALESCE(SUM(size), 0)").Scan(&totalSize)
+
+	if totalSize+file.Size > currentUser.Quota {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Kapasitas penyimpanan Anda sudah penuh."})
+		return
+	}
+
+	userStoragePath := filepath.Join("storage", userID)
+	os.MkdirAll(userStoragePath, os.ModePerm)
+
+	safeFilename := fmt.Sprintf("%d_copy_%s", time.Now().UnixNano(), file.Name)
+	savePath := filepath.Join(userStoragePath, safeFilename)
+
+	destFile, err := os.Create(savePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create copied physical file"})
+		return
+	}
+	defer destFile.Close()
+
+	if _, err := io.Copy(destFile, sourceFile); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write copied data"})
+		return
+	}
+
+	// Create new record
+	newFile := models.File{
+		Name:     "Copy of " + file.Name,
+		MimeType: file.MimeType,
+		Size:     file.Size,
+		Path:     savePath,
+		FolderID: req.TargetFolderID,
+		UserID:   userID,
+	}
+
+	if err := DB.Create(&newFile).Error; err != nil {
+		os.Remove(savePath)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save copied file metadata"})
+		return
+	}
+
+	// Update Quota
+	DB.Model(&currentUser).Update("used_space", totalSize+file.Size)
+
+	c.JSON(http.StatusOK, newFile)
+}
+
 func RenameFolder(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	folderID := c.Param("id")
