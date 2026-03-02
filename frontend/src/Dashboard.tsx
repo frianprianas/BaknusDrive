@@ -597,6 +597,37 @@ export default function Dashboard() {
         });
     };
 
+    const toggleSelection = (item: any, type: 'file' | 'folder') => {
+        setSelectedItems(prev => {
+            const exists = prev.find(i => i.id === item.id && i.type === type);
+            if (exists) return prev.filter(i => !(i.id === item.id && i.type === type));
+            return [...prev, { id: item.id, type, item }];
+        });
+    };
+
+    const isSelected = (id: number, type: 'file' | 'folder') => selectedItems.some(i => i.id === id && i.type === type);
+
+    const handleBulkDelete = async () => {
+        if (!selectedItems.length) return;
+        if (window.confirm(`Are you sure you want to delete ${selectedItems.length} selected items?`)) {
+            setLoading(true);
+            const token = localStorage.getItem('token');
+            const promises = selectedItems.map(item => {
+                const endpoint = item.type === 'file' ? `/api/drive/file/${item.id}` : `/api/drive/folder/${item.id}`;
+                return axios.delete(endpoint, { headers: { Authorization: `Bearer ${token}` } });
+            });
+            try {
+                await Promise.allSettled(promises);
+                setSelectedItems([]);
+                fetchDriveData();
+            } catch (err) {
+                console.error("Bulk delete failed", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
     const handleRestoreItem = async () => {
         if (!contextMenu.item || !contextMenu.type) return;
         try {
