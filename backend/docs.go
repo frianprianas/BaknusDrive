@@ -389,12 +389,57 @@ func WopiPutFile(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+// ──────────────────────────────────────────────────────────────
+// WopiLock — handles POST /wopi/files/:file_id
+// Collabora sends this BEFORE saving to perform LOCK / UNLOCK / REFRESH_LOCK.
+// We implement a simple stateless lock (always succeed) so save works.
+// ──────────────────────────────────────────────────────────────
+func WopiLock(c *gin.Context) {
+	fileIDStr := c.Param("file_id")
+	fileID, _ := strconv.Atoi(fileIDStr)
+
+	override := c.GetHeader("X-WOPI-Override")
+	lockID := c.GetHeader("X-WOPI-Lock")
+	oldLockID := c.GetHeader("X-WOPI-OldLock")
+
+	log.Printf("[WOPI Lock] fileID=%d X-WOPI-Override=%q X-WOPI-Lock=%q X-WOPI-OldLock=%q",
+		fileID, override, lockID, oldLockID)
+
+	// Validate token
+	accessToken := c.Query("access_token")
+	userID, _ := resolveWopiToken(accessToken, fileID)
+	if userID == "" {
+		internalToken := os.Getenv("INTERNAL_SYSTEM_TOKEN")
+		if accessToken != internalToken {
+			log.Printf("[WOPI Lock] UNAUTHORIZED token=%q fileID=%d", accessToken, fileID)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid WOPI token"})
+			return
+		}
+	}
+
+	// For GET_LOCK, return current lock (we use empty = no lock)
+	if override == "GET_LOCK" {
+		c.Header("X-WOPI-Lock", "")
+		c.Status(http.StatusOK)
+		log.Printf("[WOPI Lock] GET_LOCK → 200 (no lock)")
+		return
+	}
+
+	// For all other ops (LOCK, UNLOCK, REFRESH_LOCK, PUT_RELATIVE, UNLOCK_AND_RELOCK):
+	// Echo back the lock ID so Collabora thinks the lock succeeded.
+	// We do stateless locking — always accept.
+	c.Header("X-WOPI-Lock", lockID)
+	c.Status(http.StatusOK)
+	log.Printf("[WOPI Lock] %s → 200 OK (stateless lock accepted)", override)
+}
+
 // ──────────────────────────────
 // WopiRouter registers all WOPI routes
 // ──────────────────────────────
 func WopiRouter(r *gin.Engine) {
 	wopi := r.Group("/wopi")
 	wopi.GET("/files/:file_id", WopiCheckFileInfo)
+	wopi.POST("/files/:file_id", WopiLock) // LOCK / UNLOCK / REFRESH_LOCK
 	wopi.GET("/files/:file_id/contents", WopiGetFile)
 	wopi.POST("/files/:file_id/contents", WopiPutFile)
 }
