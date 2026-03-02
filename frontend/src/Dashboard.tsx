@@ -1726,8 +1726,13 @@ export default function Dashboard() {
                                                         <>
                                                             {getFileIcon(f.name, f.mime_type)}
                                                             {f.is_shared && (
-                                                                <div className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-[1px] shadow-sm">
+                                                                <div className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-[1px] shadow-sm z-10">
                                                                     <Users size={10} className="text-slate-600 dark:text-slate-400" />
+                                                                </div>
+                                                            )}
+                                                            {f.is_public && (
+                                                                <div className="absolute -bottom-1 -left-1 bg-white dark:bg-slate-800 rounded-full p-[1px] shadow-sm z-10" title="Public Link Active">
+                                                                    <Link size={10} className="text-green-500 dark:text-green-400" />
                                                                 </div>
                                                             )}
                                                         </>
@@ -1807,9 +1812,14 @@ export default function Dashboard() {
                                                         {f.name} {f.is_starred && <Star size={12} className="text-yellow-400 fill-yellow-400 flex-shrink-0" />}
                                                     </span>
                                                 </div>
-                                                {f.is_shared && (
-                                                    <Users size={12} className="text-slate-500 dark:text-slate-400 mr-1" />
-                                                )}
+                                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto mr-1">
+                                                    {f.is_public && (
+                                                        <Link size={12} className="text-green-500 dark:text-green-400" title="Public Link Active" />
+                                                    )}
+                                                    {f.is_shared && (
+                                                        <Users size={12} className="text-slate-500 dark:text-slate-400" title="Shared" />
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     )
