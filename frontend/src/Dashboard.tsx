@@ -559,8 +559,7 @@ export default function Dashboard() {
                 if (clipboard.type === 'file') {
                     await axios.post(`/api/drive/file/${clipboard.item.id}/copy`, data, { headers: { Authorization: `Bearer ${token}` } });
                 } else {
-                    alert("Folder copying is not yet supported. You can only cut folders.");
-                    return;
+                    await axios.post(`/api/drive/folder/${clipboard.item.id}/copy`, data, { headers: { Authorization: `Bearer ${token}` } });
                 }
             } else if (clipboard.action === 'cut') {
                 if (clipboard.type === 'file') {
@@ -637,11 +636,13 @@ export default function Dashboard() {
         }
     };
 
-    const handleRestoreItem = async () => {
-        if (!contextMenu.item || !contextMenu.type) return;
+    const handleRestoreItem = async (itemOverride?: any, typeOverride?: 'file' | 'folder') => {
+        const item = itemOverride || contextMenu.item;
+        const type = typeOverride || contextMenu.type;
+        if (!item || !type) return;
         try {
             const token = localStorage.getItem('token');
-            await axios.post(`/api/drive/trash/${contextMenu.type}/${contextMenu.item.id}/restore`, {}, {
+            await axios.post(`/api/drive/trash/${type}/${item.id}/restore`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             fetchDriveData();
@@ -940,10 +941,7 @@ export default function Dashboard() {
 
     const handleTogglePublic = async () => {
         if (!contextMenu.item || !contextMenu.type) return;
-        if (contextMenu.type === 'folder') {
-            alert("Public link for folders is not supported yet.");
-            return;
-        }
+
 
         try {
             const token = localStorage.getItem('token');
@@ -1720,11 +1718,15 @@ export default function Dashboard() {
                                             <div className="col-span-2 md:col-span-2 flex items-center justify-end md:justify-between text-[14px] text-slate-600 dark:text-slate-400 font-medium">
                                                 <span className="hidden md:inline">—</span>
                                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                                    {currentView !== 'shared' && (
+                                                    {currentView === 'trash' ? (
+                                                        <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleRestoreItem(f, 'folder'); }} className="p-2 hover:bg-slate-200 rounded-full text-green-500" title="Restore folder">
+                                                            <RotateCcw size={18} />
+                                                        </button>
+                                                    ) : currentView !== 'shared' ? (
                                                         <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDeleteFolder(f.id); }} className="p-2 hover:bg-slate-200 rounded-full text-red-500" title="Delete folder">
                                                             <Trash2 size={18} />
                                                         </button>
-                                                    )}
+                                                    ) : null}
                                                 </div>
                                             </div>
                                         </div>
@@ -1830,7 +1832,7 @@ export default function Dashboard() {
                                                 <span className="hidden md:inline">{formatSize(f.size)}</span>
                                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                                                     {currentView === 'trash' ? (
-                                                        <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); setContextMenu({ item: f, type: 'file', visible: false, x: 0, y: 0 }); handleRestoreItem(); }} className="p-2 hover:bg-slate-200 rounded-full text-green-500" title="Restore">
+                                                        <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleRestoreItem(f, 'file'); }} className="p-2 hover:bg-slate-200 rounded-full text-green-500" title="Restore">
                                                             <RotateCcw size={18} />
                                                         </button>
                                                     ) : currentView === 'shared' ? (
@@ -2002,7 +2004,7 @@ export default function Dashboard() {
                                 {currentView === 'trash' ? (
                                     <button
                                         className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-green-600 transition-colors"
-                                        onClick={handleRestoreItem}
+                                        onClick={() => handleRestoreItem()}
                                     >
                                         <RotateCcw size={16} className="text-green-500" />
                                         Restore
@@ -2030,12 +2032,10 @@ export default function Dashboard() {
                                             <Edit2 size={16} className="text-slate-500 dark:text-slate-400" />
                                             Rename
                                         </button>
-                                        {contextMenu.type === 'file' && (
-                                            <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => handleClipboardCopy(contextMenu.item, 'file')}>
-                                                <Copy size={16} className="text-slate-500 dark:text-slate-400" />
-                                                Copy
-                                            </button>
-                                        )}
+                                        <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => handleClipboardCopy(contextMenu.item, contextMenu.type as 'file' | 'folder')}>
+                                            <Copy size={16} className="text-slate-500 dark:text-slate-400" />
+                                            Copy
+                                        </button>
                                         <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => handleClipboardCut(contextMenu.item, contextMenu.type as 'file' | 'folder')}>
                                             <ClipboardList size={16} className="text-slate-500 dark:text-slate-400" />
                                             Cut

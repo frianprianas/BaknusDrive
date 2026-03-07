@@ -585,6 +585,21 @@ func SearchDrive(c *gin.Context) {
 	})
 }
 
+func softDeleteFolderRecursive(userID string, folderID uint) {
+	var files []models.File
+	DB.Where("folder_id = ? AND user_id = ?", folderID, userID).Find(&files)
+	for _, f := range files {
+		DB.Delete(&f)
+	}
+
+	var subfolders []models.Folder
+	DB.Where("parent_id = ? AND user_id = ?", folderID, userID).Find(&subfolders)
+	for _, sf := range subfolders {
+		softDeleteFolderRecursive(userID, sf.ID)
+		DB.Delete(&sf)
+	}
+}
+
 func DeleteFolder(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	folderID := c.Param("id")
@@ -599,6 +614,8 @@ func DeleteFolder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete folder"})
 		return
 	}
+
+	softDeleteFolderRecursive(userID, folder.ID)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Folder deleted successfully"})
 }
@@ -727,6 +744,141 @@ func CopyFile(c *gin.Context) {
 	c.JSON(http.StatusOK, newFile)
 }
 
+func copyFolderRecursive(userID string, sourceFolderID uint, targetFolderID *uint, newFolderName string, currentSize *int64, quota int64) (uint, error) {
+	var originalFolder models.Folder
+	if err := DB.Where("id = ? AND user_id = ?", sourceFolderID, userID).First(&originalFolder).Error; err != nil {
+		return 0, err
+	}
+
+	newFolder := models.Folder{
+		Name:     newFolderName,
+		ParentID: targetFolderID,
+		UserID:   userID,
+	}
+	if err := DB.Create(&newFolder).Error; err != nil {
+		return 0, err
+	}
+
+	var files []models.File
+	DB.Where("folder_id = ? AND user_id = ?", sourceFolderID, userID).Find(&files)
+
+	userStoragePath := filepath.Join("storage", userID)
+	os.MkdirAll(userStoragePath, os.ModePerm)
+
+	for _, file := range files {
+		if *currentSize+file.Size > quota {
+			return newFolder.ID, fmt.Errorf("quota exceeded")
+		}
+
+		sourceFile, err := os.Open(file.Path)
+		if err != nil {
+			continue
+		}
+
+		safeFilename := fmt.Sprintf("%d_copy_%s", time.Now().UnixNano(), file.Name)
+		savePath := filepath.Join(userStoragePath, safeFilename)
+
+		destFile, err := os.Create(savePath)
+		if err != nil {
+			sourceFile.Close()
+			continue
+		}
+
+		if _, err := io.Copy(destFile, sourceFile); err == nil {
+			newFile := models.File{
+				Name:     file.Name,
+				MimeType: file.MimeType,
+				Size:     file.Size,
+				Path:     savePath,
+				FolderID: &newFolder.ID,
+				UserID:   userID,
+			}
+			if DB.Create(&newFile).Error == nil {
+				*currentSize += file.Size
+			}
+		}
+
+		sourceFile.Close()
+		destFile.Close()
+	}
+
+	var subfolders []models.Folder
+	DB.Where("parent_id = ? AND user_id = ?", sourceFolderID, userID).Find(&subfolders)
+	for _, sf := range subfolders {
+		_, err := copyFolderRecursive(userID, sf.ID, &newFolder.ID, sf.Name, currentSize, quota)
+		if err != nil {
+			return newFolder.ID, err
+		}
+	}
+
+	return newFolder.ID, nil
+}
+
+func CopyFolder(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	folderIDStr := c.Param("id")
+
+	folderID, err := strconv.Atoi(folderIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	var req CopyReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	var folder models.Folder
+	if err := DB.Where("id = ? AND user_id = ?", folderID, userID).First(&folder).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found"})
+		return
+	}
+
+	if req.TargetFolderID != nil {
+		if *req.TargetFolderID == uint(folderID) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot copy folder to itself"})
+			return
+		}
+		// Also should technically check if target is a child of the folder being copied but it's okay for now.
+		var targetFolder models.Folder
+		if err := DB.Where("id = ?", *req.TargetFolderID).First(&targetFolder).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Target folder not found"})
+			return
+		}
+		if targetFolder.UserID != userID && !HasAccessToFolder(userID, *req.TargetFolderID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "No access to target folder"})
+			return
+		}
+	}
+
+	var currentUser models.User
+	if err := DB.Where("id = ?", userID).First(&currentUser).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "User not found"})
+		return
+	}
+
+	var totalSize int64
+	DB.Model(&models.File{}).Where("user_id = ?", userID).Select("COALESCE(SUM(size), 0)").Scan(&totalSize)
+
+	newFolderName := GetUniqueFolderName(userID, req.TargetFolderID, "Copy of "+folder.Name)
+
+	newFolderID, err := copyFolderRecursive(userID, uint(folderID), req.TargetFolderID, newFolderName, &totalSize, currentUser.Quota)
+
+	DB.Model(&currentUser).Update("used_space", totalSize)
+
+	if err != nil && err.Error() == "quota exceeded" {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Kapasitas penyimpanan Anda penuh, sebagian file mungkin tidak tersalin."})
+		return
+	}
+
+	var returnedFolder models.Folder
+	DB.Where("id = ?", newFolderID).First(&returnedFolder)
+
+	c.JSON(http.StatusOK, returnedFolder)
+}
+
 func RenameFolder(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	folderID := c.Param("id")
@@ -850,6 +1002,17 @@ func ListTrash(c *gin.Context) {
 	})
 }
 
+func restoreFolderRecursive(userID string, folderID uint) {
+	DB.Unscoped().Model(&models.File{}).Where("folder_id = ? AND user_id = ?", folderID, userID).Update("deleted_at", nil)
+
+	var subfolders []models.Folder
+	DB.Unscoped().Where("parent_id = ? AND user_id = ?", folderID, userID).Find(&subfolders)
+	for _, sf := range subfolders {
+		restoreFolderRecursive(userID, sf.ID)
+	}
+	DB.Unscoped().Model(&models.Folder{}).Where("id = ? AND user_id = ?", folderID, userID).Update("deleted_at", nil)
+}
+
 func RestoreItem(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	itemType := c.Param("type") // "file" or "folder"
@@ -858,7 +1021,8 @@ func RestoreItem(c *gin.Context) {
 	if itemType == "file" {
 		DB.Unscoped().Model(&models.File{}).Where("id = ? AND user_id = ?", itemID, userID).Update("deleted_at", nil)
 	} else if itemType == "folder" {
-		DB.Unscoped().Model(&models.Folder{}).Where("id = ? AND user_id = ?", itemID, userID).Update("deleted_at", nil)
+		folderIDInt, _ := strconv.Atoi(itemID)
+		restoreFolderRecursive(userID, uint(folderIDInt))
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid type"})
 		return

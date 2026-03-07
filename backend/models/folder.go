@@ -17,6 +17,7 @@ type Folder struct {
 	OwnerName string         `gorm:"-" json:"owner_name,omitempty"`
 	IsShared  bool           `gorm:"-" json:"is_shared,omitempty"`
 	IsStarred bool           `gorm:"default:false" json:"is_starred"`
+	IsPublic  bool           `gorm:"default:false" json:"is_public"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`

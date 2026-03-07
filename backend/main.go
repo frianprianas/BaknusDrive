@@ -93,6 +93,7 @@ func main() {
 			driveAPI.PUT("/file/:id/move", MoveFile)
 			driveAPI.POST("/file/:id/copy", CopyFile)
 			driveAPI.PUT("/folder/:id/move", MoveFolder)
+			driveAPI.POST("/folder/:id/copy", CopyFolder)
 			driveAPI.GET("/quota", GetStorageQuota)
 			driveAPI.GET("/devices", ListDevices)
 			driveAPI.POST("/devices", RegisterDevice)

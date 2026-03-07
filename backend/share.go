@@ -2,6 +2,7 @@
 package main
 
 import (
+	"archive/zip"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -289,9 +290,22 @@ func ToggleFilePublic(c *gin.Context) {
 }
 
 func ToggleFolderPublic(c *gin.Context) {
-	// Folder public link is not fully supported yet in frontend/backend models,
-	// returning 400 for structural simplicity.
-	c.JSON(http.StatusBadRequest, gin.H{"error": "Public link for folders is not supported yet"})
+	userID := c.MustGet("userID").(string)
+	folderID := c.Param("id")
+
+	var folder models.Folder
+	if err := DB.Where("id = ? AND user_id = ?", folderID, userID).First(&folder).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found"})
+		return
+	}
+
+	folder.IsPublic = !folder.IsPublic
+	if err := DB.Save(&folder).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update public status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Status updated", "is_public": folder.IsPublic})
 }
 
 func ViewPublicFileMetadata(c *gin.Context) {
@@ -326,9 +340,39 @@ func DownloadPublicFile(c *gin.Context) {
 }
 
 func ViewPublicFolderMetadata(c *gin.Context) {
-	c.JSON(http.StatusBadRequest, gin.H{"error": "Public link for folders is not supported yet"})
+	folderID := c.Param("id")
+	var folder models.Folder
+	if err := DB.Preload("User").Where("id = ? AND is_public = ?", folderID, true).First(&folder).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found or not public"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":         folder.ID,
+		"name":       folder.Name,
+		"created_at": folder.CreatedAt,
+		"owner":      folder.User.FullName,
+		"type":       "folder",
+	})
 }
 
 func DownloadPublicFolder(c *gin.Context) {
-	c.JSON(http.StatusBadRequest, gin.H{"error": "Public link for folders is not supported yet"})
+	folderIDStr := c.Param("id")
+
+	var folder models.Folder
+	if err := DB.Where("id = ? AND is_public = ?", folderIDStr, true).First(&folder).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found or not public"})
+		return
+	}
+
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", folder.Name))
+	c.Header("Content-Type", "application/zip")
+
+	zipWriter := zip.NewWriter(c.Writer)
+
+	addFilesToZip(zipWriter, folder.ID, "")
+
+	if err := zipWriter.Close(); err != nil {
+		log.Printf("Error closing zip writer: %v", err)
+	}
 }
