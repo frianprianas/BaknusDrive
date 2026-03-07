@@ -61,6 +61,8 @@ export default function Dashboard() {
     const [adminTargetUser, setAdminTargetUser] = useState<string | null>(null);
     const [quotaModal, setQuotaModal] = useState<{ visible: boolean, user: any }>({ visible: false, user: null });
     const [tempQuotaGB, setTempQuotaGB] = useState<string>("");
+    const [tempClass, setTempClass] = useState<string>("");
+    const [searchClass, setSearchClass] = useState("");
 
     const [uploadProgress, setUploadProgress] = useState<{ active: boolean, percent: number, fileName: string }>({ active: false, percent: 0, fileName: "" });
     const [downloading, setDownloading] = useState<boolean>(false);
@@ -1013,12 +1015,13 @@ export default function Dashboard() {
         ...((user?.role?.toLowerCase() === 'admin') ? [{ id: 'admin', icon: Shield, label: 'Admin Panel' }] : [])
     ];
 
-    const handleAdminUpdateUser = async (email: string, newQuota?: number, is_active?: boolean) => {
+    const handleAdminUpdateUser = async (email: string, newQuota?: number, is_active?: boolean, newClass?: string) => {
         try {
             const token = localStorage.getItem('token');
             const data: any = {};
             if (newQuota !== undefined) data.quota = newQuota;
             if (is_active !== undefined) data.is_active = is_active;
+            if (newClass !== undefined) data.class = newClass;
 
             await axios.put(`/api/admin/user/${email}`, data, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -1410,6 +1413,7 @@ export default function Dashboard() {
                                         <tr>
                                             <th className="px-6 py-4 font-medium">Pengguna</th>
                                             <th className="px-6 py-4 font-medium">Role</th>
+                                            <th className="px-6 py-4 font-medium">Kelas</th>
                                             <th className="px-6 py-4 font-medium">Penyimpanan</th>
                                             <th className="px-6 py-4 font-medium">Status</th>
                                             <th className="px-6 py-4 font-medium text-right">Aksi</th>
@@ -1435,6 +1439,9 @@ export default function Dashboard() {
                                                         <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                                                             {u.role}
                                                         </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400 text-sm font-medium">
+                                                        {u.class || '-'}
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 mb-1.5 w-32">
@@ -1469,10 +1476,11 @@ export default function Dashboard() {
                                                             onClick={() => {
                                                                 setQuotaModal({ visible: true, user: u });
                                                                 setTempQuotaGB((u.quota / (1024 * 1024 * 1024)).toString());
+                                                                setTempClass(u.class || "");
                                                             }}
                                                             className="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-semibold transition-colors dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 flex items-center gap-1"
                                                         >
-                                                            <Database size={14} /> Quota
+                                                            <Database size={14} /> Edit User
                                                         </button>
                                                         <button
                                                             onClick={() => handleAdminUpdateUser(u.id || u.email, undefined, !u.is_active)}
@@ -2086,8 +2094,38 @@ export default function Dashboard() {
                                     </button>
                                 </div>
 
-                                <div className="mb-4">
-                                    <label className="text-sm font-medium text-slate-700 mb-2 block">Atau bagikan ke orang spesifik</label>
+                                <div className="mb-4 mt-6">
+                                    <label className="text-sm font-medium text-slate-700 mb-3 block">Atau bagikan ke Kelas Spesifik</label>
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                <Search size={18} className="text-slate-400" />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="Ketik nama kelas (Misal: X RPL 2)"
+                                                value={searchClass}
+                                                onChange={(e) => setSearchClass(e.target.value)}
+                                                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-sm"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && searchClass.trim() !== '') {
+                                                        submitShare('CLASS:' + searchClass.trim());
+                                                        setSearchClass('');
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                        <button onClick={() => {
+                                            if (searchClass.trim() !== '') {
+                                                submitShare('CLASS:' + searchClass.trim());
+                                                setSearchClass('');
+                                            }
+                                        }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl transition-colors font-semibold shrink-0">Bagikan</button>
+                                    </div>
+                                </div>
+
+                                <div className="mb-4 mt-6 border-t border-slate-100 pt-6">
+                                    <label className="text-sm font-medium text-slate-700 mb-3 block">Atau bagikan ke orang spesifik</label>
                                     <div className="relative">
                                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                             <Search size={18} className="text-slate-400" />
@@ -2193,7 +2231,7 @@ export default function Dashboard() {
                                         <Database size={24} />
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">Ubah Kapasitas</h2>
+                                        <h2 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">Ubah Data Administrator</h2>
                                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{quotaModal.user?.full_name || quotaModal.user?.email}</p>
                                     </div>
                                 </div>
@@ -2204,7 +2242,7 @@ export default function Dashboard() {
 
                             <div className="p-8">
                                 <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 ml-1">Kapasitas Penyimpanan (GB)</label>
-                                <div className="relative">
+                                <div className="relative mb-4">
                                     <input
                                         type="number"
                                         step="0.5"
@@ -2217,8 +2255,16 @@ export default function Dashboard() {
                                     />
                                     <div className="absolute right-5 top-1/2 -translate-y-1/2 font-bold text-slate-400 pointer-events-none">GB</div>
                                 </div>
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 ml-1">Kelas Siswa / Kategori</label>
+                                <input
+                                    type="text"
+                                    value={tempClass}
+                                    onChange={(e) => setTempClass(e.target.value)}
+                                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-blue-500 focus:ring-0 outline-none transition-all text-sm font-bold text-slate-800 dark:text-white"
+                                    placeholder="Contoh: X RPL 2"
+                                />
                                 <p className="mt-4 text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/30 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                                    💡 <b>Tips:</b> Kapasitas yang Anda masukkan akan langsung membatasi jumlah file yang dapat diupload oleh pengguna ini.
+                                    💡 <b>Tips:</b> Kapasitas yang Anda masukkan akan langsung membatasi jumlah file yang dapat diupload oleh pengguna ini. Kelas berguna untuk opsi Sharing.
                                 </p>
                             </div>
 
@@ -2233,7 +2279,7 @@ export default function Dashboard() {
                                     onClick={() => {
                                         const bytes = parseFloat(tempQuotaGB) * 1024 * 1024 * 1024;
                                         if (!isNaN(bytes) && bytes > 0) {
-                                            handleAdminUpdateUser(quotaModal.user.id || quotaModal.user.email, Math.round(bytes));
+                                            handleAdminUpdateUser(quotaModal.user.id || quotaModal.user.email, Math.round(bytes), undefined, tempClass);
                                             setQuotaModal({ visible: false, user: null });
                                         } else {
                                             alert("Masukkan angka yang valid");

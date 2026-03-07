@@ -68,7 +68,7 @@ func HasAccessToFolder(userID string, folderID uint) bool {
 	currentFolderID := &folderID
 	for currentFolderID != nil {
 		var share models.Share
-		if err := DB.Where("folder_id = ? AND (shared_with = ? OR shared_with = ?)", *currentFolderID, currentUser.Email, "ROLE:"+currentUser.Role).First(&share).Error; err == nil {
+		if err := DB.Where("folder_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", *currentFolderID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error; err == nil {
 			return true
 		}
 
@@ -282,7 +282,7 @@ func DownloadFile(c *gin.Context) {
 		var currentUser models.User
 		if errUser := DB.Where("id = ?", userID).First(&currentUser).Error; errUser == nil {
 			var share models.Share
-			if errShare := DB.Where("file_id = ? AND (shared_with = ? OR shared_with = ?)", fileID, currentUser.Email, "ROLE:"+currentUser.Role).First(&share).Error; errShare == nil {
+			if errShare := DB.Where("file_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", fileID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error; errShare == nil {
 				// File is directly shared
 				if errSharedItem := DB.Where("id = ?", fileID).First(&file).Error; errSharedItem == nil {
 					goto proceedDownload

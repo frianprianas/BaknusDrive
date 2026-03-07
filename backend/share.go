@@ -136,7 +136,7 @@ func ShareItem(c *gin.Context) {
 	var targetEmail string
 	var itemName string
 
-	if !strings.HasPrefix(req.SharedWith, "ROLE:") {
+	if !strings.HasPrefix(req.SharedWith, "ROLE:") && !strings.HasPrefix(req.SharedWith, "CLASS:") {
 		// Verify target user exists
 		var targetUser models.User
 		if err := DB.Where("email = ?", req.SharedWith).First(&targetUser).Error; err != nil {
@@ -207,6 +207,16 @@ func ShareItem(c *gin.Context) {
 				sendShareNotification(u.Email, senderName, req.Type, itemName)
 			}
 		}
+	} else if strings.HasPrefix(req.SharedWith, "CLASS:") {
+		// Broadcast to all users in that class
+		className := strings.TrimPrefix(req.SharedWith, "CLASS:")
+		var classUsers []models.User
+		DB.Where("class = ?", className).Find(&classUsers)
+		for _, u := range classUsers {
+			if u.Email != userID {
+				sendShareNotification(u.Email, senderName, req.Type, itemName)
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Item shared successfully", "share": share})
@@ -224,7 +234,7 @@ func ListSharedWithMe(c *gin.Context) {
 
 	var shares []models.Share
 	DB.Preload("File").Preload("Folder").Preload("OwnerUser").
-		Where("shared_with = ? OR shared_with = ?", userEmail, "ROLE:"+userRole).
+		Where("shared_with = ? OR shared_with = ? OR shared_with = ?", userEmail, "ROLE:"+userRole, "CLASS:"+currentUser.Class).
 		Find(&shares)
 
 	var files []models.File

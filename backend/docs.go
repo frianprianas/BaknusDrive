@@ -135,8 +135,8 @@ func OpenDoc(c *gin.Context) {
 		var currentUser models.User
 		if err := DB.Where("id = ?", userID).First(&currentUser).Error; err == nil {
 			var share models.Share
-			if DB.Where("file_id = ? AND (shared_with = ? OR shared_with = ?)",
-				fileID, currentUser.Email, "ROLE:"+currentUser.Role).First(&share).Error == nil {
+			if DB.Where("file_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)",
+				fileID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error == nil {
 				canWrite = true
 			} else if file.FolderID != nil && HasAccessToFolder(userID, *file.FolderID) {
 				canWrite = true

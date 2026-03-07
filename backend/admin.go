@@ -46,6 +46,7 @@ func GetAdminUsers(c *gin.Context) {
 		Email     string `json:"email"`
 		FullName  string `json:"full_name"`
 		Role      string `json:"role"`
+		Class     string `json:"class"`
 		Quota     int64  `json:"quota"`
 		UsedSpace int64  `json:"used_space"`
 		IsActive  bool   `json:"is_active"`
@@ -55,12 +56,13 @@ func GetAdminUsers(c *gin.Context) {
 	for i, user := range users {
 		var totalSize int64
 		DB.Model(&models.File{}).Where("user_id = ?", user.ID).Select("COALESCE(SUM(size), 0)").Scan(&totalSize)
-		
+
 		results[i] = UserJSON{
 			ID:        user.ID,
 			Email:     user.Email,
 			FullName:  user.FullName,
 			Role:      user.Role,
+			Class:     user.Class,
 			Quota:     user.Quota,
 			UsedSpace: totalSize,
 			IsActive:  user.IsActive,
@@ -71,8 +73,9 @@ func GetAdminUsers(c *gin.Context) {
 }
 
 type UpdateUserRequest struct {
-	Quota    int64 `json:"quota"`
-	IsActive *bool `json:"is_active"`
+	Quota    int64   `json:"quota"`
+	IsActive *bool   `json:"is_active"`
+	Class    *string `json:"class"`
 }
 
 // AdminUpdateUser lets admin update user quota and active status
@@ -95,6 +98,9 @@ func AdminUpdateUser(c *gin.Context) {
 	}
 	if req.IsActive != nil {
 		user.IsActive = *req.IsActive
+	}
+	if req.Class != nil {
+		user.Class = *req.Class
 	}
 
 	if err := DB.Save(&user).Error; err != nil {
