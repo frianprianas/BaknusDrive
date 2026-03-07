@@ -65,6 +65,7 @@ export default function Dashboard() {
     const [searchClass, setSearchClass] = useState("");
     const [adminCurrentPage, setAdminCurrentPage] = useState(1);
     const adminItemsPerPage = 20;
+    const [itemShares, setItemShares] = useState<any[]>([]);
 
     const [uploadProgress, setUploadProgress] = useState<{ active: boolean, percent: number, fileName: string }>({ active: false, percent: 0, fileName: "" });
     const [downloading, setDownloading] = useState<boolean>(false);
@@ -904,8 +905,40 @@ export default function Dashboard() {
 
     const handleShareMenu = () => {
         if (!contextMenu.item || !contextMenu.type) return;
-        setShareModal({ visible: true, item: contextMenu.item, type: contextMenu.type as 'file' | 'folder' });
+        const item = contextMenu.item;
+        const type = contextMenu.type as 'file' | 'folder';
+        setShareModal({ visible: true, item, type });
         setContextMenu({ ...contextMenu, visible: false });
+        // Load existing shares for this item
+        fetchItemShares(item.id, type);
+    };
+
+    const fetchItemShares = async (itemId: number, itemType: string) => {
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await axios.get(`/api/drive/shares`, {
+                params: { id: itemId, type: itemType },
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setItemShares(resp.data.shares || []);
+        } catch {
+            setItemShares([]);
+        }
+    };
+
+    const handleUnshare = async (shareId: number) => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`/api/drive/share/${shareId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            // Refresh the shares list
+            if (shareModal.item && shareModal.type) {
+                fetchItemShares(shareModal.item.id, shareModal.type);
+            }
+        } catch (error: any) {
+            alert(error.response?.data?.error || 'Gagal menghapus share');
+        }
     };
 
     const submitShare = async (target: string) => {
@@ -919,8 +952,12 @@ export default function Dashboard() {
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            alert(resp.data.message);
-            setShareModal({ visible: false, item: null, type: null });
+            if (resp.data.message !== 'Already shared') {
+                // Refresh shares list after successful share
+                fetchItemShares(shareModal.item.id, shareModal.type);
+            } else {
+                alert('Sudah dibagikan sebelumnya.');
+            }
         } catch (error: any) {
             console.error("Failed to share", error);
             alert(error.response?.data?.error || "Failed to share item");
@@ -2199,6 +2236,46 @@ export default function Dashboard() {
                                         </div>
                                     ))}
                                 </div>
+
+                                {/* Existing Shares / Unshare section */}
+                                {itemShares.length > 0 && (
+                                    <div className="mt-6 border-t border-slate-100 pt-6">
+                                        <label className="text-sm font-semibold text-slate-700 mb-3 block flex items-center gap-2">
+                                            <span className="inline-block w-2 h-2 rounded-full bg-green-400"></span>
+                                            Sudah dibagikan ke ({itemShares.length})
+                                        </label>
+                                        <div className="space-y-2">
+                                            {itemShares.map((s: any) => {
+                                                let label = s.shared_with;
+                                                let badgeColor = 'bg-slate-100 text-slate-600';
+                                                let icon = '👤';
+                                                if (s.shared_with?.startsWith('ROLE:')) {
+                                                    label = s.shared_with.replace('ROLE:', 'Semua ');
+                                                    badgeColor = 'bg-teal-50 text-teal-700';
+                                                    icon = '👥';
+                                                } else if (s.shared_with?.startsWith('CLASS:')) {
+                                                    label = 'Kelas ' + s.shared_with.replace('CLASS:', '');
+                                                    badgeColor = 'bg-indigo-50 text-indigo-700';
+                                                    icon = '🏫';
+                                                }
+                                                return (
+                                                    <div key={s.id} className={`flex items-center justify-between px-4 py-3 rounded-xl border ${badgeColor} border-opacity-50`}>
+                                                        <span className="text-sm font-medium flex items-center gap-2">
+                                                            <span>{icon}</span> {label}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => handleUnshare(s.id)}
+                                                            className="ml-4 p-1.5 rounded-lg bg-white/70 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors border border-transparent hover:border-red-200 shrink-0"
+                                                            title="Hentikan sharing"
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

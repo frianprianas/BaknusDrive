@@ -114,6 +114,8 @@ func main() {
 
 			// Share APIs
 			driveAPI.POST("/share", ShareItem)
+			driveAPI.GET("/shares", ListItemShares)
+			driveAPI.DELETE("/share/:id", UnshareItem)
 			driveAPI.GET("/shared-with-me", ListSharedWithMe)
 			driveAPI.PUT("/file/:id/public", ToggleFilePublic)
 			driveAPI.PUT("/folder/:id/public", ToggleFolderPublic)

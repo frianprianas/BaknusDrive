@@ -222,6 +222,44 @@ func ShareItem(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Item shared successfully", "share": share})
 }
 
+// ListItemShares returns all shares for a specific file or folder owned by the current user
+func ListItemShares(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	itemType := c.Query("type") // "file" or "folder"
+	itemIDStr := c.Query("id")
+
+	var shares []models.Share
+	if itemType == "file" {
+		DB.Where("file_id = ? AND shared_by = ?", itemIDStr, userID).Find(&shares)
+	} else if itemType == "folder" {
+		DB.Where("folder_id = ? AND shared_by = ?", itemIDStr, userID).Find(&shares)
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid type"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"shares": shares})
+}
+
+// UnshareItem deletes a share record by its ID, only if owned by the requesting user
+func UnshareItem(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	shareIDStr := c.Param("id")
+
+	var share models.Share
+	if err := DB.Where("id = ? AND shared_by = ?", shareIDStr, userID).First(&share).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Share not found or unauthorized"})
+		return
+	}
+
+	if err := DB.Delete(&share).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove share"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Share removed successfully"})
+}
+
 func ListSharedWithMe(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	var currentUser models.User
