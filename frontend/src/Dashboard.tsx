@@ -1097,6 +1097,13 @@ export default function Dashboard() {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     };
 
+    const formatDateID = (dateStr: string) => {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '-';
+        return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
     return (
         <div className="flex h-screen w-full bg-[#f8fafd] dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-sans overflow-hidden transition-colors">
             {/* Mobile Sidebar Overlay */}
@@ -1645,7 +1652,7 @@ export default function Dashboard() {
                                                     <div className="flex flex-col items-end">
                                                         <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Dibuat</span>
                                                         <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                                                            {new Date(form.created_at).toLocaleDateString()}
+                                                            {formatDateID(form.created_at)}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -1797,7 +1804,7 @@ export default function Dashboard() {
                                                 </span>
                                             </div>
                                             <div className="col-span-2 hidden md:block text-[14px] text-slate-600 dark:text-slate-400 font-medium group-hover:text-slate-800 dark:group-hover:text-slate-300">
-                                                {new Date(f.updated_at).toLocaleDateString()}
+                                                {formatDateID(f.updated_at)}
                                             </div>
                                             <div className="col-span-2 md:col-span-2 flex items-center justify-end md:justify-between text-[14px] text-slate-600 dark:text-slate-400 font-medium">
                                                 <span className="hidden md:inline">—</span>
@@ -1897,7 +1904,7 @@ export default function Dashboard() {
                                                     </span>
                                                     {/* Mobile only subtitle */}
                                                     <span className="text-[12px] text-slate-400 md:hidden mt-0.5 truncate">
-                                                        {formatSize(f.size)} • {new Date(f.created_at).toLocaleDateString()}
+                                                        {formatSize(f.size)} • {formatDateID(f.created_at)}
                                                     </span>
                                                 </div>
                                             </div>
@@ -1910,7 +1917,7 @@ export default function Dashboard() {
                                                 </span>
                                             </div>
                                             <div className="col-span-2 hidden md:block text-[14px] text-slate-600 dark:text-slate-400 font-medium group-hover:text-slate-800 dark:group-hover:text-slate-300">
-                                                {new Date(f.created_at).toLocaleDateString()}
+                                                {formatDateID(f.created_at)}
                                             </div>
                                             <div className="col-span-2 md:col-span-2 flex items-center justify-end md:justify-between text-[14px] text-slate-600 dark:text-slate-400 font-medium">
                                                 <span className="hidden md:inline">{formatSize(f.size)}</span>
