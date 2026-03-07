@@ -39,7 +39,7 @@ func LoginHandler(c *gin.Context) {
 	// Using Port 993 (IMAP over SSL) for better reliability
 	imapServer := "mail.smk.baktinusantara666.sch.id:993"
 	tlsConfig := &tls.Config{InsecureSkipVerify: true}
-	
+
 	cli, err := client.DialTLS(imapServer, tlsConfig)
 	if err != nil {
 		// Fallback to 143 if 993 fails (just in case)
@@ -72,7 +72,7 @@ func LoginHandler(c *gin.Context) {
 			Email:    emailStr,
 			FullName: emailStr, // fallback
 			Role:     "Siswa",
-			Quota:    2147483648,
+			Quota:    5368709120, // 5 GB
 			IsActive: true,
 			Avatar:   fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/auth/avatar/%s", emailStr),
 			WhatsApp: FetchExternalUserInfo(emailStr),
@@ -86,13 +86,13 @@ func LoginHandler(c *gin.Context) {
 			user.Avatar = newAvatar
 			updated = true
 		}
-		
+
 		newWA := FetchExternalUserInfo(emailStr)
 		if newWA != "" && user.WhatsApp != newWA {
 			user.WhatsApp = newWA
 			updated = true
 		}
-		
+
 		if updated {
 			DB.Save(&user)
 		}
@@ -106,7 +106,7 @@ func LoginHandler(c *gin.Context) {
 	// 3. Generate token and store in Redis
 	// For simplicity in this example, we generate a pseudo-random token using time
 	token := "baknus_" + user.ID + "_" + time.Now().Format("20060102150405")
-	
+
 	err = RedisClient.Set(Ctx, token, user.ID, 24*time.Hour).Err()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
@@ -143,7 +143,7 @@ func Me(c *gin.Context) {
 		user.Avatar = newAvatar
 		updated = true
 	}
-	
+
 	newWA := FetchExternalUserInfo(email)
 	log.Printf("DEBUG: External info for %s: WA=%s", email, newWA)
 	if newWA != "" && user.WhatsApp != newWA {

@@ -105,16 +105,13 @@ func SyncMailcowUsers() error {
 		if len(mb.Tags) > 0 {
 			role = mb.Tags[0]
 		}
-		
-		var quota int64 = 2147483648
-		if role == "Guru" || role == "TU" {
-			quota = 3221225472
-		} else if role == "Admin" {
-			quota = 10737418240 // 10 GB for Admin
+		var quota int64 = 5368709120 // 5 GB default for Siswa
+		if role == "Guru" || role == "TU" || role == "Admin" {
+			quota = 10737418240 // 10 GB
 		}
 
 		user := models.User{
-			ID:       mb.Username, 
+			ID:       mb.Username,
 			Email:    mb.Username,
 			FullName: mb.Name,
 			Role:     role,
@@ -122,7 +119,7 @@ func SyncMailcowUsers() error {
 			IsActive: true,
 			Avatar:   fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/auth/avatar/%s", mb.Username),
 		}
-		
+
 		if user.FullName == "" {
 			user.FullName = mb.Username
 		}
@@ -138,7 +135,13 @@ func SyncMailcowUsers() error {
 			}
 		} else {
 			existingUser.Role = user.Role
-			existingUser.Quota = user.Quota
+
+			// Only migrate quota if they are using one of the old/new default standard values.
+			// If an admin manually set it to something else (e.g. 20GB), preserve it.
+			if existingUser.Quota == 2147483648 || existingUser.Quota == 3221225472 || existingUser.Quota == 5368709120 || existingUser.Quota == 10737418240 {
+				existingUser.Quota = user.Quota
+			}
+
 			existingUser.IsActive = true
 			existingUser.Avatar = user.Avatar
 			if user.WhatsApp != "" {
