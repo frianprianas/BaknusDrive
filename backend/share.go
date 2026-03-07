@@ -260,6 +260,52 @@ func UnshareItem(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Share removed successfully"})
 }
 
+// ListMyShares returns all shares created by the current user, with file/folder details
+func ListMyShares(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+
+	type ShareEntry struct {
+		ShareID    uint        `json:"share_id"`
+		SharedWith string      `json:"shared_with"`
+		ItemType   string      `json:"item_type"` // "file" or "folder"
+		ItemID     interface{} `json:"item_id"`
+		ItemName   string      `json:"item_name"`
+		CreatedAt  interface{} `json:"created_at"`
+	}
+
+	var shares []models.Share
+	DB.Preload("File").Preload("Folder").
+		Where("shared_by = ?", userID).
+		Order("id DESC").
+		Find(&shares)
+
+	var result []ShareEntry
+	for _, s := range shares {
+		entry := ShareEntry{
+			ShareID:    s.ID,
+			SharedWith: s.SharedWith,
+			CreatedAt:  s.CreatedAt,
+		}
+		if s.FileID != nil && s.File != nil {
+			entry.ItemType = "file"
+			entry.ItemID = *s.FileID
+			entry.ItemName = s.File.Name
+		} else if s.FolderID != nil && s.Folder != nil {
+			entry.ItemType = "folder"
+			entry.ItemID = *s.FolderID
+			entry.ItemName = s.Folder.Name
+		} else {
+			continue // skip orphan shares
+		}
+		result = append(result, entry)
+	}
+
+	if result == nil {
+		result = []ShareEntry{}
+	}
+	c.JSON(http.StatusOK, gin.H{"shares": result})
+}
+
 func ListSharedWithMe(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	var currentUser models.User

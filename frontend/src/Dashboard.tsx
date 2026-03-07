@@ -66,6 +66,7 @@ export default function Dashboard() {
     const [adminCurrentPage, setAdminCurrentPage] = useState(1);
     const adminItemsPerPage = 20;
     const [itemShares, setItemShares] = useState<any[]>([]);
+    const [mySharesList, setMySharesList] = useState<any[]>([]);
 
     const [uploadProgress, setUploadProgress] = useState<{ active: boolean, percent: number, fileName: string }>({ active: false, percent: 0, fileName: "" });
     const [downloading, setDownloading] = useState<boolean>(false);
@@ -269,6 +270,11 @@ export default function Dashboard() {
                     setFolders(resp.data.folders || []);
                     setFiles(resp.data.files || []);
                 }
+            } else if (currentView === 'my-shares') {
+                const resp = await axios.get('/api/drive/my-shares', { headers: { Authorization: `Bearer ${token}` } });
+                setMySharesList(resp.data.shares || []);
+                setFolders([]);
+                setFiles([]);
             } else if (currentView === 'admin') {
                 const resp = await axios.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } });
                 console.log("Admin Users List:", resp.data.users);
@@ -1049,7 +1055,7 @@ export default function Dashboard() {
         { id: 'recent', icon: Clock, label: 'Recent' },
         { id: 'starred', icon: Star, label: 'Starred' },
         { id: 'forms', icon: ClipboardList, label: 'Baknus Form' },
-        { id: 'spam', icon: AlertCircle, label: 'Spam' },
+        { id: 'my-shares', icon: Share2, label: 'Dibagikan Saya' },
         { id: 'trash', icon: Trash2, label: 'Trash' },
         ...((user?.role?.toLowerCase() === 'admin') ? [{ id: 'admin', icon: Shield, label: 'Admin Panel' }] : [])
     ];
@@ -1424,7 +1430,105 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    {currentView === 'admin' ? (
+                    {currentView === 'my-shares' ? (
+                        <div className="p-6 max-w-5xl mx-auto">
+                            <div className="flex items-center gap-3 mb-8">
+                                <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-2xl text-green-600 dark:text-green-400">
+                                    <Share2 size={26} />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Dibagikan Saya</h2>
+                                    <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Semua file dan folder yang Anda bagikan kepada orang lain</p>
+                                </div>
+                            </div>
+
+                            {mySharesList.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-32 text-slate-400 dark:text-slate-600">
+                                    <Share2 size={64} className="mb-4 opacity-30" />
+                                    <p className="text-lg font-semibold">Belum ada file yang Anda bagikan</p>
+                                    <p className="text-sm mt-1">Klik kanan file atau folder untuk mulai berbagi</p>
+                                </div>
+                            ) : (() => {
+                                // Group shares by item
+                                const grouped: Record<string, { itemType: string, itemName: string, itemId: any, shares: any[] }> = {};
+                                mySharesList.forEach((s: any) => {
+                                    const key = `${s.item_type}-${s.item_id}`;
+                                    if (!grouped[key]) {
+                                        grouped[key] = { itemType: s.item_type, itemName: s.item_name, itemId: s.item_id, shares: [] };
+                                    }
+                                    grouped[key].shares.push(s);
+                                });
+
+                                return (
+                                    <div className="space-y-4">
+                                        {Object.values(grouped).map((group, gi) => (
+                                            <div key={gi} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
+                                                {/* Item header */}
+                                                <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+                                                    <div className={`p-2.5 rounded-xl ${group.itemType === 'folder' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'}`}>
+                                                        {group.itemType === 'folder' ? <FolderIcon size={20} /> : <FileIcon size={20} />}
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-bold text-slate-800 dark:text-slate-200 text-[15px]">{group.itemName}</span>
+                                                        <span className="ml-2 text-xs text-slate-400 font-medium">{group.itemType === 'folder' ? 'Folder' : 'File'}</span>
+                                                    </div>
+                                                    <span className="ml-auto text-xs font-semibold text-slate-400 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full">
+                                                        {group.shares.length} penerima
+                                                    </span>
+                                                </div>
+
+                                                {/* Share entries */}
+                                                <div className="divide-y divide-slate-50 dark:divide-slate-700/50">
+                                                    {group.shares.map((s: any) => {
+                                                        let label = s.shared_with;
+                                                        let badgeBg = 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
+                                                        let icon = '👤';
+                                                        if (s.shared_with?.startsWith('ROLE:')) {
+                                                            label = 'Semua ' + s.shared_with.replace('ROLE:', '');
+                                                            badgeBg = 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400';
+                                                            icon = '👥';
+                                                        } else if (s.shared_with?.startsWith('CLASS:')) {
+                                                            label = 'Kelas ' + s.shared_with.replace('CLASS:', '');
+                                                            badgeBg = 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400';
+                                                            icon = '🏫';
+                                                        }
+                                                        return (
+                                                            <div key={s.share_id} className="flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${badgeBg}`}>
+                                                                        <span>{icon}</span> {label}
+                                                                    </span>
+                                                                    <span className="text-xs text-slate-400">
+                                                                        {formatDateID(s.created_at)}
+                                                                    </span>
+                                                                </div>
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        if (!confirm(`Hentikan sharing ke "${label}"?`)) return;
+                                                                        try {
+                                                                            const token = localStorage.getItem('token');
+                                                                            await axios.delete(`/api/drive/share/${s.share_id}`, { headers: { Authorization: `Bearer ${token}` } });
+                                                                            setMySharesList(prev => prev.filter((x: any) => x.share_id !== s.share_id));
+                                                                        } catch {
+                                                                            alert('Gagal menghapus share');
+                                                                        }
+                                                                    }}
+                                                                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+                                                                >
+                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                                    Hentikan
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    ) : currentView === 'admin' ? (
                         <div className="p-6">
                             <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Shield className="text-blue-500" /> Admin Dashboard (User Management)</h2>
 
