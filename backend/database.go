@@ -46,17 +46,13 @@ func InitDB() {
 	}
 	log.Println("Database migration completed")
 
-	// Seed System Roles for Share targets
-	systemRoles := []string{"ROLE:Guru", "ROLE:Siswa", "ROLE:TU"}
-	for _, role := range systemRoles {
-		var user models.User
-		if err := DB.Where("email = ?", role).First(&user).Error; err != nil {
-			DB.Create(&models.User{
-				ID:       role,
-				Email:    role,
-				FullName: role,
-				Role:     "System",
-			})
-		}
-	}
+	// Drop any legacy FK constraint on shares.shared_with (PostgreSQL doesn't remove via AutoMigrate)
+	// This allows CLASS: and ROLE: prefixed values to be stored freely
+	DB.Exec(`ALTER TABLE shares DROP CONSTRAINT IF EXISTS fk_shares_shared_user`)
+	DB.Exec(`ALTER TABLE shares DROP CONSTRAINT IF EXISTS shares_shared_with_fkey`)
+
+	// Clean up legacy "system role" virtual users that are no longer needed
+	DB.Exec(`DELETE FROM users WHERE role = 'System' AND email LIKE 'ROLE:%'`)
+
+	log.Println("Share constraint cleanup done")
 }
