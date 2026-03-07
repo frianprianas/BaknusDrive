@@ -63,6 +63,8 @@ export default function Dashboard() {
     const [tempQuotaGB, setTempQuotaGB] = useState<string>("");
     const [tempClass, setTempClass] = useState<string>("");
     const [searchClass, setSearchClass] = useState("");
+    const [adminCurrentPage, setAdminCurrentPage] = useState(1);
+    const adminItemsPerPage = 20;
 
     const [uploadProgress, setUploadProgress] = useState<{ active: boolean, percent: number, fileName: string }>({ active: false, percent: 0, fileName: "" });
     const [downloading, setDownloading] = useState<boolean>(false);
@@ -1390,13 +1392,13 @@ export default function Dashboard() {
                                         type="text"
                                         placeholder="Cari nama atau email pengguna..."
                                         value={searchUser}
-                                        onChange={(e) => setSearchUser(e.target.value)}
+                                        onChange={(e) => { setSearchUser(e.target.value); setAdminCurrentPage(1); }}
                                         className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />
                                 </div>
                                 <select
                                     value={roleFilter}
-                                    onChange={(e) => setRoleFilter(e.target.value)}
+                                    onChange={(e) => { setRoleFilter(e.target.value); setAdminCurrentPage(1); }}
                                     className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[150px]"
                                 >
                                     <option value="Semua">Semua Role</option>
@@ -1408,89 +1410,126 @@ export default function Dashboard() {
                             </div>
 
                             <div className="overflow-x-auto bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-                                <table className="w-full text-left text-sm whitespace-nowrap">
+                                <table className="w-full text-left text-[15px] whitespace-nowrap">
                                     <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
                                         <tr>
-                                            <th className="px-6 py-4 font-medium">Pengguna</th>
-                                            <th className="px-6 py-4 font-medium">Role</th>
-                                            <th className="px-6 py-4 font-medium">Kelas</th>
-                                            <th className="px-6 py-4 font-medium">Penyimpanan</th>
-                                            <th className="px-6 py-4 font-medium">Status</th>
-                                            <th className="px-6 py-4 font-medium text-right">Aksi</th>
+                                            <th className="px-6 py-5 font-semibold">Pengguna</th>
+                                            <th className="px-6 py-5 font-semibold">Role</th>
+                                            <th className="px-6 py-5 font-semibold">Kelas</th>
+                                            <th className="px-6 py-5 font-semibold">Penyimpanan</th>
+                                            <th className="px-6 py-5 font-semibold">Status</th>
+                                            <th className="px-6 py-5 font-semibold text-right">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                        {usersList
-                                            .filter(u => roleFilter === 'Semua' || u.role === roleFilter)
-                                            .filter(u => {
-                                                const search = searchUser.toLowerCase();
-                                                return (u.full_name || '').toLowerCase().includes(search) ||
-                                                    (u.email || '').toLowerCase().includes(search);
-                                            })
-                                            .map((u) => (
-                                                <tr key={u.id || u.email || Math.random()} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                                    <td className="px-6 py-4">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-semibold text-slate-800 dark:text-slate-200">{u.full_name || u.email}</span>
-                                                            <span className="text-sm text-slate-500">{u.email}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                                            {u.role}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400 text-sm font-medium">
-                                                        {u.class || '-'}
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 mb-1.5 w-32">
-                                                            <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${Math.min(100, ((u.used_space || 0) / (u.quota || 1)) * 100)}%` }}></div>
-                                                        </div>
-                                                        <span className="text-xs text-slate-500">{formatSize(u.used_space || 0)} / {formatSize(u.quota)}</span>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        {u.is_active ? (
-                                                            <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
-                                                                <Check size={14} /> Aktif
-                                                            </span>
-                                                        ) : (
-                                                            <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400 font-medium">
-                                                                <Lock size={14} /> Nonaktif
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
-                                                        <button
-                                                            onClick={() => {
-                                                                setAdminTargetUser(u.id || u.email);
-                                                                setCurrentView('admin-drive');
-                                                                setBreadcrumb([{ id: null, name: `Drive: ${u.full_name || u.email}` }]);
-                                                                setCurrentFolderId(null);
-                                                            }}
-                                                            className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-semibold transition-colors dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 flex items-center gap-1"
-                                                        >
-                                                            <FolderIcon size={14} /> Lihat File
-                                                        </button>
-                                                        <button
-                                                            onClick={() => {
-                                                                setQuotaModal({ visible: true, user: u });
-                                                                setTempQuotaGB((u.quota / (1024 * 1024 * 1024)).toString());
-                                                                setTempClass(u.class || "");
-                                                            }}
-                                                            className="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-semibold transition-colors dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 flex items-center gap-1"
-                                                        >
-                                                            <Database size={14} /> Edit User
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleAdminUpdateUser(u.id || u.email, undefined, !u.is_active)}
-                                                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 ${u.is_active ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50' : 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50'}`}
-                                                        >
-                                                            {u.is_active ? <UserX size={14} /> : <Unlock size={14} />} {u.is_active ? 'Matikan' : 'Aktifkan'}
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                        {(() => {
+                                            const filteredUsers = usersList
+                                                .filter(u => roleFilter === 'Semua' || u.role === roleFilter)
+                                                .filter(u => {
+                                                    const search = searchUser.toLowerCase();
+                                                    return (u.full_name || '').toLowerCase().includes(search) ||
+                                                        (u.email || '').toLowerCase().includes(search);
+                                                });
+                                            const totalPages = Math.ceil(filteredUsers.length / adminItemsPerPage) || 1;
+                                            const paginatedUsers = filteredUsers.slice((adminCurrentPage - 1) * adminItemsPerPage, adminCurrentPage * adminItemsPerPage);
+
+                                            return (
+                                                <>
+                                                    {paginatedUsers.map((u) => (
+                                                        <tr key={u.id || u.email || Math.random()} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                            <td className="px-6 py-5">
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-bold text-slate-800 dark:text-slate-200 text-base">{u.full_name || u.email}</span>
+                                                                    <span className="text-[15px] text-slate-500">{u.email}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-5">
+                                                                <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                                                    {u.role}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-5 text-slate-700 dark:text-slate-300 text-base font-bold">
+                                                                {u.class || '-'}
+                                                            </td>
+                                                            <td className="px-6 py-5">
+                                                                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 mb-2 w-48">
+                                                                    <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.min(100, ((u.used_space || 0) / (u.quota || 1)) * 100)}%` }}></div>
+                                                                </div>
+                                                                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{formatSize(u.used_space || 0)} / {formatSize(u.quota)}</span>
+                                                            </td>
+                                                            <td className="px-6 py-5">
+                                                                {u.is_active ? (
+                                                                    <span className="inline-flex items-center gap-1.5 text-green-600 dark:text-green-400 font-bold text-[15px]">
+                                                                        <Check size={16} /> Aktif
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center gap-1.5 text-red-600 dark:text-red-400 font-bold text-[15px]">
+                                                                        <Lock size={16} /> Nonaktif
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-6 py-5 text-right flex items-center justify-end gap-3">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setAdminTargetUser(u.id || u.email);
+                                                                        setCurrentView('admin-drive');
+                                                                        setBreadcrumb([{ id: null, name: `Drive: ${u.full_name || u.email}` }]);
+                                                                        setCurrentFolderId(null);
+                                                                    }}
+                                                                    className="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-sm font-bold transition-colors dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 flex items-center gap-1.5"
+                                                                >
+                                                                    <FolderIcon size={16} /> Lihat File
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setQuotaModal({ visible: true, user: u });
+                                                                        setTempQuotaGB((u.quota / (1024 * 1024 * 1024)).toString());
+                                                                        setTempClass(u.class || "");
+                                                                    }}
+                                                                    className="px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-sm font-bold transition-colors dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 flex items-center gap-1.5"
+                                                                >
+                                                                    <Database size={16} /> Edit User
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleAdminUpdateUser(u.id || u.email, undefined, !u.is_active)}
+                                                                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-1.5 ${u.is_active ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50' : 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50'}`}
+                                                                >
+                                                                    {u.is_active ? <UserX size={16} /> : <Unlock size={16} />} {u.is_active ? 'Matikan' : 'Aktifkan'}
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+
+                                                    {totalPages > 1 && (
+                                                        <tr>
+                                                            <td colSpan={6} className="px-6 py-5 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-sm font-medium text-slate-500">
+                                                                        Menampilkan {((adminCurrentPage - 1) * adminItemsPerPage) + 1} hingga {Math.min(adminCurrentPage * adminItemsPerPage, filteredUsers.length)} dari {filteredUsers.length} entri
+                                                                    </span>
+                                                                    <div className="flex gap-2">
+                                                                        <button
+                                                                            disabled={adminCurrentPage === 1}
+                                                                            onClick={() => setAdminCurrentPage(p => Math.max(1, p - 1))}
+                                                                            className="px-4 py-2 bg-slate-100 disabled:opacity-50 hover:bg-slate-200 rounded-lg text-sm font-bold text-slate-700 transition"
+                                                                        >
+                                                                            Previous
+                                                                        </button>
+                                                                        <button
+                                                                            disabled={adminCurrentPage === totalPages}
+                                                                            onClick={() => setAdminCurrentPage(p => Math.min(totalPages, p + 1))}
+                                                                            className="px-4 py-2 bg-slate-100 disabled:opacity-50 hover:bg-slate-200 rounded-lg text-sm font-bold text-slate-700 transition"
+                                                                        >
+                                                                            Next
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                     </tbody>
                                 </table>
                             </div>
@@ -2101,19 +2140,16 @@ export default function Dashboard() {
                                             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                                 <Search size={18} className="text-slate-400" />
                                             </div>
-                                            <input
-                                                type="text"
-                                                placeholder="Ketik nama kelas (Misal: X RPL 2)"
+                                            <select
                                                 value={searchClass}
                                                 onChange={(e) => setSearchClass(e.target.value)}
-                                                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-sm"
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && searchClass.trim() !== '') {
-                                                        submitShare('CLASS:' + searchClass.trim());
-                                                        setSearchClass('');
-                                                    }
-                                                }}
-                                            />
+                                                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-sm appearance-none font-medium text-slate-700"
+                                            >
+                                                <option value="" disabled>Pilih nama kelas...</option>
+                                                {Array.from(new Set(usersList.map(u => u.class).filter(c => c && c.trim() !== ''))).sort().map(c => (
+                                                    <option key={String(c)} value={String(c)}>{String(c)}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                         <button onClick={() => {
                                             if (searchClass.trim() !== '') {
