@@ -12,7 +12,6 @@ type Share struct {
 	Folder     *Folder   `json:"folder,omitempty"`
 	SharedBy   string    `gorm:"not null" json:"shared_by"`
 	SharedWith string    `gorm:"not null" json:"shared_with"`
-	SharedUser *User     `gorm:"foreignKey:SharedWith;references:Email" json:"shared_user,omitempty"`
 	OwnerUser  *User     `gorm:"foreignKey:SharedBy;references:ID" json:"owner_user,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
 }
