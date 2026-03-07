@@ -106,7 +106,7 @@ Tim BaknusDrive - SMK Bakti Nusantara 666
 
 func ListUsers(c *gin.Context) {
 	var users []models.User
-	DB.Select("email, full_name, role").Find(&users)
+	DB.Select("email, full_name, role, class").Find(&users)
 	c.JSON(http.StatusOK, gin.H{"users": users})
 }
 
