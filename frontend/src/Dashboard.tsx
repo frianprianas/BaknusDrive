@@ -2294,10 +2294,27 @@ export default function Dashboard() {
                                             {contextMenu.item.is_starred ? "Remove from starred" : "Add to starred"}
                                         </button>
                                         {contextMenu.type === 'file' && (
-                                            <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleTogglePublic}>
-                                                <Link size={16} className={contextMenu.item.is_public ? "text-green-500" : "text-slate-500 dark:text-slate-400"} />
-                                                {contextMenu.item.is_public ? "Turn off public link" : "Get public link"}
-                                            </button>
+                                            <>
+                                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleTogglePublic}>
+                                                    <Link size={16} className={contextMenu.item.is_public ? "text-green-500" : "text-slate-500 dark:text-slate-400"} />
+                                                    {contextMenu.item.is_public ? "Turn off public link" : "Get public link"}
+                                                </button>
+                                                {contextMenu.item.is_public && (
+                                                    <button
+                                                        className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-blue-600 dark:text-blue-400 transition-colors"
+                                                        onClick={() => {
+                                                            const link = `${window.location.origin}/api/public/${contextMenu.type}/${contextMenu.item.id}/download`;
+                                                            navigator.clipboard.writeText(link);
+                                                            // We assume baknusmail can handle compose via URL or at least the user can just paste the link they just copied
+                                                            window.open('https://baknusmail.smkbn666.sch.id', '_blank');
+                                                            setContextMenu({ ...contextMenu, visible: false });
+                                                        }}
+                                                    >
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                                                        Kirim Email (Copied)
+                                                    </button>
+                                                )}
+                                            </>
                                         )}
                                         <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
                                         <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleRenameMenu}>
