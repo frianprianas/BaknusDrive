@@ -1438,39 +1438,41 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                <div className="px-5 py-2 flex items-center gap-2 border-b border-white dark:border-slate-800 pb-3 h-[52px]">
-                    {currentView === 'forms' ? (
-                        <>
-                            <button
-                                onClick={() => setFormStatusFilter("Semua")}
-                                className={`flex items-center gap-1.5 border rounded-lg px-3 py-1 text-[14px] font-medium transition-all ${formStatusFilter === 'Semua' ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-                            >
-                                Semua
-                            </button>
-                            <button
-                                onClick={() => setFormStatusFilter("Aktif")}
-                                className={`flex items-center gap-1.5 border rounded-lg px-3 py-1 text-[14px] font-medium transition-all ${formStatusFilter === 'Aktif' ? 'bg-green-600 border-green-600 text-white' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-                            >
-                                Aktif
-                            </button>
-                            <button
-                                onClick={() => setFormStatusFilter("Draft")}
-                                className={`flex items-center gap-1.5 border rounded-lg px-3 py-1 text-[14px] font-medium transition-all ${formStatusFilter === 'Draft' ? 'bg-slate-600 border-slate-600 text-white' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-                            >
-                                Draft
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <button className="flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1 text-[14px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">Type</button>
-                            <button className="flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1 text-[14px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">People</button>
-                            <button className="flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1 text-[14px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">Modified</button>
-                        </>
-                    )}
-                </div>
+                {!(currentView === 'computers' && !selectedDevice && !currentFolderId) && (
+                    <div className="px-5 py-2 flex items-center gap-2 border-b border-white dark:border-slate-800 pb-3 h-[52px]">
+                        {currentView === 'forms' ? (
+                            <>
+                                <button
+                                    onClick={() => setFormStatusFilter("Semua")}
+                                    className={`flex items-center gap-1.5 border rounded-lg px-3 py-1 text-[14px] font-medium transition-all ${formStatusFilter === 'Semua' ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                                >
+                                    Semua
+                                </button>
+                                <button
+                                    onClick={() => setFormStatusFilter("Aktif")}
+                                    className={`flex items-center gap-1.5 border rounded-lg px-3 py-1 text-[14px] font-medium transition-all ${formStatusFilter === 'Aktif' ? 'bg-green-600 border-green-600 text-white' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                                >
+                                    Aktif
+                                </button>
+                                <button
+                                    onClick={() => setFormStatusFilter("Draft")}
+                                    className={`flex items-center gap-1.5 border rounded-lg px-3 py-1 text-[14px] font-medium transition-all ${formStatusFilter === 'Draft' ? 'bg-slate-600 border-slate-600 text-white' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                                >
+                                    Draft
+                                </button>
+                            </>
+                        ) : currentView !== 'admin' ? (
+                            <>
+                                <button className="flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1 text-[14px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">Type</button>
+                                <button className="flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1 text-[14px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">People</button>
+                                <button className="flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1 text-[14px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">Modified</button>
+                            </>
+                        ) : null}
+                    </div>
+                )}
 
                 {/* File List Header */}
-                {(viewMode === 'list' && currentView !== 'admin' && currentView !== 'forms') && (
+                {(viewMode === 'list' && currentView !== 'admin' && currentView !== 'forms' && !(currentView === 'computers' && !selectedDevice && !currentFolderId)) && (
                     <div className="px-5 py-2 border-b border-slate-200 dark:border-slate-700 grid grid-cols-12 gap-4 text-[13px] font-semibold text-slate-600 dark:text-slate-400 sticky top-0 bg-white dark:bg-slate-800 z-20">
                         <div className="col-span-12 md:col-span-6 flex items-center">Name</div>
                         <div className="col-span-2 hidden md:flex items-center">Owner</div>
@@ -1944,6 +1946,23 @@ export default function Dashboard() {
                                                     <li>Pilih tipe pengguna <strong>"Registered User"</strong> jika ditanya.</li>
                                                     <li>Masukkan <strong>Email</strong> dan <strong>Password</strong> Baknus Anda.</li>
                                                     <li><span className="font-bold text-green-600 dark:text-green-400">Selesai!</span> Drive akan otomatis *mounted* (terpasang) di Desktop atau di *sidebar* Finder Anda.</li>
+                                                </ol>
+                                            </div>
+
+                                            {/* Panduan Linux / GNOME */}
+                                            <div>
+                                                <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3 mb-4 border-b border-slate-100 dark:border-slate-700 pb-3">
+                                                    <svg className="w-7 h-7 text-slate-800 dark:text-slate-200" viewBox="0 0 448 512"><path fill="currentColor" d="M220.8 123.3c1 .5 1.8 1.7 3 1.7 1.1 0 2.8-.4 2.9-1.5.2-1.4-1.9-2.3-3.2-2.9-1.7-.7-3.9-1-5.5-.1-.4.2-.8.7-.6 1.1.3 1.3 2.3 1.1 3.4 1.7zm-21.9 1.7c1.2 0 2-1.2 3-1.7 1.1-.6 3.1-.4 3.5-1.7.2-.4-.2-.9-.6-1.1-1.6-.9-3.8-.6-5.5.1-1.3.6-3.4 1.5-3.2 2.9.1 1 1.8 1.5 2.8 1.5zM420 403.8c-3.6-4-5.3-11.6-7.2-19.7-1.8-8.1-3.9-16.8-10.5-22.4-1.3-1.1-2.6-2.1-4-2.9-1.3-.8-2.7-1.5-4.1-2 9.2-27.3 5.6-54.5-3.7-79.1-11.4-30.1-31.3-56.4-46.5-74.4-17.1-21.5-33.7-41.9-33.4-72C311.1 85.4 315.7.1 234.8 0 132.4-.2 158 103.4 156.9 135.2c-1.7 45.3-26.6 66.8-49 92.5-16.5 18.2-31.4 39.5-38.3 67-6.5 25.5-2.7 54.3 7 81.6-1.5.5-3 1.2-4.3 2.1-6.6 5.6-8.7 14.3-10.5 22.4-1.9 8.1-3.6 15.7-7.2 19.7-6.8 7.4-22.9 8.6-22.9 8.6-8.1 1.6-3 15.2 6.6 15.2h41.4c34.5 11 63 21 133 21 68 0 98.5-10 133-21h41.4c9.6 0 14.7-13.6 6.6-15.2 0 0-16.1-1.2-22.9-8.6zm-207.1 19.4c-35 0-63.5-28.5-63.5-63.5s28.5-63.5 63.5-63.5 63.5 28.5 63.5 63.5-28.5 63.5-63.5 63.5zm70.6-200.7c-2.4 20-25.2 3.1-40.2-12-14.7 14.8-37.4 32.2-40.2 12-1.7-12 11.2-14.5 12.6-18.7-25-11.6-21.4-42.5-21.4-42.5 7.4-20 28.6-14.5 30.5-11.8 16 16.5 21 16.5 37.1 0 1.9-2.7 23.1-8.2 30.5 11.8 0 0 3.6 30.9-21.4 42.5 1.5 4.3 14.3 6.7 12.6 18.7zm-27.1-41.4c-9.3-5-18.9-8.2-18.9-8.2s-9.6 3.2-18.9 8.2c-4 2.1-4.6 2.4-5.3.7-2-4.8 11.4-15 24.2-15 12.6 0 25.8 10 24.2 15-.7 1.7-1.3 1.4-5.3-.7z" /></svg>
+                                                    Panduan Linux (GNOME / Ubuntu)
+                                                </h4>
+                                                <ol className="list-decimal list-inside space-y-3.5 text-slate-600 dark:text-slate-300 ml-2">
+                                                    <li>Buka aplikasi <strong>Files (Nautilus)</strong>.</li>
+                                                    <li>Pada *sidebar* kiri, cari dan klik opsi <strong>"Other Locations"</strong>.</li>
+                                                    <li>Di bagian bawah pada kolom <strong>"Connect to Server"</strong>, ketikkan URL berikut:</li>
+                                                    <li><code className="bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400 font-mono text-sm break-all">davs://baknusdrive.smkbn666.sch.id/webdav</code></li>
+                                                    <li>Lalu tekan <strong>Connect</strong>.</li>
+                                                    <li>Masukkan <strong>Email</strong> dan <strong>Password</strong> Baknus Anda saat dialog otentikasi muncul.</li>
+                                                    <li><span className="font-bold text-green-600 dark:text-green-400">Selesai!</span> File Anda kini dapat diakses layaknya folder lokal biasa.</li>
                                                 </ol>
                                             </div>
                                         </div>
