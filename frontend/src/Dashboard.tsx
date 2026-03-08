@@ -4,7 +4,7 @@ import logo from './assets/logo.png';
 import FormBuilder from './FormBuilder';
 import {
     Search, Menu, X, Filter, LayoutGrid, Clock, Users, Database,
-    Settings, LogOut, ChevronRight,
+    Settings, LogOut, ChevronRight, Bell,
     Grid, List, AlertCircle, HardDrive, MonitorSmartphone,
     Star, Trash2, Folder as FolderIcon, File as FileIcon, Image as ImageIcon, FileText, FileSpreadsheet, Presentation,
     Cloud, Plus, Download, FolderPlus, Upload, FileUp, Check,
@@ -25,6 +25,8 @@ export default function Dashboard() {
     const [showSidebar, setShowSidebar] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [showNotifications, setShowNotifications] = useState(false);
 
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
     const [previewFile, setPreviewFile] = useState<any | null>(null);
@@ -130,6 +132,7 @@ export default function Dashboard() {
         fetchUserProfile();
         fetchDriveData();
         fetchUsers();
+        fetchNotifications();
     }, [currentFolderId, currentView, selectedDevice, debouncedSearchQuery]);
 
     // Fast polling for forms to give a "real-time" feel for response counts
@@ -164,6 +167,38 @@ export default function Dashboard() {
             }
         } catch (error) {
             console.error("Failed to fetch user profile", error);
+        }
+    };
+
+    const fetchNotifications = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const resp = await axios.get('/api/notifications', { headers: { Authorization: `Bearer ${token}` } });
+            setNotifications(resp.data || []);
+        } catch (error) {
+            console.error("Failed to fetch notifications", error);
+        }
+    };
+
+    const markNotificationRead = async (id: number) => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.put(`/api/notifications/${id}/read`, {}, { headers: { Authorization: `Bearer ${token}` } });
+            setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+        } catch (error) {
+            console.error("Failed to mark as read", error);
+        }
+    };
+
+    const markAllNotificationsRead = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.put('/api/notifications/read-all', {}, { headers: { Authorization: `Bearer ${token}` } });
+            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+            setShowNotifications(false);
+        } catch (error) {
+            console.error("Failed to mark all as read", error);
         }
     };
 
@@ -1254,6 +1289,48 @@ export default function Dashboard() {
                         <button onClick={toggleDarkMode} className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full">
                             {isDarkMode ? <Sun size={24} /> : <Moon size={24} />}
                         </button>
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowNotifications(!showNotifications)}
+                                className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full relative"
+                            >
+                                <Bell size={24} />
+                                {notifications.filter(n => !n.isRead).length > 0 && (
+                                    <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white dark:border-slate-800">
+                                        {notifications.filter(n => !n.isRead).length}
+                                    </span>
+                                )}
+                            </button>
+                            {showNotifications && (
+                                <div className="absolute right-0 top-12 w-[320px] md:w-[380px] bg-white dark:bg-slate-800 shadow-xl rounded-[20px] p-2 z-50 border border-slate-100 dark:border-slate-700 flex flex-col max-h-[400px]">
+                                    <div className="flex justify-between items-center px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+                                        <h3 className="font-semibold text-slate-800 dark:text-slate-200">Notifikasi</h3>
+                                        {notifications.some(n => !n.isRead) && (
+                                            <button onClick={markAllNotificationsRead} className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">Tandai semua dibaca</button>
+                                        )}
+                                    </div>
+                                    <div className="overflow-y-auto flex-1 p-2 flex flex-col gap-1">
+                                        {notifications.length === 0 ? (
+                                            <div className="py-8 text-center text-slate-500 dark:text-slate-400">Belum ada notifikasi.</div>
+                                        ) : (
+                                            notifications.map(n => (
+                                                <div
+                                                    key={n.id}
+                                                    onClick={() => !n.isRead && markNotificationRead(n.id)}
+                                                    className={`p-3 rounded-xl cursor-pointer transition-colors ${!n.isRead ? 'bg-blue-50/50 dark:bg-blue-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                                                >
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <span className={`font-semibold text-[14px] ${!n.isRead ? 'text-slate-800 dark:text-slate-200' : 'text-slate-600 dark:text-slate-400'}`}>{n.title}</span>
+                                                        <span className="text-[11px] text-slate-400 whitespace-nowrap ml-2">{new Date(n.createdAt).toLocaleDateString('id-ID')}</span>
+                                                    </div>
+                                                    <p className={`text-[13px] leading-relaxed ${!n.isRead ? 'text-slate-700 dark:text-slate-300' : 'text-slate-500 dark:text-slate-400'}`}>{n.message}</p>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                         <button className="hidden md:block p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full"><HelpCircle size={24} /></button>
                         <button
                             onClick={() => {

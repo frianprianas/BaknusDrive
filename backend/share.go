@@ -197,6 +197,7 @@ func ShareItem(c *gin.Context) {
 	// ── Send email notification (non-blocking) ──
 	if targetEmail != "" && itemName != "" {
 		sendShareNotification(targetEmail, senderName, req.Type, itemName)
+		CreateNotification(targetEmail, "Berbagi "+req.Type, senderName+" membagikan "+req.Type+" '"+itemName+"' dengan Anda.", "SHARE", "")
 	} else if strings.HasPrefix(req.SharedWith, "ROLE:") {
 		// Broadcast to all users with that role
 		roleName := strings.TrimPrefix(req.SharedWith, "ROLE:")
@@ -205,6 +206,7 @@ func ShareItem(c *gin.Context) {
 		for _, u := range roleUsers {
 			if u.Email != userID {
 				sendShareNotification(u.Email, senderName, req.Type, itemName)
+				CreateNotification(u.Email, "Berbagi "+req.Type, senderName+" membagikan "+req.Type+" '"+itemName+"' dengan grup Anda.", "SHARE", "")
 			}
 		}
 	} else if strings.HasPrefix(req.SharedWith, "CLASS:") {
@@ -215,6 +217,7 @@ func ShareItem(c *gin.Context) {
 		for _, u := range classUsers {
 			if u.Email != userID {
 				sendShareNotification(u.Email, senderName, req.Type, itemName)
+				CreateNotification(u.Email, "Berbagi "+req.Type, senderName+" membagikan "+req.Type+" '"+itemName+"' dengan kelas Anda.", "SHARE", "")
 			}
 		}
 	}

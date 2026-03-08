@@ -126,6 +126,15 @@ func main() {
 			driveAPI.GET("/doc/open/:id", OpenDoc) // returns Collabora editor URL with per-user WOPI token
 		}
 
+		// Notification APIs
+		notifAPI := api.Group("/notifications")
+		notifAPI.Use(AuthMiddleware())
+		{
+			notifAPI.GET("", GetNotifications)
+			notifAPI.PUT("/:id/read", MarkNotificationRead)
+			notifAPI.PUT("/read-all", MarkAllNotificationsRead)
+		}
+
 		// Admin APIs
 		adminAPI := api.Group("/admin")
 		adminAPI.Use(AuthMiddleware(), AdminMiddleware())
