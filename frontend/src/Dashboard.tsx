@@ -34,7 +34,7 @@ export default function Dashboard() {
 
     const [folders, setFolders] = useState<any[]>([]);
     const [files, setFiles] = useState<any[]>([]);
-    const [devices, setDevices] = useState<any[]>([]);
+    // const [devices, setDevices] = useState<any[]>([]);
     const [selectedDevice, setSelectedDevice] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [myForms, setMyForms] = useState<any[]>([]);
@@ -233,15 +233,15 @@ export default function Dashboard() {
         }
     };
 
-    const fetchDevices = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const resp = await axios.get('/api/drive/devices', { headers: { Authorization: `Bearer ${token}` } });
-            setDevices(resp.data || []);
-        } catch (error) {
-            console.error("Failed to fetch devices", error);
-        }
-    };
+    // const fetchDevices = async () => {
+    //     try {
+    //         const token = localStorage.getItem('token');
+    //         const resp = await axios.get('/api/drive/devices', { headers: { Authorization: `Bearer ${token}` } });
+    //         // setDevices(resp.data || []);
+    //     } catch (error) {
+    //         console.error("Failed to fetch devices", error);
+    //     }
+    // };
 
     const fetchDriveData = async () => {
         setLoading(true);
@@ -288,7 +288,7 @@ export default function Dashboard() {
                     setFolders(resp.data.folders || []);
                     setFiles(resp.data.files || []);
                 } else {
-                    await fetchDevices();
+                    // await fetchDevices();
                     setFolders([]);
                     setFiles([]);
                 }
@@ -1053,12 +1053,11 @@ export default function Dashboard() {
         setCurrentFolderId(id);
         setBreadcrumb([...breadcrumb, { id, name }]);
     };
-
-    const navigateToDevice = (device: any) => {
-        setSelectedDevice(device);
-        setCurrentFolderId(null);
-        setBreadcrumb([{ id: null, name: 'Computers' }, { id: 'device', name: device.name }]);
-    };
+    // const navigateToDevice = (device: any) => {
+    //     setSelectedDevice(device);
+    //     setCurrentFolderId(null);
+    //     setBreadcrumb([{ id: null, name: 'Computers' }, { id: 'device', name: device.name }]);
+    // };
 
     const navigateToBreadcrumb = (index: number) => {
         if (index === breadcrumb.length - 1) return;
@@ -1879,48 +1878,76 @@ export default function Dashboard() {
                     ) : (
                         <>
                             {currentView === 'computers' && !selectedDevice && !currentFolderId && (
-                                <div className="p-6">
-                                    <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-slate-800 dark:text-slate-100">
-                                        <MonitorSmartphone className="text-blue-500" /> Computers
-                                    </h2>
-                                    {devices.length === 0 ? (
-                                        <div className="bg-blue-50 dark:bg-slate-900/50 border border-blue-100 dark:border-slate-700 rounded-3xl p-12 flex flex-col items-center text-center">
-                                            <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-sm mb-6">
-                                                <MonitorSmartphone size={40} className="text-[#1a73e8]" />
-                                            </div>
-                                            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">No computers syncing</h3>
-                                            <p className="text-slate-500 dark:text-slate-400 max-w-sm mb-8 text-[14px]">
-                                                Folders on your computer that you sync with BaknusDrive will appear here.
-                                            </p>
-                                            <button
-                                                onClick={() => window.open(`${window.location.origin}/downloads/clients/BaknusDrive-Setup.exe`, '_blank')}
-                                                className="px-6 py-2.5 bg-[#1a73e8] text-white rounded-full font-medium hover:bg-blue-600 transition-colors shadow-sm text-sm"
-                                            >
-                                                Download BaknusDrive for Desktop
-                                            </button>
+                                <div className="p-6 max-w-5xl mx-auto">
+                                    <div className="flex items-center gap-3 mb-8">
+                                        <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-2xl text-blue-600 dark:text-blue-400">
+                                            <HardDrive size={26} />
                                         </div>
-                                    ) : (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                            {devices.map((device: any) => (
-                                                <div key={device.id}
-                                                    onClick={() => navigateToDevice(device)}
-                                                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 hover:shadow-md transition-all cursor-pointer group">
-                                                    <div className="flex items-start justify-between mb-4">
-                                                        <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
-                                                            <MonitorSmartphone className="text-[#1a73e8] dark:text-blue-400" />
-                                                        </div>
-                                                        <span className="text-[12px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">Online</span>
-                                                    </div>
-                                                    <h4 className="font-semibold text-slate-800 dark:text-slate-100 mb-1">{device.name}</h4>
-                                                    <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-4">{device.os} • Last sync: {new Date(device.last_sync).toLocaleString()}</p>
-                                                    <div className="flex items-center gap-2 pt-4 border-t border-slate-100 dark:border-slate-700">
-                                                        <FolderIcon size={16} className="text-slate-400" />
-                                                        <span className="text-[13px] text-slate-600 dark:text-slate-300">Folders Synced</span>
-                                                    </div>
+                                        <div>
+                                            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Akses File Lokal (WebDAV)</h2>
+                                            <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Jadikan BaknusDrive seperti Flashdisk/Hardisk eksternal di komputer Anda</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-200 dark:border-slate-700 shadow-sm mb-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-xl inline-block text-blue-700 dark:text-blue-400">
+                                            Informasi Koneksi WebDAV
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                            <div className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                                <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">URL / Server Address</p>
+                                                <div className="font-mono text-sm tracking-tight text-slate-800 dark:text-slate-200 break-all bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl flex justify-between items-center group">
+                                                    <span>https://baknusdrive.smkbn666.sch.id/webdav</span>
+                                                    <button
+                                                        onClick={() => { navigator.clipboard.writeText('https://baknusdrive.smkbn666.sch.id/webdav'); alert('URL WebDAV disalin!'); }}
+                                                        className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                                        title="Salin URL"
+                                                    ><Copy size={16} /></button>
                                                 </div>
-                                            ))}
+                                            </div>
+                                            <div className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex flex-col justify-center">
+                                                <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1">Username & Password</p>
+                                                <p className="font-medium text-slate-800 dark:text-slate-200">Gunakan Email (NIP/NIS) dan Password Baknus Anda.</p>
+                                            </div>
                                         </div>
-                                    )}
+
+                                        <div className="space-y-10 mt-6">
+                                            {/* Panduan Windows */}
+                                            <div>
+                                                <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3 mb-4 border-b border-slate-100 dark:border-slate-700 pb-3">
+                                                    <svg className="w-7 h-7 text-[#00a4ef]" viewBox="0 0 87.6 87.6"><path fill="currentColor" d="M0 12.4l35.6-4.8v34H0zM39.6 6.8l48-6.6v37.4H39.6zM0 45.4h35.6v34L0 74.6zM39.6 45.4h48v37.4l-48-6.6z" /></svg>
+                                                    Panduan Windows
+                                                </h4>
+                                                <ol className="list-decimal list-inside space-y-3.5 text-slate-600 dark:text-slate-300 ml-2">
+                                                    <li>Buka <strong>File Explorer</strong> (tekan <code className="bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-xs font-bold font-mono">Win + E</code>).</li>
+                                                    <li>Klik kanan pada <strong>"This PC"</strong> atau <strong>"Network"</strong> di panel sebelah kiri.</li>
+                                                    <li>Pilih opsi <strong>"Map network drive..."</strong>.</li>
+                                                    <li>Pilih huruf Drive yang diinginkan (misalnya <strong className="bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-800 dark:text-slate-200">Z:</strong>).</li>
+                                                    <li>Pada kolom Folder, tempelkan URL: <code className="bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400 font-mono text-sm break-all">https://baknusdrive.smkbn666.sch.id/webdav</code></li>
+                                                    <li>Centang kotak <strong>"Connect using different credentials"</strong> lalu klik <strong>Finish</strong>.</li>
+                                                    <li>Masukkan <strong>Email</strong> dan <strong>Password</strong> Baknus Anda saat diminta.</li>
+                                                    <li><span className="font-bold text-green-600 dark:text-green-400">Selesai!</span> Anda akan melihat BaknusDrive di dalam "This PC" seperti Hardisk biasa.</li>
+                                                </ol>
+                                            </div>
+
+                                            {/* Panduan macOS */}
+                                            <div>
+                                                <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3 mb-4 border-b border-slate-100 dark:border-slate-700 pb-3">
+                                                    <svg className="w-7 h-7 text-slate-800 dark:text-slate-200" viewBox="0 0 384 512"><path fill="currentColor" d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" /></svg>
+                                                    Panduan Mac OS (Finder)
+                                                </h4>
+                                                <ol className="list-decimal list-inside space-y-3.5 text-slate-600 dark:text-slate-300 ml-2">
+                                                    <li>Buka aplikasi <strong>Finder</strong> di Mac Anda.</li>
+                                                    <li>Pada *menu bar* di bagian atas layar, klik <strong>"Go"</strong> ➡️ pilih <strong>"Connect to Server..."</strong>.</li>
+                                                    <li>Atau bisa juga dengan menekan *shortcut* <code className="bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded font-mono text-xs font-bold text-slate-800 dark:text-slate-200">⌘ + K</code>.</li>
+                                                    <li>Masukkan Server Address: <code className="bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400 font-mono text-sm break-all">https://baknusdrive.smkbn666.sch.id/webdav</code> lalu klik <strong>Connect</strong>.</li>
+                                                    <li>Pilih tipe pengguna <strong>"Registered User"</strong> jika ditanya.</li>
+                                                    <li>Masukkan <strong>Email</strong> dan <strong>Password</strong> Baknus Anda.</li>
+                                                    <li><span className="font-bold text-green-600 dark:text-green-400">Selesai!</span> Drive akan otomatis *mounted* (terpasang) di Desktop atau di *sidebar* Finder Anda.</li>
+                                                </ol>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
