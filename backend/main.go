@@ -145,6 +145,9 @@ func main() {
 		}
 	}
 
+	// Initialize WebDAV endpoints
+	InitWebDAV(r)
+
 	log.Println("Starting server on :8080")
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("Server failed: %v", err)
