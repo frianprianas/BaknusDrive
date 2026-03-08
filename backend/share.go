@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/smtp"
 	"strings"
+	"time"
 
 	"baknusdrive/models"
 
@@ -367,6 +368,12 @@ func ListSharedWithMe(c *gin.Context) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Public Link Feature
 
+type TogglePublicReq struct {
+	IsPublic         *bool      `json:"is_public"`
+	PublicPassword   *string    `json:"public_password"`
+	PublicExpiration *time.Time `json:"public_expiration"`
+}
+
 func ToggleFilePublic(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	fileID := c.Param("id")
@@ -377,7 +384,28 @@ func ToggleFilePublic(c *gin.Context) {
 		return
 	}
 
-	file.IsPublic = !file.IsPublic
+	var req TogglePublicReq
+	if err := c.ShouldBindJSON(&req); err == nil {
+		if req.IsPublic != nil {
+			file.IsPublic = *req.IsPublic
+		} else {
+			file.IsPublic = !file.IsPublic
+		}
+
+		// Map empty string to null string
+		if req.PublicPassword != nil {
+			if *req.PublicPassword == "" {
+				file.PublicPassword = nil
+			} else {
+				file.PublicPassword = req.PublicPassword
+			}
+		}
+		file.PublicExpiration = req.PublicExpiration
+	} else {
+		// Fallback for empty body
+		file.IsPublic = !file.IsPublic
+	}
+
 	if err := DB.Save(&file).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update public status"})
 		return
@@ -396,7 +424,27 @@ func ToggleFolderPublic(c *gin.Context) {
 		return
 	}
 
-	folder.IsPublic = !folder.IsPublic
+	var req TogglePublicReq
+	if err := c.ShouldBindJSON(&req); err == nil {
+		if req.IsPublic != nil {
+			folder.IsPublic = *req.IsPublic
+		} else {
+			folder.IsPublic = !folder.IsPublic
+		}
+
+		if req.PublicPassword != nil {
+			if *req.PublicPassword == "" {
+				folder.PublicPassword = nil
+			} else {
+				folder.PublicPassword = req.PublicPassword
+			}
+		}
+		folder.PublicExpiration = req.PublicExpiration
+	} else {
+		// Fallback for empty body
+		folder.IsPublic = !folder.IsPublic
+	}
+
 	if err := DB.Save(&folder).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update public status"})
 		return
@@ -413,6 +461,23 @@ func ViewPublicFileMetadata(c *gin.Context) {
 		return
 	}
 
+	// Check Expiration
+	if file.PublicExpiration != nil && time.Now().After(*file.PublicExpiration) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "This link has expired"})
+		return
+	}
+
+	// Handled Password protection on metadata route to require password before even getting metadata if desired, but
+	// typically metadata is safe. But let's protect metadata to be strict if requested.
+	// We check query string "pwd"
+	if file.PublicPassword != nil {
+		pwd := c.Query("pwd")
+		if pwd != *file.PublicPassword {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Password required", "require_password": true})
+			return
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"id":         file.ID,
 		"name":       file.Name,
@@ -420,6 +485,7 @@ func ViewPublicFileMetadata(c *gin.Context) {
 		"mime_type":  file.MimeType,
 		"created_at": file.CreatedAt,
 		"owner":      file.User.FullName,
+		"type":       "file",
 	})
 }
 
@@ -429,6 +495,19 @@ func DownloadPublicFile(c *gin.Context) {
 	if err := DB.Where("id = ? AND is_public = ?", fileID, true).First(&file).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "File not found or not public"})
 		return
+	}
+
+	if file.PublicExpiration != nil && time.Now().After(*file.PublicExpiration) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "This link has expired"})
+		return
+	}
+
+	if file.PublicPassword != nil {
+		pwd := c.Query("pwd")
+		if pwd != *file.PublicPassword {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Password required or incorrect password"})
+			return
+		}
 	}
 
 	c.Header("Content-Disposition", "inline; filename=\""+file.Name+"\"")
@@ -442,6 +521,19 @@ func ViewPublicFolderMetadata(c *gin.Context) {
 	if err := DB.Preload("User").Where("id = ? AND is_public = ?", folderID, true).First(&folder).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found or not public"})
 		return
+	}
+
+	if folder.PublicExpiration != nil && time.Now().After(*folder.PublicExpiration) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "This link has expired"})
+		return
+	}
+
+	if folder.PublicPassword != nil {
+		pwd := c.Query("pwd")
+		if pwd != *folder.PublicPassword {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Password required", "require_password": true})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -460,6 +552,19 @@ func DownloadPublicFolder(c *gin.Context) {
 	if err := DB.Where("id = ? AND is_public = ?", folderIDStr, true).First(&folder).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found or not public"})
 		return
+	}
+
+	if folder.PublicExpiration != nil && time.Now().After(*folder.PublicExpiration) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "This link has expired"})
+		return
+	}
+
+	if folder.PublicPassword != nil {
+		pwd := c.Query("pwd")
+		if pwd != *folder.PublicPassword {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Password required or incorrect password"})
+			return
+		}
 	}
 
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", folder.Name))

@@ -52,6 +52,7 @@ export default function Dashboard() {
     const [clipboard, setClipboard] = useState<{ item: any, type: 'file' | 'folder', action: 'copy' | 'cut' } | null>(null);
 
     const [shareModal, setShareModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null }>({ visible: false, item: null, type: null });
+    const [publicLinkModal, setPublicLinkModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null, password: string, expiration: string }>({ visible: false, item: null, type: null, password: '', expiration: '' });
     const [renameModal, setRenameModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null }>({ visible: false, item: null, type: null });
     const [tempRenameName, setTempRenameName] = useState("");
     const [deleteModal, setDeleteModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null }>({ visible: false, item: null, type: null });
@@ -1024,27 +1025,57 @@ export default function Dashboard() {
     const handleTogglePublic = async () => {
         if (!contextMenu.item || !contextMenu.type) return;
 
+        if (!contextMenu.item.is_public) {
+            setPublicLinkModal({
+                visible: true,
+                item: contextMenu.item,
+                type: contextMenu.type as 'file' | 'folder',
+                password: '',
+                expiration: ''
+            });
+            setContextMenu({ ...contextMenu, visible: false });
+        } else {
+            // It is public, so turn it off
+            try {
+                const token = localStorage.getItem('token');
+                const endpoint = `/api/drive/${contextMenu.type}/${contextMenu.item.id}/public`;
+                await axios.put(endpoint, {
+                    is_public: false
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
 
+                alert("Public link access has been turned off.");
+                fetchDriveData();
+                setContextMenu({ ...contextMenu, visible: false });
+            } catch (error) {
+                console.error("Failed to toggle public status", error);
+                alert("Failed to update public status");
+            }
+        }
+    };
+
+    const handleConfirmPublicLink = async () => {
+        if (!publicLinkModal.item || !publicLinkModal.type) return;
         try {
             const token = localStorage.getItem('token');
-            const endpoint = `/api/drive/${contextMenu.type}/${contextMenu.item.id}/public`;
-            await axios.put(endpoint, {}, {
+            const endpoint = `/api/drive/${publicLinkModal.type}/${publicLinkModal.item.id}/public`;
+            await axios.put(endpoint, {
+                is_public: true,
+                public_password: publicLinkModal.password || null,
+                public_expiration: publicLinkModal.expiration ? new Date(publicLinkModal.expiration).toISOString() : null
+            }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            // If it wasn't public before, it is now. Let's copy the link to clipboard automatically.
-            if (!contextMenu.item.is_public) {
-                const link = `${window.location.origin}/api/public/${contextMenu.type}/${contextMenu.item.id}/download`;
-                navigator.clipboard.writeText(link);
-                alert("Link status changed to Public. The download link has been copied to your clipboard!");
-            } else {
-                alert("Public link access has been turned off.");
-            }
+            const link = `${window.location.origin}/public/${publicLinkModal.type}/${publicLinkModal.item.id}`;
+            navigator.clipboard.writeText(link);
+            alert("Link status changed to Public. The download link has been copied to your clipboard!");
 
             fetchDriveData();
-            setContextMenu({ ...contextMenu, visible: false });
+            setPublicLinkModal({ ...publicLinkModal, visible: false });
         } catch (error) {
-            console.error("Failed to toggle public status", error);
+            console.error("Failed to turn on public link", error);
             alert("Failed to update public status");
         }
     };
@@ -2934,7 +2965,72 @@ export default function Dashboard() {
                         </div>
                     </div>
                 )}
-                {/* ===== END NEW DOC MODAL ===== */}
+                {/* ===== PUBLIC LINK MODAL ===== */}
+                {publicLinkModal.visible && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setPublicLinkModal(prev => ({ ...prev, visible: false }))}>
+                        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-8 w-full max-w-md mx-4 border border-slate-100 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                    <Link className="text-blue-500" size={24} />
+                                    Konfigurasi Link Publik
+                                </h3>
+                                <button onClick={() => setPublicLinkModal(prev => ({ ...prev, visible: false }))} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 rounded-xl transition-colors hover:bg-slate-100 dark:hover:bg-slate-700">
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">File/folder ini akan terbuka untuk siapa pun di internet yang memiliki link tersebut. Sesuaikan tingkat keamanan sebelum Anda membagikan data.</p>
+
+                            <div className="space-y-4 mb-8">
+                                {/* Password Field */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                                        <Lock size={16} className="text-slate-500" />
+                                        Kata Sandi (Opsional)
+                                    </label>
+                                    <input
+                                        type="password"
+                                        placeholder="Kosongkan jika tidak perlu..."
+                                        value={publicLinkModal.password}
+                                        onChange={e => setPublicLinkModal(prev => ({ ...prev, password: e.target.value }))}
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                    />
+                                    <p className="text-xs text-slate-500 mt-1">Hanya orang yang tahu kata sandi ini yang bisa melihat atau mengunduh.</p>
+                                </div>
+
+                                {/* Expiration Field */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                                        <Clock size={16} className="text-slate-500" />
+                                        Tanda Waktu Kadaluwarsa (Opsional)
+                                    </label>
+                                    <input
+                                        type="datetime-local"
+                                        value={publicLinkModal.expiration}
+                                        onChange={e => setPublicLinkModal(prev => ({ ...prev, expiration: e.target.value }))}
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all [&::-webkit-calendar-picker-indicator]:dark:invert"
+                                    />
+                                    <p className="text-xs text-slate-500 mt-1">Setelah batas waktu ini, tautan akan otomatis dinonaktifkan.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 mt-8">
+                                <button
+                                    onClick={() => setPublicLinkModal(prev => ({ ...prev, visible: false }))}
+                                    className="flex-1 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-600"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    onClick={handleConfirmPublicLink}
+                                    className="flex-1 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-md shadow-blue-600/20 active:scale-[0.98] flex items-center justify-center gap-2"
+                                >
+                                    <Link size={18} /> Aktifkan Link
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
             </main>
         </div>

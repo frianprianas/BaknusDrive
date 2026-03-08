@@ -3,6 +3,7 @@ import Login from './Login';
 import Dashboard from './Dashboard';
 import FormSubmission from './FormSubmission';
 import Editor from './Editor';
+import PublicShare from './PublicShare';
 
 function App() {
   const token = localStorage.getItem('token');
@@ -17,6 +18,7 @@ function App() {
         <Routes>
           <Route path="/login" element={!token ? <Login /> : <Navigate to="/" />} />
           <Route path="/f/:id" element={<FormSubmission />} />
+          <Route path="/public/:type/:id" element={<PublicShare />} />
           <Route path="/editor/:id" element={token ? <Editor /> : <Navigate to="/login" />} />
           <Route path="/*" element={token ? <Dashboard /> : <Navigate to="/login" />} />
         </Routes>
