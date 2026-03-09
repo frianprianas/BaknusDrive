@@ -77,6 +77,9 @@ func main() {
 			publicAPI.GET("/folder/:id/download", DownloadPublicFolder)
 		}
 
+		// Integration API for Aplikasi Surat (Needs X-Surat-API-Key header)
+		api.POST("/surat/upload", UploadSurat)
+
 		// Protected Drive APIs
 		driveAPI := api.Group("/drive")
 		driveAPI.Use(AuthMiddleware())
