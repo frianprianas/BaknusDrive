@@ -44,67 +44,102 @@ func SyncAttachmentsBackground(emailStr, password, userID string) {
 			return
 		}
 
-		mbox, err := cli.Select("INBOX", true)
-		if err != nil {
-			log.Printf("[IMAP Sync] Select INBOX failed for %s: %v", emailStr, err)
-			return
-		}
-
-		if mbox.Messages == 0 {
-			return
-		}
-
-		// Fetch the last 10 emails to avoid overloading per login
-		seqSet := new(imap.SeqSet)
-		from := uint32(1)
-		messagesToFetch := uint32(10)
-		if mbox.Messages > messagesToFetch {
-			from = mbox.Messages - messagesToFetch + 1
-		}
-		seqSet.AddRange(from, mbox.Messages)
-
-		var section imap.BodySectionName
-		items := []imap.FetchItem{section.FetchItem()}
-
-		messages := make(chan *imap.Message, 10)
-		done := make(chan error, 1)
-
+		mailboxes := make(chan *imap.MailboxInfo, 10)
+		doneList := make(chan error, 1)
 		go func() {
-			done <- cli.Fetch(seqSet, items, messages)
+			doneList <- cli.List("", "*", mailboxes)
 		}()
 
-		for msg := range messages {
-			r := msg.GetBody(&section)
-			if r == nil {
-				continue
-			}
+		var syncFolders []string
+		syncFolders = append(syncFolders, "INBOX")
 
-			// Use go-message/mail to parse MIME parts
-			m, err := emersion_mail.CreateReader(r)
-			if err != nil {
-				continue
-			}
-
-			for {
-				p, err := m.NextPart()
-				if err == io.EOF {
-					break
-				} else if err != nil {
-					break
-				}
-
-				switch h := p.Header.(type) {
-				case *emersion_mail.AttachmentHeader:
-					filename, err := h.Filename()
-					if err == nil && filename != "" {
-						saveAttachmentIfNew(userID, filename, p.Body)
+		for m := range mailboxes {
+			for _, attr := range m.Attributes {
+				if strings.EqualFold(attr, "\\Sent") {
+					// Add if not already there
+					found := false
+					for _, f := range syncFolders {
+						if f == m.Name {
+							found = true
+						}
+					}
+					if !found {
+						syncFolders = append(syncFolders, m.Name)
 					}
 				}
 			}
 		}
+		if err := <-doneList; err != nil {
+			log.Printf("[IMAP Sync] List failed: %v", err)
+		}
 
-		if err := <-done; err != nil {
-			log.Printf("[IMAP Sync] Fetch error: %v", err)
+		// Fallback if no \Sent found
+		if len(syncFolders) == 1 {
+			syncFolders = append(syncFolders, "Sent") // Dovecot default
+		}
+
+		for _, folderName := range syncFolders {
+			mbox, err := cli.Select(folderName, true)
+			if err != nil {
+				continue
+			}
+
+			if mbox.Messages == 0 {
+				continue
+			}
+
+			// Fetch the last 10 emails to avoid overloading per login
+			seqSet := new(imap.SeqSet)
+			from := uint32(1)
+			messagesToFetch := uint32(10)
+			if mbox.Messages > messagesToFetch {
+				from = mbox.Messages - messagesToFetch + 1
+			}
+			seqSet.AddRange(from, mbox.Messages)
+
+			var section imap.BodySectionName
+			items := []imap.FetchItem{section.FetchItem()}
+
+			messages := make(chan *imap.Message, 10)
+			doneFetch := make(chan error, 1)
+
+			go func() {
+				doneFetch <- cli.Fetch(seqSet, items, messages)
+			}()
+
+			for msg := range messages {
+				r := msg.GetBody(&section)
+				if r == nil {
+					continue
+				}
+
+				// Use go-message/mail to parse MIME parts
+				m, err := emersion_mail.CreateReader(r)
+				if err != nil {
+					continue
+				}
+
+				for {
+					p, err := m.NextPart()
+					if err == io.EOF {
+						break
+					} else if err != nil {
+						break
+					}
+
+					switch h := p.Header.(type) {
+					case *emersion_mail.AttachmentHeader:
+						filename, err := h.Filename()
+						if err == nil && filename != "" {
+							saveAttachmentIfNew(userID, filename, p.Body)
+						}
+					}
+				}
+			}
+
+			if err := <-doneFetch; err != nil {
+				log.Printf("[IMAP Sync] Fetch error in %s: %v", folderName, err)
+			}
 		}
 
 		log.Printf("[IMAP Sync] Sync completed for %s", emailStr)
