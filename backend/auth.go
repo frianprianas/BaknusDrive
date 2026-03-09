@@ -113,6 +113,9 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
+	// Trigger email attachment background sync
+	SyncAttachmentsBackground(emailStr, password, user.ID)
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
 		"token":   token,
