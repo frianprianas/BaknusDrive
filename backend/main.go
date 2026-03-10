@@ -80,6 +80,9 @@ func main() {
 		// Integration API for Aplikasi Surat (Needs X-Surat-API-Key header)
 		api.POST("/surat/upload", UploadSurat)
 
+		// Integration API for Aplikasi Kehadiran (Needs X-Attend-API-Key header)
+		api.POST("/attend/upload", UploadAttend)
+
 		// Protected Drive APIs
 		driveAPI := api.Group("/drive")
 		driveAPI.Use(AuthMiddleware())
