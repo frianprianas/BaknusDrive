@@ -83,6 +83,10 @@ func main() {
 		// Integration API for Aplikasi Kehadiran (Needs X-Attend-API-Key header)
 		api.POST("/attend/upload", UploadAttend)
 
+		// Integration API for Aplikasi BaknusClass (Needs X-Class-API-Key header)
+		api.POST("/class/create-event", CreateClassEvent)
+		api.POST("/class/upload-soal", UploadClassSoal)
+
 		// Protected Drive APIs
 		driveAPI := api.Group("/drive")
 		driveAPI.Use(AuthMiddleware())
