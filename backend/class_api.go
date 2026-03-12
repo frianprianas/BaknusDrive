@@ -24,6 +24,17 @@ func EnsureClassRoot(adminUser models.User) (*models.Folder, error) {
 		if err := DB.Create(&rootFolder).Error; err != nil {
 			return nil, err
 		}
+
+		// Share the root folder to GURU and TU so it appears in their Dashboards
+		roles := []string{"ROLE:GURU", "ROLE:TU"}
+		for _, role := range roles {
+			newShare := models.Share{
+				FolderID:   &rootFolder.ID,
+				SharedBy:   adminUser.ID,
+				SharedWith: role,
+			}
+			DB.Create(&newShare)
+		}
 	}
 	return &rootFolder, nil
 }
@@ -88,6 +99,64 @@ func CreateClassEvent(c *gin.Context) {
 		"message":   "Event folder created and shared successfully",
 		"folder_id": eventFolder.ID,
 		"shared_to": []string{"GURU", "TU"},
+	})
+}
+
+// CreateClassSubject is an API for Guru to create a subject folder within an event
+func CreateClassSubject(c *gin.Context) {
+	apiKey := c.GetHeader("X-Class-API-Key")
+	if apiKey != "BAKNUS_CLASS_SECRET" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid API Key"})
+		return
+	}
+
+	var req struct {
+		EventName   string `json:"event_name" binding:"required"`
+		SubjectName string `json:"subject_name" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "event_name and subject_name are required"})
+		return
+	}
+
+	// Retrieve Admin user
+	var adminUser models.User
+	if err := DB.Where("role = ?", "Admin").First(&adminUser).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Admin user not found"})
+		return
+	}
+
+	rootFolder, err := EnsureClassRoot(adminUser)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to ensure root Ujian folder"})
+		return
+	}
+
+	// 1. Find the Event Folder
+	var eventFolder models.Folder
+	if err := DB.Where("name = ? AND parent_id = ?", req.EventName, rootFolder.ID).First(&eventFolder).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Event folder not found"})
+		return
+	}
+
+	// 2. Create Subject Folder
+	var subjectFolder models.Folder
+	err = DB.Where("name = ? AND parent_id = ?", req.SubjectName, eventFolder.ID).First(&subjectFolder).Error
+	if err != nil {
+		subjectFolder = models.Folder{
+			Name:     req.SubjectName,
+			UserID:   adminUser.ID,
+			ParentID: &eventFolder.ID,
+		}
+		if err := DB.Create(&subjectFolder).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create subject folder"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "Subject folder created successfully",
+		"folder_id": subjectFolder.ID,
 	})
 }
 
