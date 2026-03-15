@@ -281,3 +281,125 @@ func UploadClassSoal(c *gin.Context) {
 	// Update admin used space
 	DB.Model(&adminUser).Update("used_space", totalUsed+sizeDiff)
 }
+
+// UploadClassMateri is an API for Guru (via BaknusClass) to upload teaching materials
+// inside their OWN drive: Materi -> [Mata Pelajaran] -> [Files]
+// Default: NO SHARING.
+func UploadClassMateri(c *gin.Context) {
+	apiKey := c.GetHeader("X-Class-API-Key")
+	if apiKey != "BAKNUS_CLASS_SECRET" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid API Key"})
+		return
+	}
+
+	teacherEmail := c.PostForm("teacher_email")
+	subjectName := c.PostForm("subject_name")
+	if teacherEmail == "" || subjectName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "teacher_email and subject_name are required"})
+		return
+	}
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
+		return
+	}
+
+	// 1. Retrieve Teacher/User
+	var teacherUser models.User
+	if err := DB.Where("email = ?", teacherEmail).First(&teacherUser).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Teacher user not found with that email"})
+		return
+	}
+
+	// 2. Ensure "Materi" root folder for this teacher
+	var materiRoot models.Folder
+	if err := DB.Where("name = ? AND user_id = ? AND parent_id IS NULL", "Materi", teacherUser.ID).First(&materiRoot).Error; err != nil {
+		materiRoot = models.Folder{
+			Name:   "Materi",
+			UserID: teacherUser.ID,
+		}
+		if err := DB.Create(&materiRoot).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create Materi root folder"})
+			return
+		}
+	}
+
+	// 3. Ensure Subject folder inside Materi
+	var subjectFolder models.Folder
+	if err := DB.Where("name = ? AND user_id = ? AND parent_id = ?", subjectName, teacherUser.ID, materiRoot.ID).First(&subjectFolder).Error; err != nil {
+		subjectFolder = models.Folder{
+			Name:     subjectName,
+			UserID:   teacherUser.ID,
+			ParentID: &materiRoot.ID,
+		}
+		if err := DB.Create(&subjectFolder).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create subject folder"})
+			return
+		}
+	}
+
+	// 4. Save the File
+	var oldFile models.File
+	exists := DB.Where("name = ? AND user_id = ? AND folder_id = ?", fileHeader.Filename, teacherUser.ID, subjectFolder.ID).First(&oldFile).Error == nil
+
+	// Check Quota
+	var totalUsed int64
+	DB.Model(&models.File{}).Where("user_id = ?", teacherUser.ID).Select("COALESCE(SUM(size), 0)").Scan(&totalUsed)
+	sizeDiff := fileHeader.Size
+	if exists {
+		sizeDiff -= oldFile.Size
+	}
+	if totalUsed+sizeDiff > teacherUser.Quota {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Teacher storage quota exceeded"})
+		return
+	}
+
+	// Path logic
+	userStoragePath := filepath.Join("storage", teacherUser.ID)
+	os.MkdirAll(userStoragePath, os.ModePerm)
+
+	safeFilename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileHeader.Filename)
+	savePath := filepath.Join(userStoragePath, safeFilename)
+
+	if err := c.SaveUploadedFile(fileHeader, savePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+		return
+	}
+
+	mimeType := fileHeader.Header.Get("Content-Type")
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+
+	if exists {
+		os.Remove(oldFile.Path)
+		oldFile.Size = fileHeader.Size
+		oldFile.Path = savePath
+		oldFile.MimeType = mimeType
+		if err := DB.Save(&oldFile).Error; err != nil {
+			os.Remove(savePath)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update file metadata"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Materi updated successfully", "file": oldFile})
+	} else {
+		newFile := models.File{
+			Name:     fileHeader.Filename,
+			MimeType: mimeType,
+			Size:     fileHeader.Size,
+			Path:     savePath,
+			FolderID: &subjectFolder.ID,
+			UserID:   teacherUser.ID,
+		}
+		if err := DB.Create(&newFile).Error; err != nil {
+			os.Remove(savePath)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create file metadata"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Materi uploaded successfully", "file": newFile})
+	}
+
+	// Update teacher used space
+	DB.Model(&teacherUser).Update("used_space", totalUsed+sizeDiff)
+}

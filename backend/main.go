@@ -85,7 +85,9 @@ func main() {
 
 		// Integration API for Aplikasi BaknusClass (Needs X-Class-API-Key header)
 		api.POST("/class/create-event", CreateClassEvent)
+		api.POST("/class/create-subject", CreateClassSubject)
 		api.POST("/class/upload-soal", UploadClassSoal)
+		api.POST("/class/upload-materi", UploadClassMateri)
 
 		// Protected Drive APIs
 		driveAPI := api.Group("/drive")
