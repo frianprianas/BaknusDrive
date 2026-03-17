@@ -88,6 +88,7 @@ func main() {
 		api.POST("/class/create-subject", CreateClassSubject)
 		api.POST("/class/upload-soal", UploadClassSoal)
 		api.POST("/class/upload-materi", UploadClassMateri)
+		api.POST("/class/upload-tugas", UploadClassTugas)
 
 		// Protected Drive APIs
 		driveAPI := api.Group("/drive")
