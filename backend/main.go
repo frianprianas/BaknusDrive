@@ -91,6 +91,9 @@ func main() {
 		api.POST("/class/upload-tugas", UploadClassTugas)
 		api.GET("/class/doc/open/:id", GetClassViewToken)
 
+		// Integration API for Aplikasi BaknusMeet (Needs X-Meet-API-Key header)
+		api.POST("/meet/setup", SetupMeetFolders)
+
 		// Protected Drive APIs
 		driveAPI := api.Group("/drive")
 		driveAPI.Use(AuthMiddleware())
