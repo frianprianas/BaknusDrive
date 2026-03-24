@@ -660,6 +660,18 @@ export default function Dashboard() {
         });
     };
 
+    const handleSelectAll = () => {
+        if (selectedItems.length === (folders.length + files.length) && (folders.length + files.length) > 0) {
+            setSelectedItems([]);
+        } else {
+            const allItems: any[] = [
+                ...folders.map(f => ({ id: f.id, type: 'folder', item: f })),
+                ...files.map(f => ({ id: f.id, type: 'file', item: f }))
+            ];
+            setSelectedItems(allItems);
+        }
+    };
+
     const isSelected = (id: number, type: 'file' | 'folder') => selectedItems.some(i => i.id === id && i.type === type);
 
     const handleBulkDelete = async () => {
@@ -1457,6 +1469,11 @@ export default function Dashboard() {
                         ))}
                     </div>
                     <div className="flex items-center gap-1 md:gap-2">
+                        {(folders.length + files.length) > 0 && (
+                            <button onClick={handleSelectAll} className="text-sm font-medium px-4 py-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors mr-1">
+                                {selectedItems.length === (folders.length + files.length) ? 'Deselect All' : 'Select All'}
+                            </button>
+                        )}
                         {currentView === 'trash' && (
                             <button onClick={handleEmptyTrash} className="text-sm font-medium px-4 py-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors mr-2">
                                 Empty Trash
@@ -1504,8 +1521,19 @@ export default function Dashboard() {
 
                 {/* File List Header */}
                 {(viewMode === 'list' && currentView !== 'admin' && currentView !== 'forms' && !(currentView === 'computers' && !selectedDevice && !currentFolderId)) && (
-                    <div className="px-5 py-2 border-b border-slate-200 dark:border-slate-700 grid grid-cols-12 gap-4 text-[13px] font-semibold text-slate-600 dark:text-slate-400 sticky top-0 bg-white dark:bg-slate-800 z-20">
-                        <div className="col-span-12 md:col-span-6 flex items-center">Nama</div>
+                    <div className="px-5 py-2 border-b border-slate-200 dark:border-slate-700 grid grid-cols-12 gap-4 text-[13px] font-semibold text-slate-600 dark:text-slate-400 sticky top-0 bg-white dark:bg-slate-800 z-20 items-center">
+                        <div className="col-span-12 md:col-span-6 flex items-center gap-4">
+                            {(folders.length + files.length) > 0 && (
+                                <input
+                                    type="checkbox"
+                                    className="w-4 h-4 rounded-md border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer transition-all"
+                                    checked={selectedItems.length === (folders.length + files.length) && selectedItems.length > 0}
+                                    ref={el => { if (el) el.indeterminate = selectedItems.length > 0 && selectedItems.length < (folders.length + files.length); }}
+                                    onChange={handleSelectAll}
+                                />
+                            )}
+                            Nama
+                        </div>
                         <div className="col-span-2 hidden md:flex items-center">Pemilik</div>
                         <div className="col-span-2 hidden md:block">Dimodifikasi</div>
                         <div className="col-span-2 hidden md:block">Ukuran file</div>
@@ -2410,12 +2438,16 @@ export default function Dashboard() {
                                         <button
                                             className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-red-600 transition-colors"
                                             onClick={() => {
-                                                contextMenu.type === 'file' ? handleDeleteFile(contextMenu.item) : handleDeleteFolder(contextMenu.item);
+                                                if (selectedItems.length > 1) {
+                                                    handleBulkDelete();
+                                                } else {
+                                                    contextMenu.type === 'file' ? handleDeleteFile(contextMenu.item) : handleDeleteFolder(contextMenu.item);
+                                                }
                                                 setContextMenu({ ...contextMenu, visible: false });
                                             }}
                                         >
                                             <Trash size={16} className="text-red-500" />
-                                            Remove
+                                            {selectedItems.length > 1 ? `Remove Selected (${selectedItems.length})` : 'Remove'}
                                         </button>
                                     </>
                                 )}
