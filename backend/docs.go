@@ -187,6 +187,54 @@ func OpenDoc(c *gin.Context) {
 	})
 }
 
+// GetClassViewToken is an integration API for BaknusClass to get a temporary view-only editor URL.
+// It requires X-Class-API-Key header.
+func GetClassViewToken(c *gin.Context) {
+	apiKey := c.GetHeader("X-Class-API-Key")
+	if apiKey != "BAKNUS_CLASS_SECRET" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid API Key"})
+		return
+	}
+
+	fileIDStr := c.Param("id")
+	fileID, err := strconv.Atoi(fileIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file ID"})
+		return
+	}
+
+	// Verify file
+	var file models.File
+	if err := DB.Where("id = ?", fileID).First(&file).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+
+	// ── Generate per-user WOPI view token (TTL 2 hours) ──
+	// Identity is "GUEST" for BaknusClass students
+	token := fmt.Sprintf("class_view_%d_%d", fileID, time.Now().UnixNano())
+	tokenKey := "wopi_token:" + token
+	tokenValue := fmt.Sprintf("GUEST|%d", fileID)
+	if err := RedisClient.Set(context.Background(), tokenKey, tokenValue, 2*time.Hour).Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
+		return
+	}
+
+	wopiSrc := fmt.Sprintf("%s/wopi/files/%d", WopiPublicBaseURL, fileID)
+	collaboraURL := fmt.Sprintf(
+		"%s/browser/dist/cool.html?WOPISrc=%s&access_token=%s&lang=id",
+		CollaboraPublicURL,
+		url.QueryEscape(wopiSrc),
+		url.QueryEscape(token),
+	)
+
+	c.JSON(http.StatusOK, gin.H{
+		"url":       collaboraURL,
+		"file_id":   fileID,
+		"file_name": file.Name,
+	})
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // WopiCheckFileInfo — called by Collabora to get file metadata.
 // Validates per-user token from Redis to identity the requesting user.

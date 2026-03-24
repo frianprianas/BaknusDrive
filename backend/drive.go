@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"baknusdrive/models"
 
@@ -63,6 +64,11 @@ func HasAccessToFolder(userID string, folderID uint) bool {
 	var currentUser models.User
 	if err := DB.Where("id = ?", userID).First(&currentUser).Error; err != nil {
 		return false
+	}
+
+	// Admin has access to all folders
+	if strings.ToLower(currentUser.Role) == "admin" {
+		return true
 	}
 
 	currentFolderID := &folderID
@@ -277,6 +283,18 @@ func DownloadFile(c *gin.Context) {
 	fileID := c.Param("id")
 
 	var file models.File
+	var currentUser models.User
+	DB.Where("id = ?", userID).First(&currentUser)
+	isAdmin := strings.ToLower(currentUser.Role) == "admin"
+
+	if isAdmin {
+		if err := DB.Where("id = ?", fileID).First(&file).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+			return
+		}
+		goto proceedDownload
+	}
+
 	if err := DB.Where("id = ? AND user_id = ?", fileID, userID).First(&file).Error; err != nil {
 		// If not owner, check if the file is shared with the user
 		var currentUser models.User
@@ -379,9 +397,19 @@ func DeleteFile(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	fileID := c.Param("id")
 
+	// Get currentUser to check role
+	var currentUser models.User
+	DB.Where("id = ?", userID).First(&currentUser)
+	isAdmin := strings.ToLower(currentUser.Role) == "admin"
+
 	var file models.File
-	if err := DB.Where("id = ? AND user_id = ?", fileID, userID).First(&file).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+	query := DB.Where("id = ?", fileID)
+	if !isAdmin {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if err := query.First(&file).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found or access denied"})
 		return
 	}
 
@@ -585,17 +613,17 @@ func SearchDrive(c *gin.Context) {
 	})
 }
 
-func softDeleteFolderRecursive(userID string, folderID uint) {
+func softDeleteFolderRecursive(folderID uint) {
 	var files []models.File
-	DB.Where("folder_id = ? AND user_id = ?", folderID, userID).Find(&files)
+	DB.Where("folder_id = ?", folderID).Find(&files)
 	for _, f := range files {
 		DB.Delete(&f)
 	}
 
 	var subfolders []models.Folder
-	DB.Where("parent_id = ? AND user_id = ?", folderID, userID).Find(&subfolders)
+	DB.Where("parent_id = ?", folderID).Find(&subfolders)
 	for _, sf := range subfolders {
-		softDeleteFolderRecursive(userID, sf.ID)
+		softDeleteFolderRecursive(sf.ID)
 		DB.Delete(&sf)
 	}
 }
@@ -604,9 +632,19 @@ func DeleteFolder(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	folderID := c.Param("id")
 
+	// Get currentUser to check role
+	var currentUser models.User
+	DB.Where("id = ?", userID).First(&currentUser)
+	isAdmin := strings.ToLower(currentUser.Role) == "admin"
+
 	var folder models.Folder
-	if err := DB.Where("id = ? AND user_id = ?", folderID, userID).First(&folder).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found"})
+	query := DB.Where("id = ?", folderID)
+	if !isAdmin {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if err := query.First(&folder).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found or access denied"})
 		return
 	}
 
@@ -615,7 +653,7 @@ func DeleteFolder(c *gin.Context) {
 		return
 	}
 
-	softDeleteFolderRecursive(userID, folder.ID)
+	softDeleteFolderRecursive(folder.ID)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Folder deleted successfully"})
 }
@@ -803,7 +841,7 @@ func copyFolderRecursive(userID string, sourceFolderID uint, targetFolderID *uin
 	}
 
 	var subfolders []models.Folder
-	DB.Where("parent_id = ? AND user_id = ?", sourceFolderID, userID).Find(&subfolders)
+	DB.Where("parent_id = ?", sourceFolderID).Find(&subfolders)
 	for _, sf := range subfolders {
 		_, err := copyFolderRecursive(userID, sf.ID, &newFolder.ID, sf.Name, currentSize, quota)
 		if err != nil {

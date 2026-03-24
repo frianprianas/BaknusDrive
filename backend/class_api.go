@@ -269,6 +269,7 @@ func UploadClassSoal(c *gin.Context) {
 			Path:     savePath,
 			FolderID: &subjectFolder.ID,
 			UserID:   adminUser.ID,
+			IsPublic: true,
 		}
 		if err := DB.Create(&newFile).Error; err != nil {
 			os.Remove(savePath)

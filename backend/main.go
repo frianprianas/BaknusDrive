@@ -89,6 +89,7 @@ func main() {
 		api.POST("/class/upload-soal", UploadClassSoal)
 		api.POST("/class/upload-materi", UploadClassMateri)
 		api.POST("/class/upload-tugas", UploadClassTugas)
+		api.GET("/class/doc/open/:id", GetClassViewToken)
 
 		// Protected Drive APIs
 		driveAPI := api.Group("/drive")

@@ -2072,7 +2072,7 @@ export default function Dashboard() {
                                                             <RotateCcw size={18} />
                                                         </button>
                                                     ) : currentView !== 'shared' ? (
-                                                        <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDeleteFolder(f.id); }} className="p-2 hover:bg-slate-200 rounded-full text-red-500" title="Delete folder">
+                                                        <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDeleteFolder(f); }} className="p-2 hover:bg-slate-200 rounded-full text-red-500" title="Delete folder">
                                                             <Trash2 size={18} />
                                                         </button>
                                                     ) : null}
