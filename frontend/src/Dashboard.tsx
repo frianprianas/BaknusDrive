@@ -27,6 +27,7 @@ export default function Dashboard() {
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [notifications, setNotifications] = useState<any[]>([]);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [showHelpModal, setShowHelpModal] = useState(false);
 
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
     const [previewFile, setPreviewFile] = useState<any | null>(null);
@@ -1373,7 +1374,12 @@ export default function Dashboard() {
                                 </div>
                             )}
                         </div>
-                        <button className="hidden md:block p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full"><HelpCircle size={24} /></button>
+                        <button
+                            onClick={() => setShowHelpModal(true)}
+                            className="hidden md:block p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full"
+                        >
+                            <HelpCircle size={24} />
+                        </button>
                         <button
                             onClick={() => {
                                 fetchUserProfile();
@@ -3060,6 +3066,27 @@ export default function Dashboard() {
                                     <Link size={18} /> Aktifkan Link
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Help Modal */}
+                {showHelpModal && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowHelpModal(false)}>
+                        <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-2xl p-10 max-w-sm w-full text-center border border-white/20 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                            <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/30 rounded-3xl flex items-center justify-center mx-auto mb-6 transform rotate-3 shadow-inner">
+                                <HelpCircle className="text-blue-600 dark:text-blue-400" size={40} />
+                            </div>
+                            <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-3">Butuh Bantuan?</h3>
+                            <p className="text-slate-500 dark:text-slate-400 leading-relaxed font-medium mb-8">
+                                Jangan ragu untuk bertanya pada tim <span className="text-blue-600 font-bold">IT Support</span> mengenai aplikasi ini. Kami senang membantu Anda!
+                            </p>
+                            <button
+                                onClick={() => setShowHelpModal(false)}
+                                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold transition-all shadow-lg shadow-blue-500/30 active:scale-[0.98]"
+                            >
+                                Oke, Siap!
+                            </button>
                         </div>
                     </div>
                 )}

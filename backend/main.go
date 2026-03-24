@@ -93,6 +93,7 @@ func main() {
 
 		// Integration API for Aplikasi BaknusMeet (Needs X-Meet-API-Key header)
 		api.POST("/meet/setup", SetupMeetFolders)
+		api.POST("/meet/upload", UploadMeetFile)
 
 		// Protected Drive APIs
 		driveAPI := api.Group("/drive")
