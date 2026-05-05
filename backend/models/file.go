@@ -19,7 +19,6 @@ type File struct {
 	User             User           `json:"-"`
 	OwnerName        string         `gorm:"-" json:"owner_name,omitempty"`
 	IsShared         bool           `gorm:"-" json:"is_shared,omitempty"`
-	ShareID          *uint          `gorm:"-" json:"share_id,omitempty"`
 	IsStarred        bool           `gorm:"default:false" json:"is_starred"`
 	IsPublic         bool           `gorm:"default:false" json:"is_public"`
 	PublicPassword   *string        `json:"public_password,omitempty"`   // null if no password

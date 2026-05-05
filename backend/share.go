@@ -337,8 +337,18 @@ func ListSharedWithMe(c *gin.Context) {
 		Where("shared_with = ? OR shared_with = ? OR shared_with = ?", userEmail, "ROLE:"+userRole, "CLASS:"+currentUser.Class).
 		Find(&shares)
 
-	var files []models.File
-	var folders []models.Folder
+	// Use anonymous structs so share_id is included in JSON without touching the GORM model
+	type SharedFile struct {
+		models.File
+		ShareID uint `json:"share_id"`
+	}
+	type SharedFolder struct {
+		models.Folder
+		ShareID uint `json:"share_id"`
+	}
+
+	var files []SharedFile
+	var folders []SharedFolder
 
 	seenFiles := make(map[uint]bool)
 	seenFolders := make(map[uint]bool)
@@ -348,29 +358,34 @@ func ListSharedWithMe(c *gin.Context) {
 			if !seenFiles[*s.FileID] {
 				f := *s.File
 				f.IsShared = true
-				f.ShareID = &s.ID
 				if s.OwnerUser != nil && s.OwnerUser.FullName != "" {
 					f.OwnerName = s.OwnerUser.FullName
 				} else {
 					f.OwnerName = s.SharedBy
 				}
-				files = append(files, f)
+				files = append(files, SharedFile{File: f, ShareID: s.ID})
 				seenFiles[*s.FileID] = true
 			}
 		} else if s.FolderID != nil && s.Folder != nil {
 			if !seenFolders[*s.FolderID] {
 				f := *s.Folder
 				f.IsShared = true
-				f.ShareID = &s.ID
 				if s.OwnerUser != nil && s.OwnerUser.FullName != "" {
 					f.OwnerName = s.OwnerUser.FullName
 				} else {
 					f.OwnerName = s.SharedBy
 				}
-				folders = append(folders, f)
+				folders = append(folders, SharedFolder{Folder: f, ShareID: s.ID})
 				seenFolders[*s.FolderID] = true
 			}
 		}
+	}
+
+	if files == nil {
+		files = []SharedFile{}
+	}
+	if folders == nil {
+		folders = []SharedFolder{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -378,6 +393,7 @@ func ListSharedWithMe(c *gin.Context) {
 		"files":   files,
 	})
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public Link Feature
