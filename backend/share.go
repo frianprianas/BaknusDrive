@@ -250,9 +250,21 @@ func UnshareItem(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	shareIDStr := c.Param("id")
 
+	var currentUser models.User
+	if err := DB.Where("id = ?", userID).First(&currentUser).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "User not found"})
+		return
+	}
+
 	var share models.Share
-	if err := DB.Where("id = ? AND shared_by = ?", shareIDStr, userID).First(&share).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Share not found or unauthorized"})
+	if err := DB.Where("id = ?", shareIDStr).First(&share).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Share not found"})
+		return
+	}
+
+	isReceiver := share.SharedWith == currentUser.Email || share.SharedWith == "ROLE:"+currentUser.Role || share.SharedWith == "CLASS:"+currentUser.Class
+	if share.SharedBy != userID && !isReceiver {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized to unshare this item"})
 		return
 	}
 
@@ -336,6 +348,7 @@ func ListSharedWithMe(c *gin.Context) {
 			if !seenFiles[*s.FileID] {
 				f := *s.File
 				f.IsShared = true
+				f.ShareID = &s.ID
 				if s.OwnerUser != nil && s.OwnerUser.FullName != "" {
 					f.OwnerName = s.OwnerUser.FullName
 				} else {
@@ -348,6 +361,7 @@ func ListSharedWithMe(c *gin.Context) {
 			if !seenFolders[*s.FolderID] {
 				f := *s.Folder
 				f.IsShared = true
+				f.ShareID = &s.ID
 				if s.OwnerUser != nil && s.OwnerUser.FullName != "" {
 					f.OwnerName = s.OwnerUser.FullName
 				} else {

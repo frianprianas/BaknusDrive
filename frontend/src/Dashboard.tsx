@@ -2393,7 +2393,22 @@ export default function Dashboard() {
                                         Restore
                                     </button>
                                 ) : currentView === 'shared' ? (
-                                    null
+                                    <button
+                                        className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-red-600 transition-colors"
+                                        onClick={async () => {
+                                            if (contextMenu.item?.share_id) {
+                                                if (!confirm('Hapus akses Anda ke item ini?')) return;
+                                                await handleUnshare(contextMenu.item.share_id);
+                                                fetchDriveData();
+                                                setContextMenu({ ...contextMenu, visible: false });
+                                            } else {
+                                                alert("Gagal menghapus akses: ID share tidak ditemukan.");
+                                            }
+                                        }}
+                                    >
+                                        <UserX size={16} className="text-red-500" />
+                                        Hapus Akses
+                                    </button>
                                 ) : (
                                     <>
                                         <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleShareMenu}>
