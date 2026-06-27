@@ -937,6 +937,128 @@ export default function Dashboard() {
         }
     };
 
+    const renderTextWithBold = (txt: string) => {
+        if (!txt) return "";
+        const parts = txt.split(/(\*\*.*?\*\*)/g);
+        return parts.map((part, index) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+                return <strong key={index} className="font-bold text-slate-905 dark:text-white">{part.slice(2, -2)}</strong>;
+            }
+            return part;
+        });
+    };
+
+    const renderMarkdown = (text: string) => {
+        if (!text) return null;
+        
+        const lines = text.split('\n');
+        const elements: React.ReactNode[] = [];
+        let inTable = false;
+        let tableRows: string[][] = [];
+        
+        const flushTable = (key: number) => {
+            if (tableRows.length === 0) return null;
+            const cleanRows = tableRows.filter(row => !row.every(cell => cell.trim().startsWith('---') || cell.trim() === ''));
+            if (cleanRows.length === 0) {
+                tableRows = [];
+                inTable = false;
+                return null;
+            }
+            
+            const headers = cleanRows[0];
+            const body = cleanRows.slice(1);
+            
+            tableRows = [];
+            inTable = false;
+            
+            return (
+                <div key={`table-${key}`} className="my-4 overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm bg-white dark:bg-slate-900/40">
+                    <table className="w-full text-left border-collapse text-xs md:text-sm">
+                         <thead>
+                             <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
+                                 {headers.map((h, i) => (
+                                     <th key={i} className="px-4 py-3 font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">{h.trim()}</th>
+                                 ))}
+                             </tr>
+                         </thead>
+                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                             {body.map((row, ri) => (
+                                 <tr key={ri} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                                     {row.map((cell, ci) => (
+                                         <td key={ci} className="px-4 py-3 text-slate-600 dark:text-slate-300 font-medium">{renderTextWithBold(cell)}</td>
+                                     ))}
+                                 </tr>
+                             ))}
+                         </tbody>
+                     </table>
+                </div>
+            );
+        };
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.trim().startsWith('|')) {
+                inTable = true;
+                const cells = line.split('|').slice(1, -1);
+                tableRows.push(cells);
+            } else {
+                if (inTable) {
+                    const tableObj = flushTable(i);
+                    if (tableObj) elements.push(tableObj);
+                }
+                
+                if (line.trim().startsWith('#')) {
+                    const level = line.match(/^#+/)?.[0].length || 1;
+                    const cleanText = line.replace(/^#+\s*/, '');
+                    if (level === 1) elements.push(<h1 key={i} className="text-xl font-extrabold text-slate-900 dark:text-white mt-5 mb-2">{renderTextWithBold(cleanText)}</h1>);
+                    else if (level === 2) elements.push(<h2 key={i} className="text-lg font-bold text-slate-900 dark:text-white mt-4 mb-2">{renderTextWithBold(cleanText)}</h2>);
+                    else elements.push(<h3 key={i} className="text-base font-semibold text-slate-900 dark:text-white mt-3 mb-1">{renderTextWithBold(cleanText)}</h3>);
+                } else if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+                    const cleanText = line.replace(/^[-*]\s+/, '');
+                    elements.push(
+                        <li key={i} className="ml-5 list-disc text-slate-700 dark:text-slate-300 my-1.5 leading-relaxed">
+                            {renderTextWithBold(cleanText)}
+                        </li>
+                    );
+                } else if (line.trim() === '') {
+                    elements.push(<div key={i} className="h-2.5"></div>);
+                } else {
+                    elements.push(<p key={i} className="my-1.5 leading-relaxed text-slate-700 dark:text-slate-300">{renderTextWithBold(line)}</p>);
+                }
+            }
+        }
+        
+        if (inTable) {
+            const tableObj = flushTable(lines.length);
+            if (tableObj) elements.push(tableObj);
+        }
+        
+        return elements;
+    };
+
+    const [savingAnalysis, setSavingAnalysis] = useState(false);
+
+    const handleSaveAnalysis = async () => {
+        if (!aiModal.folder || !aiModal.analysis) return;
+        setSavingAnalysis(true);
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post(`/api/drive/folder/${aiModal.folder.id}/save-ai-analysis`, {
+                analysis: aiModal.analysis
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            alert("Hasil analisis berhasil disimpan sebagai file Markdown (.md) di dalam folder ini!");
+            fetchDriveData();
+            setAiModal(prev => ({ ...prev, visible: false }));
+        } catch (error) {
+            console.error("Gagal menyimpan analisis:", error);
+            alert("Gagal menyimpan hasil analisis ke Drive.");
+        } finally {
+            setSavingAnalysis(false);
+        }
+    };
+
     const handleAnalyzeFolder = async (folder: any) => {
         setContextMenu({ ...contextMenu, visible: false });
         setAiModal({
@@ -2607,15 +2729,36 @@ export default function Dashboard() {
                                             <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-1 rounded-full uppercase tracking-wider">Hasil Analisis</span>
                                             <span className="text-slate-400 dark:text-slate-500 text-xs">Folder: <span className="font-semibold text-slate-700 dark:text-slate-300">{aiModal.folder?.name}</span></span>
                                         </div>
-                                        <div className="text-slate-700 dark:text-slate-300 text-[14px] leading-relaxed whitespace-pre-wrap font-medium space-y-2">
-                                            {aiModal.analysis}
+                                        <div className="text-slate-700 dark:text-slate-300 text-[14px] leading-relaxed font-medium space-y-2">
+                                            {renderMarkdown(aiModal.analysis)}
                                         </div>
                                     </div>
                                 )}
                             </div>
 
                             {/* Modal Footer */}
-                            <div className="bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700 px-6 py-4 flex justify-end gap-3">
+                            <div className="bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700 px-6 py-4 flex justify-between items-center gap-3">
+                                <div>
+                                    {!aiModal.loading && !aiModal.error && aiModal.analysis && (
+                                        <button
+                                            onClick={handleSaveAnalysis}
+                                            disabled={savingAnalysis}
+                                            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 text-white text-sm font-bold rounded-2xl transition-all shadow-md active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                                        >
+                                            {savingAnalysis ? (
+                                                <>
+                                                    <Loader2 className="animate-spin" size={16} />
+                                                    Menyimpan...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <FileText size={16} />
+                                                    Simpan ke Drive
+                                                </>
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
                                 <button 
                                     onClick={() => setAiModal({ visible: false, folder: null, analysis: '', loading: false, error: '' })}
                                     className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-2xl transition-all shadow-sm active:scale-95"

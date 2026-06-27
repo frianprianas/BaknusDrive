@@ -1224,7 +1224,8 @@ func AnalyzeFolderAI(c *gin.Context) {
 
 	// Formulate prompt
 	var promptBuilder strings.Builder
-	promptBuilder.WriteString("Analisis struktur folder berikut:\n")
+	promptBuilder.WriteString("Sebagai asisten AI bernama BaknusAI, Anda wajib menganalisis data struktur folder berikut dan menampilkan hasilnya dalam format tabel Markdown yang rapi.\n\n")
+	promptBuilder.WriteString("=== DATA FOLDER ===\n")
 	promptBuilder.WriteString(fmt.Sprintf("Nama Folder Utama: %s\n", folder.Name))
 
 	// Owner of the folder
@@ -1232,9 +1233,9 @@ func AnalyzeFolderAI(c *gin.Context) {
 	if folder.User.FullName != "" {
 		creatorName = fmt.Sprintf("%s (%s, Peran: %s)", folder.User.FullName, folder.UserID, folder.User.Role)
 	}
-	promptBuilder.WriteString(fmt.Sprintf("Pembuat / Pemilik Resmi Folder: %s\n", creatorName))
+	promptBuilder.WriteString(fmt.Sprintf("Pemilik Resmi / Pembuat Folder: %s\n", creatorName))
 
-	promptBuilder.WriteString("\nStruktur Hierarki Folder & File di dalamnya:\n")
+	promptBuilder.WriteString("\n=== DAFTAR HIERARKI SUBFOLDER & FILE ===\n")
 	var hierarchyBuilder strings.Builder
 	getFolderContentsRecursive(folderID, "", &hierarchyBuilder, 1)
 
@@ -1244,7 +1245,7 @@ func AnalyzeFolderAI(c *gin.Context) {
 		promptBuilder.WriteString(hierarchyBuilder.String())
 	}
 
-	promptBuilder.WriteString("\nFolder ini dibagikan dengan:\n")
+	promptBuilder.WriteString("\n=== DAFTAR BERBAGI/SHARING ===\n")
 	if len(shares) == 0 {
 		promptBuilder.WriteString("- Tidak dibagikan dengan siapa-siapa (hanya pemilik)\n")
 	} else {
@@ -1260,16 +1261,16 @@ func AnalyzeFolderAI(c *gin.Context) {
 			if sh.OwnerUser != nil && sh.OwnerUser.FullName != "" {
 				sharerName = fmt.Sprintf("%s (%s, Peran: %s)", sh.OwnerUser.FullName, sh.SharedBy, sh.OwnerUser.Role)
 			}
-			promptBuilder.WriteString(fmt.Sprintf("- %s (dibagikan oleh %s)\n", roleOrEmail, sharerName))
+			promptBuilder.WriteString(fmt.Sprintf("- Dibagikan dengan: %s (Oleh: %s)\n", roleOrEmail, sharerName))
 		}
 	}
 
-	promptBuilder.WriteString("\nTugas:\n")
-	promptBuilder.WriteString("Sebagai asisten AI bernama BaknusAI, jelaskan secara ringkas:\n")
-	promptBuilder.WriteString("1. Siapa nama akun resmi (nama lengkap resmi) pembuat/pemilik folder ini.\n")
-	promptBuilder.WriteString("2. Isi folder ini (Sebutkan file apa saja secara lengkap, termasuk jika ada file berbentuk docx, pptx, pdf, jpg, dll. yang tercantum di dalam struktur hierarki di atas).\n")
-	promptBuilder.WriteString("3. Siapa saja yang mendapatkan akses sharing folder ini dengan Admin.\n")
-	promptBuilder.WriteString("Berikan jawaban dalam Bahasa Indonesia yang ramah, sopan, informatif, dan ringkas. Gunakan format markdown bullet points untuk mempermudah pembacaan.\n")
+	promptBuilder.WriteString("\n=== INSTRUKSI STRUKTUR JAWABAN ===\n")
+	promptBuilder.WriteString("Tampilkan respon Anda dengan susunan wajib berikut:\n")
+	promptBuilder.WriteString("1. **Pembuat/Pemilik Resmi Folder**: Tuliskan nama lengkap resmi pembuat folder beserta email dan perannya secara jelas di bagian paling atas dengan format tebal.\n")
+	promptBuilder.WriteString("2. **Tabel Struktur & Kepemilikan**: Buat sebuah tabel Markdown dengan kolom: `Tipe` (Folder/File), `Nama Item`, `Pemilik/Pembuat`, `Status Berbagi` (Dibagikan dengan siapa saja). Masukkan semua file (seperti file docx, pdf, xlsx, dll.) dan subfolder ke dalam tabel ini beserta pemilik resminya.\n")
+	promptBuilder.WriteString("3. **Ringkasan Analisis**: Tulis 2-3 kalimat penjelasan ringkas tentang isi folder ini.\n")
+	promptBuilder.WriteString("PENTING: Gunakan Bahasa Indonesia yang ramah, sopan, dan profesional. Pastikan format tabel Markdown Anda valid dan rapi agar mudah dibaca.\n")
 
 	// Call local Ollama AI
 	// URL: http://192.168.100.129:11434/api/generate
@@ -1324,4 +1325,78 @@ func AnalyzeFolderAI(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"analysis": ollamaResp.Response,
 	})
+}
+
+func SaveAIAnalysis(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	folderIDStr := c.Param("id")
+
+	fid, err := strconv.ParseUint(folderIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid folder ID"})
+		return
+	}
+	folderID := uint(fid)
+
+	// Verify access
+	var folder models.Folder
+	if err := DB.Where("id = ?", folderID).First(&folder).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Folder tidak ditemukan"})
+		return
+	}
+
+	if folder.UserID != userID && !HasAccessToFolder(userID, folderID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Akses ditolak"})
+		return
+	}
+
+	type SaveReq struct {
+		Analysis string `json:"analysis" binding:"required"`
+	}
+	var req SaveReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	userStoragePath := filepath.Join("storage", userID)
+	os.MkdirAll(userStoragePath, os.ModePerm)
+
+	// Clean folder name to use in filename
+	cleanFolderName := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == ' ' {
+			return r
+		}
+		return -1
+	}, folder.Name)
+	cleanFolderName = strings.TrimSpace(cleanFolderName)
+	if cleanFolderName == "" {
+		cleanFolderName = "Folder"
+	}
+
+	fileName := fmt.Sprintf("Analisis_BaknusAI_%s.md", cleanFolderName)
+	safeFilename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileName)
+	savePath := filepath.Join(userStoragePath, safeFilename)
+
+	if err := os.WriteFile(savePath, []byte(req.Analysis), 0644); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file ke storage"})
+		return
+	}
+
+	fileRecord := models.File{
+		Name:     fileName,
+		MimeType: "text/markdown",
+		Size:     int64(len(req.Analysis)),
+		Path:     savePath,
+		FolderID: &folderID,
+		UserID:   userID,
+	}
+
+	if err := DB.Create(&fileRecord).Error; err != nil {
+		os.Remove(savePath)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan metadata file ke database"})
+		return
+	}
+
+	c.JSON(http.StatusOK, fileRecord)
 }
