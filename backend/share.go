@@ -112,9 +112,10 @@ func ListUsers(c *gin.Context) {
 }
 
 type ShareReq struct {
-	Type       string `json:"type" binding:"required"` // "file" or "folder"
-	ID         uint   `json:"id" binding:"required"`
-	SharedWith string `json:"shared_with" binding:"required"`
+	Type        string `json:"type" binding:"required"` // "file" or "folder"
+	ID          uint   `json:"id" binding:"required"`
+	SharedWith  string `json:"shared_with" binding:"required"`
+	IsBlindDrop bool   `json:"is_blind_drop"`
 }
 
 func ShareItem(c *gin.Context) {
@@ -154,6 +155,7 @@ func ShareItem(c *gin.Context) {
 	var share models.Share
 	share.SharedBy = userID
 	share.SharedWith = req.SharedWith
+	share.IsBlindDrop = req.IsBlindDrop
 
 	if req.Type == "file" {
 		var file models.File

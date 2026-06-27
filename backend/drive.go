@@ -63,22 +63,22 @@ func CreateFolder(c *gin.Context) {
 	c.JSON(http.StatusOK, folder)
 }
 
-func HasAccessToFolder(userID string, folderID uint) bool {
+func CheckFolderAccess(userID string, folderID uint) (bool, bool) {
 	var currentUser models.User
 	if err := DB.Where("id = ?", userID).First(&currentUser).Error; err != nil {
-		return false
+		return false, false
 	}
 
 	// Admin has access to all folders
 	if strings.ToLower(currentUser.Role) == "admin" {
-		return true
+		return true, false
 	}
 
 	currentFolderID := &folderID
 	for currentFolderID != nil {
 		var share models.Share
 		if err := DB.Where("folder_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", *currentFolderID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error; err == nil {
-			return true
+			return true, share.IsBlindDrop
 		}
 
 		var folder models.Folder
@@ -87,7 +87,12 @@ func HasAccessToFolder(userID string, folderID uint) bool {
 		}
 		currentFolderID = folder.ParentID
 	}
-	return false
+	return false, false
+}
+
+func HasAccessToFolder(userID string, folderID uint) bool {
+	hasAccess, _ := CheckFolderAccess(userID, folderID)
+	return hasAccess
 }
 
 func resolveOwnerRole(userID string, currentRole string) string {
@@ -128,9 +133,18 @@ func ListDrive(c *gin.Context) {
 			// Verify ownership OR recursive shared access
 			var parentFolder models.Folder
 			if err := DB.Where("id = ?", pid).First(&parentFolder).Error; err == nil {
-				if parentFolder.UserID == userID || HasAccessToFolder(userID, pid) {
-					DB.Preload("User").Where("parent_id = ?", pid).Find(&folders)
-					DB.Preload("User").Where("folder_id = ?", pid).Find(&files)
+				hasAccess, isBlindDrop := CheckFolderAccess(userID, pid)
+				if parentFolder.UserID == userID || hasAccess {
+					folderQuery := DB.Preload("User").Where("parent_id = ?", pid)
+					fileQuery := DB.Preload("User").Where("folder_id = ?", pid)
+
+					if isBlindDrop && parentFolder.UserID != userID {
+						folderQuery = folderQuery.Where("user_id = ?", userID)
+						fileQuery = fileQuery.Where("user_id = ?", userID)
+					}
+
+					folderQuery.Find(&folders)
+					fileQuery.Find(&files)
 				} else {
 					c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 					return

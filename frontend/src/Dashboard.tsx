@@ -53,6 +53,7 @@ export default function Dashboard() {
     const [clipboard, setClipboard] = useState<{ item: any, type: 'file' | 'folder', action: 'copy' | 'cut' } | null>(null);
 
     const [shareModal, setShareModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null }>({ visible: false, item: null, type: null });
+    const [isBlindDrop, setIsBlindDrop] = useState(false);
     const [aiModal, setAiModal] = useState<{ visible: boolean, folder: any, analysis: string, loading: boolean, error: string }>({
         visible: false,
         folder: null,
@@ -1130,6 +1131,7 @@ export default function Dashboard() {
         const item = contextMenu.item;
         const type = contextMenu.type as 'file' | 'folder';
         setShareModal({ visible: true, item, type });
+        setIsBlindDrop(false);
         setContextMenu({ ...contextMenu, visible: false });
         // Load existing shares for this item
         fetchItemShares(item.id, type);
@@ -1170,7 +1172,8 @@ export default function Dashboard() {
             const resp = await axios.post(`/api/drive/share`, {
                 id: shareModal.item.id,
                 type: shareModal.type,
-                shared_with: target
+                shared_with: target,
+                is_blind_drop: isBlindDrop
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -2862,6 +2865,27 @@ export default function Dashboard() {
                             </div>
 
                             <div className="p-6 flex-1 overflow-y-auto">
+                                {shareModal.type === 'folder' && (
+                                    <div className="mb-6 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                                        <label className="flex items-center justify-between cursor-pointer">
+                                            <div>
+                                                <div className="text-sm font-semibold text-slate-800">Mode Share: Khusus (Tugas)</div>
+                                                <div className="text-xs text-slate-500 mt-1 max-w-[320px]">
+                                                    Penerima hanya bisa melihat file yang mereka upload sendiri. Cocok untuk pengumpulan tugas kelas.
+                                                </div>
+                                            </div>
+                                            <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                                                <input type="checkbox" name="toggle" id="toggle-blind-drop" checked={isBlindDrop} onChange={(e) => setIsBlindDrop(e.target.checked)} className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 checked:right-0 checked:border-blue-500 transition-all z-10" />
+                                                <label htmlFor="toggle-blind-drop" className="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                                            </div>
+                                        </label>
+                                        <style>{`
+                                            .toggle-checkbox:checked + .toggle-label { background-color: #3b82f6; }
+                                            .toggle-checkbox:checked { right: 0; border-color: #3b82f6; }
+                                            .toggle-checkbox { right: 24px; transition: right 0.2s; }
+                                        `}</style>
+                                    </div>
+                                )}
                                 <label className="text-sm font-medium text-slate-700 mb-3 block">Bagikan cepat ke Tag / Role</label>
                                 <div className="mb-8 flex gap-3">
                                     <button onClick={() => submitShare('ROLE:Guru')} className="flex-1 bg-teal-50 hover:bg-teal-100 text-teal-700 font-medium py-3 rounded-xl transition-all border border-teal-200 shadow-sm flex flex-col items-center gap-1">
