@@ -1174,6 +1174,27 @@ func RegisterDevice(c *gin.Context) {
 	c.JSON(http.StatusOK, device)
 }
 
+func getFolderContentsRecursive(folderID uint, prefix string, promptBuilder *strings.Builder, depth int) {
+	if depth > 5 { // Prevent deep recursion
+		return
+	}
+
+	// Fetch files
+	var files []models.File
+	DB.Where("folder_id = ?", folderID).Find(&files)
+	for _, fl := range files {
+		promptBuilder.WriteString(fmt.Sprintf("%s- %s (File)\n", prefix, fl.Name))
+	}
+
+	// Fetch subfolders
+	var subfolders []models.Folder
+	DB.Where("parent_id = ?", folderID).Find(&subfolders)
+	for _, sf := range subfolders {
+		promptBuilder.WriteString(fmt.Sprintf("%s- %s/ (Folder)\n", prefix, sf.Name))
+		getFolderContentsRecursive(sf.ID, prefix+"  ", promptBuilder, depth+1)
+	}
+}
+
 func AnalyzeFolderAI(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	folderIDStr := c.Param("id")
@@ -1185,9 +1206,9 @@ func AnalyzeFolderAI(c *gin.Context) {
 	}
 	folderID := uint(fid)
 
-	// Verify access
+	// Verify access & preload creator user details
 	var folder models.Folder
-	if err := DB.Where("id = ?", folderID).First(&folder).Error; err != nil {
+	if err := DB.Preload("User").Where("id = ?", folderID).First(&folder).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Folder tidak ditemukan"})
 		return
 	}
@@ -1197,39 +1218,30 @@ func AnalyzeFolderAI(c *gin.Context) {
 		return
 	}
 
-	// Fetch subfolders
-	var subfolders []models.Folder
-	DB.Where("parent_id = ?", folderID).Find(&subfolders)
-
-	// Fetch files
-	var files []models.File
-	DB.Where("folder_id = ?", folderID).Find(&files)
-
-	// Fetch shares
+	// Fetch shares with OwnerUser preloaded to get official names
 	var shares []models.Share
-	DB.Where("folder_id = ?", folderID).Find(&shares)
+	DB.Preload("OwnerUser").Where("folder_id = ?", folderID).Find(&shares)
 
 	// Formulate prompt
 	var promptBuilder strings.Builder
 	promptBuilder.WriteString("Analisis struktur folder berikut:\n")
 	promptBuilder.WriteString(fmt.Sprintf("Nama Folder Utama: %s\n", folder.Name))
 
-	promptBuilder.WriteString("\nSubfolder di dalamnya:\n")
-	if len(subfolders) == 0 {
-		promptBuilder.WriteString("- Tidak ada subfolder\n")
-	} else {
-		for _, sf := range subfolders {
-			promptBuilder.WriteString(fmt.Sprintf("- %s\n", sf.Name))
-		}
+	// Owner of the folder
+	creatorName := folder.UserID
+	if folder.User.FullName != "" {
+		creatorName = fmt.Sprintf("%s (%s, Peran: %s)", folder.User.FullName, folder.UserID, folder.User.Role)
 	}
+	promptBuilder.WriteString(fmt.Sprintf("Pembuat / Pemilik Resmi Folder: %s\n", creatorName))
 
-	promptBuilder.WriteString("\nFile di dalamnya:\n")
-	if len(files) == 0 {
-		promptBuilder.WriteString("- Tidak ada file\n")
+	promptBuilder.WriteString("\nStruktur Hierarki Folder & File di dalamnya:\n")
+	var hierarchyBuilder strings.Builder
+	getFolderContentsRecursive(folderID, "", &hierarchyBuilder, 1)
+
+	if hierarchyBuilder.Len() == 0 {
+		promptBuilder.WriteString("- Folder ini kosong (tidak ada subfolder atau file)\n")
 	} else {
-		for _, fl := range files {
-			promptBuilder.WriteString(fmt.Sprintf("- %s\n", fl.Name))
-		}
+		promptBuilder.WriteString(hierarchyBuilder.String())
 	}
 
 	promptBuilder.WriteString("\nFolder ini dibagikan dengan:\n")
@@ -1243,14 +1255,20 @@ func AnalyzeFolderAI(c *gin.Context) {
 			} else if strings.HasPrefix(roleOrEmail, "CLASS:") {
 				roleOrEmail = "Kelas " + strings.TrimPrefix(roleOrEmail, "CLASS:")
 			}
-			promptBuilder.WriteString(fmt.Sprintf("- %s (dibagikan oleh %s)\n", roleOrEmail, sh.SharedBy))
+
+			sharerName := sh.SharedBy
+			if sh.OwnerUser != nil && sh.OwnerUser.FullName != "" {
+				sharerName = fmt.Sprintf("%s (%s, Peran: %s)", sh.OwnerUser.FullName, sh.SharedBy, sh.OwnerUser.Role)
+			}
+			promptBuilder.WriteString(fmt.Sprintf("- %s (dibagikan oleh %s)\n", roleOrEmail, sharerName))
 		}
 	}
 
 	promptBuilder.WriteString("\nTugas:\n")
 	promptBuilder.WriteString("Sebagai asisten AI bernama BaknusAI, jelaskan secara ringkas:\n")
-	promptBuilder.WriteString("1. Isi folder ini (berdasarkan nama subfolder dan file yang ada).\n")
-	promptBuilder.WriteString("2. Siapa saja yang mendapatkan akses sharing folder ini dengan Admin.\n")
+	promptBuilder.WriteString("1. Siapa nama akun resmi (nama lengkap resmi) pembuat/pemilik folder ini.\n")
+	promptBuilder.WriteString("2. Isi folder ini (Sebutkan file apa saja secara lengkap, termasuk jika ada file berbentuk docx, pptx, pdf, jpg, dll. yang tercantum di dalam struktur hierarki di atas).\n")
+	promptBuilder.WriteString("3. Siapa saja yang mendapatkan akses sharing folder ini dengan Admin.\n")
 	promptBuilder.WriteString("Berikan jawaban dalam Bahasa Indonesia yang ramah, sopan, informatif, dan ringkas. Gunakan format markdown bullet points untuk mempermudah pembacaan.\n")
 
 	// Call local Ollama AI
