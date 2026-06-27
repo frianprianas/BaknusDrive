@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -1382,21 +1383,23 @@ func SaveAIAnalysis(c *gin.Context) {
 		cleanFolderName = "Folder"
 	}
 
-	fileName := fmt.Sprintf("Analisis_BaknusAI_%s.md", cleanFolderName)
+	fileName := fmt.Sprintf("Analisis_BaknusAI_%s.doc", cleanFolderName)
 	safeFilename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileName)
 	savePath := filepath.Join(userStoragePath, safeFilename)
 
-	if err := os.WriteFile(savePath, []byte(req.Analysis), 0644); err != nil {
+	htmlContent := markdownToHTML(req.Analysis)
+
+	if err := os.WriteFile(savePath, []byte(htmlContent), 0644); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file ke storage"})
 		return
 	}
 
 	fileRecord := models.File{
 		Name:     fileName,
-		MimeType: "text/markdown",
-		Size:     int64(len(req.Analysis)),
+		MimeType: "application/msword",
+		Size:     int64(len(htmlContent)),
 		Path:     savePath,
-		FolderID: &folderID,
+		FolderID: nil, // null means root
 		UserID:   userID,
 	}
 
@@ -1407,4 +1410,163 @@ func SaveAIAnalysis(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, fileRecord)
+}
+
+func markdownToHTML(md string) string {
+	lines := strings.Split(md, "\n")
+	var html strings.Builder
+
+	html.WriteString("<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<style>\n")
+	html.WriteString("body { font-family: Arial, sans-serif; line-height: 1.6; margin: 40px; color: #333; }\n")
+	html.WriteString("h1, h2, h3, h4 { color: #1a5c96; }\n")
+	html.WriteString("table { border-collapse: collapse; width: 100%; margin-top: 20px; margin-bottom: 20px; }\n")
+	html.WriteString("th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\n")
+	html.WriteString("th { background-color: #f8f9fa; font-weight: bold; color: #333; }\n")
+	html.WriteString("tr:nth-child(even) { background-color: #f9f9f9; }\n")
+	html.WriteString("ul { padding-left: 20px; }\n")
+	html.WriteString("li { margin-bottom: 8px; }\n")
+	html.WriteString("</style>\n</head>\n<body>\n")
+
+	inList := false
+	inTable := false
+	var tableRows []string
+
+	for i := 0; i < len(lines); i++ {
+		line := strings.TrimSpace(lines[i])
+
+		// Table handling
+		if strings.HasPrefix(line, "|") && strings.HasSuffix(line, "|") {
+			if inList {
+				html.WriteString("</ul>\n")
+				inList = false
+			}
+			tableRows = append(tableRows, line)
+			inTable = true
+			continue
+		} else {
+			if inTable {
+				// We finished a table block, process it
+				html.WriteString("<table>\n")
+				hasHeader := false
+				for _, row := range tableRows {
+					// Check if it's separator row (e.g. | --- | --- |)
+					cleanRow := strings.ReplaceAll(row, " ", "")
+					if strings.Contains(cleanRow, "|---|") || strings.Contains(cleanRow, "|:-") || strings.Contains(cleanRow, "|-:") {
+						continue // skip separator line
+					}
+
+					// Split cells
+					cells := strings.Split(row, "|")
+					if len(cells) > 2 {
+						cells = cells[1 : len(cells)-1]
+					}
+
+					html.WriteString("  <tr>\n")
+					for _, cell := range cells {
+						val := strings.TrimSpace(cell)
+						val = parseInlineMarkdown(val)
+						if !hasHeader {
+							html.WriteString(fmt.Sprintf("    <th>%s</th>\n", val))
+						} else {
+							html.WriteString(fmt.Sprintf("    <td>%s</td>\n", val))
+						}
+					}
+					html.WriteString("  </tr>\n")
+					hasHeader = true
+				}
+				html.WriteString("</table>\n")
+				tableRows = nil
+				inTable = false
+			}
+		}
+
+		if line == "" {
+			if inList {
+				html.WriteString("</ul>\n")
+				inList = false
+			}
+			html.WriteString("<p>&nbsp;</p>\n")
+			continue
+		}
+
+		// Headers
+		if strings.HasPrefix(line, "### ") {
+			if inList {
+				html.WriteString("</ul>\n")
+				inList = false
+			}
+			html.WriteString(fmt.Sprintf("<h3>%s</h3>\n", parseInlineMarkdown(strings.TrimPrefix(line, "### "))))
+		} else if strings.HasPrefix(line, "## ") {
+			if inList {
+				html.WriteString("</ul>\n")
+				inList = false
+			}
+			html.WriteString(fmt.Sprintf("<h2>%s</h2>\n", parseInlineMarkdown(strings.TrimPrefix(line, "## "))))
+		} else if strings.HasPrefix(line, "# ") {
+			if inList {
+				html.WriteString("</ul>\n")
+				inList = false
+			}
+			html.WriteString(fmt.Sprintf("<h1>%s</h1>\n", parseInlineMarkdown(strings.TrimPrefix(line, "# "))))
+		} else if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") {
+			if !inList {
+				html.WriteString("<ul>\n")
+				inList = true
+			}
+			val := strings.TrimPrefix(line, "- ")
+			val = strings.TrimPrefix(val, "* ")
+			html.WriteString(fmt.Sprintf("  <li>%s</li>\n", parseInlineMarkdown(val)))
+		} else {
+			if inList {
+				html.WriteString("</ul>\n")
+				inList = false
+			}
+			html.WriteString(fmt.Sprintf("<p>%s</p>\n", parseInlineMarkdown(line)))
+		}
+	}
+
+	// Cleanup dangling blocks
+	if inTable && len(tableRows) > 0 {
+		html.WriteString("<table>\n")
+		hasHeader := false
+		for _, row := range tableRows {
+			cleanRow := strings.ReplaceAll(row, " ", "")
+			if strings.Contains(cleanRow, "|---|") || strings.Contains(cleanRow, "|:-") || strings.Contains(cleanRow, "|-:") {
+				continue
+			}
+			cells := strings.Split(row, "|")
+			if len(cells) > 2 {
+				cells = cells[1 : len(cells)-1]
+			}
+			html.WriteString("  <tr>\n")
+			for _, cell := range cells {
+				val := strings.TrimSpace(cell)
+				val = parseInlineMarkdown(val)
+				if !hasHeader {
+					html.WriteString(fmt.Sprintf("    <th>%s</th>\n", val))
+				} else {
+					html.WriteString(fmt.Sprintf("    <td>%s</td>\n", val))
+				}
+			}
+			html.WriteString("  </tr>\n")
+			hasHeader = true
+		}
+		html.WriteString("</table>\n")
+	}
+	if inList {
+		html.WriteString("</ul>\n")
+	}
+
+	html.WriteString("</body>\n</html>")
+	return html.String()
+}
+
+func parseInlineMarkdown(text string) string {
+	reBold := regexp.MustCompile(`\*\*(.*?)\*\*`)
+	text = reBold.ReplaceAllString(text, "<strong>$1</strong>")
+
+	reItalic := regexp.MustCompile(`\*(.*?)\*`)
+	text = reItalic.ReplaceAllString(text, "<em>$1</em>")
+
+	return text
 }
