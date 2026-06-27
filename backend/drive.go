@@ -2,6 +2,8 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -1170,4 +1172,138 @@ func RegisterDevice(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, device)
+}
+
+func AnalyzeFolderAI(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	folderIDStr := c.Param("id")
+
+	fid, err := strconv.ParseUint(folderIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid folder ID"})
+		return
+	}
+	folderID := uint(fid)
+
+	// Verify access
+	var folder models.Folder
+	if err := DB.Where("id = ?", folderID).First(&folder).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Folder tidak ditemukan"})
+		return
+	}
+
+	if folder.UserID != userID && !HasAccessToFolder(userID, folderID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Akses ditolak"})
+		return
+	}
+
+	// Fetch subfolders
+	var subfolders []models.Folder
+	DB.Where("parent_id = ?", folderID).Find(&subfolders)
+
+	// Fetch files
+	var files []models.File
+	DB.Where("folder_id = ?", folderID).Find(&files)
+
+	// Fetch shares
+	var shares []models.Share
+	DB.Where("folder_id = ?", folderID).Find(&shares)
+
+	// Formulate prompt
+	var promptBuilder strings.Builder
+	promptBuilder.WriteString("Analisis struktur folder berikut:\n")
+	promptBuilder.WriteString(fmt.Sprintf("Nama Folder Utama: %s\n", folder.Name))
+
+	promptBuilder.WriteString("\nSubfolder di dalamnya:\n")
+	if len(subfolders) == 0 {
+		promptBuilder.WriteString("- Tidak ada subfolder\n")
+	} else {
+		for _, sf := range subfolders {
+			promptBuilder.WriteString(fmt.Sprintf("- %s\n", sf.Name))
+		}
+	}
+
+	promptBuilder.WriteString("\nFile di dalamnya:\n")
+	if len(files) == 0 {
+		promptBuilder.WriteString("- Tidak ada file\n")
+	} else {
+		for _, fl := range files {
+			promptBuilder.WriteString(fmt.Sprintf("- %s\n", fl.Name))
+		}
+	}
+
+	promptBuilder.WriteString("\nFolder ini dibagikan dengan:\n")
+	if len(shares) == 0 {
+		promptBuilder.WriteString("- Tidak dibagikan dengan siapa-siapa (hanya pemilik)\n")
+	} else {
+		for _, sh := range shares {
+			roleOrEmail := sh.SharedWith
+			if strings.HasPrefix(roleOrEmail, "ROLE:") {
+				roleOrEmail = "Grup " + strings.TrimPrefix(roleOrEmail, "ROLE:")
+			} else if strings.HasPrefix(roleOrEmail, "CLASS:") {
+				roleOrEmail = "Kelas " + strings.TrimPrefix(roleOrEmail, "CLASS:")
+			}
+			promptBuilder.WriteString(fmt.Sprintf("- %s (dibagikan oleh %s)\n", roleOrEmail, sh.SharedBy))
+		}
+	}
+
+	promptBuilder.WriteString("\nTugas:\n")
+	promptBuilder.WriteString("Sebagai asisten AI bernama BaknusAI, jelaskan secara ringkas:\n")
+	promptBuilder.WriteString("1. Isi folder ini (berdasarkan nama subfolder dan file yang ada).\n")
+	promptBuilder.WriteString("2. Siapa saja yang mendapatkan akses sharing folder ini dengan Admin.\n")
+	promptBuilder.WriteString("Berikan jawaban dalam Bahasa Indonesia yang ramah, sopan, informatif, dan ringkas. Gunakan format markdown bullet points untuk mempermudah pembacaan.\n")
+
+	// Call local Ollama AI
+	// URL: http://192.168.100.129:11434/api/generate
+	// Method: POST
+	// Body: {"model": "gemma2:9b", "prompt": "<prompt>", "stream": false}
+	type OllamaRequest struct {
+		Model  string `json:"model"`
+		Prompt string `json:"prompt"`
+		Stream bool   `json:"stream"`
+	}
+
+	ollamaReq := OllamaRequest{
+		Model:  "gemma2:9b",
+		Prompt: promptBuilder.String(),
+		Stream: false,
+	}
+
+	jsonBytes, err := json.Marshal(ollamaReq)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memproses request AI"})
+		return
+	}
+
+	// Create client with timeout to prevent hanging
+	client := &http.Client{
+		Timeout: 45 * time.Second,
+	}
+
+	resp, err := client.Post("http://192.168.100.129:11434/api/generate", "application/json", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		log.Printf("Error calling local Ollama: %v", err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Tidak dapat terhubung ke server BaknusAI. Pastikan server Ollama aktif."})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("Server BaknusAI mengembalikan status error: %d", resp.StatusCode)})
+		return
+	}
+
+	type OllamaResponse struct {
+		Response string `json:"response"`
+	}
+
+	var ollamaResp OllamaResponse
+	if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membaca respon dari BaknusAI"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"analysis": ollamaResp.Response,
+	})
 }

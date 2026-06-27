@@ -9,7 +9,7 @@ import {
     Star, Trash2, Folder as FolderIcon, File as FileIcon, Image as ImageIcon, FileText, FileSpreadsheet, Presentation,
     Cloud, Plus, Download, FolderPlus, Upload, FileUp, Check,
     Edit2, Copy, Trash, RotateCcw, Share2, Sun, Moon, Eye, Shield, Lock, Unlock,
-    HelpCircle, Grip, UserX, Loader2, ExternalLink, ClipboardList, Pencil, Link
+    HelpCircle, Grip, UserX, Loader2, ExternalLink, ClipboardList, Pencil, Link, Brain, Sparkles
 } from 'lucide-react';
 
 const isImageFile = (f: any) => f?.mime_type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(f?.name || '');
@@ -53,6 +53,13 @@ export default function Dashboard() {
     const [clipboard, setClipboard] = useState<{ item: any, type: 'file' | 'folder', action: 'copy' | 'cut' } | null>(null);
 
     const [shareModal, setShareModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null }>({ visible: false, item: null, type: null });
+    const [aiModal, setAiModal] = useState<{ visible: boolean, folder: any, analysis: string, loading: boolean, error: string }>({
+        visible: false,
+        folder: null,
+        analysis: '',
+        loading: false,
+        error: ''
+    });
     const [publicLinkModal, setPublicLinkModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null, password: string, expiration: string }>({ visible: false, item: null, type: null, password: '', expiration: '' });
     const [renameModal, setRenameModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null }>({ visible: false, item: null, type: null });
     const [tempRenameName, setTempRenameName] = useState("");
@@ -927,6 +934,35 @@ export default function Dashboard() {
         } catch (error) {
             console.error("Failed to empty trash", error);
             alert("Failed to empty trash");
+        }
+    };
+
+    const handleAnalyzeFolder = async (folder: any) => {
+        setContextMenu({ ...contextMenu, visible: false });
+        setAiModal({
+            visible: true,
+            folder,
+            analysis: '',
+            loading: true,
+            error: ''
+        });
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.post(`/api/drive/folder/${folder.id}/analyze-ai`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setAiModal(prev => ({
+                ...prev,
+                loading: false,
+                analysis: response.data.analysis || 'Gagal menghasilkan analisis.'
+            }));
+        } catch (err: any) {
+            setAiModal(prev => ({
+                ...prev,
+                loading: false,
+                error: err.response?.data?.error || 'Terjadi kesalahan saat memanggil server BaknusAI. Pastikan server Ollama aktif.'
+            }));
         }
     };
 
@@ -2438,6 +2474,18 @@ export default function Dashboard() {
                                     </button>
                                 ) : (
                                     <>
+                                        {contextMenu.type === 'folder' && (contextMenu.item?.owner_role?.toLowerCase() === 'admin' && (contextMenu.item?.is_shared || user?.role?.toLowerCase() !== 'admin')) && (
+                                            <>
+                                                <button 
+                                                    className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-blue-600 dark:text-blue-400 font-semibold transition-colors animate-pulse" 
+                                                    onClick={() => handleAnalyzeFolder(contextMenu.item)}
+                                                >
+                                                    <Brain size={16} className="text-blue-500 dark:text-blue-400" />
+                                                    Analisis BaknusAI
+                                                </button>
+                                                <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                                            </>
+                                        )}
                                         <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleShareMenu}>
                                             <Share2 size={16} className="text-slate-500 dark:text-slate-400" />
                                             Share
@@ -2501,6 +2549,81 @@ export default function Dashboard() {
                                 )}
                             </>
                         ) : null}
+                    </div>
+                )}
+
+                {/* BaknusAI Modal */}
+                {aiModal.visible && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 transition-all duration-300">
+                        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-[650px] flex flex-col overflow-hidden max-h-[85vh] border border-slate-100 dark:border-slate-700 transform transition-all scale-100 animate-in fade-in zoom-in-95 duration-200">
+                            {/* Modal Header */}
+                            <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 p-6 text-white flex items-center justify-between relative overflow-hidden">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent"></div>
+                                <div className="flex items-center gap-3 relative z-10">
+                                    <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md animate-pulse">
+                                        <Brain className="text-white" size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold tracking-tight">Analisis BaknusAI</h3>
+                                        <p className="text-xs text-blue-100 font-medium">Model: gemma2:9b (Ollama Lokal)</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setAiModal({ visible: false, folder: null, analysis: '', loading: false, error: '' })}
+                                    className="p-2 hover:bg-white/10 active:bg-white/20 rounded-xl transition-all relative z-10 text-white"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="flex-1 overflow-y-auto p-6 min-h-[250px]">
+                                {aiModal.loading ? (
+                                    <div className="flex flex-col items-center justify-center py-12 gap-5 animate-pulse">
+                                        <div className="relative flex items-center justify-center">
+                                            <div className="absolute w-20 h-20 bg-blue-500/10 rounded-full animate-ping"></div>
+                                            <div className="absolute w-16 h-16 bg-indigo-500/20 rounded-full animate-pulse"></div>
+                                            <div className="w-12 h-12 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin"></div>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-slate-700 dark:text-slate-300 font-semibold text-lg flex items-center justify-center gap-2">
+                                                <Sparkles className="text-indigo-500 animate-bounce" size={20} />
+                                                Sedang dicek Oleh BaknusAI
+                                            </p>
+                                            <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Membaca struktur folder & kolaborator...</p>
+                                        </div>
+                                    </div>
+                                ) : aiModal.error ? (
+                                    <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/50 rounded-2xl p-5 flex gap-4 items-start">
+                                        <AlertCircle className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" size={20} />
+                                        <div>
+                                            <h4 className="font-semibold text-red-800 dark:text-red-400 text-sm">Gagal Melakukan Analisis</h4>
+                                            <p className="text-red-700 dark:text-red-400/90 text-sm mt-1 leading-relaxed">{aiModal.error}</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-700">
+                                            <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-1 rounded-full uppercase tracking-wider">Hasil Analisis</span>
+                                            <span className="text-slate-400 dark:text-slate-500 text-xs">Folder: <span className="font-semibold text-slate-700 dark:text-slate-300">{aiModal.folder?.name}</span></span>
+                                        </div>
+                                        <div className="text-slate-700 dark:text-slate-300 text-[14px] leading-relaxed whitespace-pre-wrap font-medium space-y-2">
+                                            {aiModal.analysis}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700 px-6 py-4 flex justify-end gap-3">
+                                <button 
+                                    onClick={() => setAiModal({ visible: false, folder: null, analysis: '', loading: false, error: '' })}
+                                    className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-2xl transition-all shadow-sm active:scale-95"
+                                >
+                                    Tutup
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
 
