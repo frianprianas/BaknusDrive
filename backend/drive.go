@@ -1179,18 +1179,26 @@ func getFolderContentsRecursive(folderID uint, prefix string, promptBuilder *str
 		return
 	}
 
-	// Fetch files
+	// Fetch files preloading user details
 	var files []models.File
-	DB.Where("folder_id = ?", folderID).Find(&files)
+	DB.Preload("User").Where("folder_id = ?", folderID).Find(&files)
 	for _, fl := range files {
-		promptBuilder.WriteString(fmt.Sprintf("%s- %s (File)\n", prefix, fl.Name))
+		ownerDetails := fl.UserID
+		if fl.User.FullName != "" {
+			ownerDetails = fmt.Sprintf("%s (%s, Peran: %s)", fl.User.FullName, fl.UserID, fl.User.Role)
+		}
+		promptBuilder.WriteString(fmt.Sprintf("%s- %s (File, Pemilik/Pembuat: %s)\n", prefix, fl.Name, ownerDetails))
 	}
 
-	// Fetch subfolders
+	// Fetch subfolders preloading user details
 	var subfolders []models.Folder
-	DB.Where("parent_id = ?", folderID).Find(&subfolders)
+	DB.Preload("User").Where("parent_id = ?", folderID).Find(&subfolders)
 	for _, sf := range subfolders {
-		promptBuilder.WriteString(fmt.Sprintf("%s- %s/ (Folder)\n", prefix, sf.Name))
+		ownerDetails := sf.UserID
+		if sf.User.FullName != "" {
+			ownerDetails = fmt.Sprintf("%s (%s, Peran: %s)", sf.User.FullName, sf.UserID, sf.User.Role)
+		}
+		promptBuilder.WriteString(fmt.Sprintf("%s- %s/ (Folder, Pemilik/Pembuat: %s)\n", prefix, sf.Name, ownerDetails))
 		getFolderContentsRecursive(sf.ID, prefix+"  ", promptBuilder, depth+1)
 	}
 }
