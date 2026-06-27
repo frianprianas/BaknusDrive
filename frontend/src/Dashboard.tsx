@@ -1238,8 +1238,11 @@ export default function Dashboard() {
                                 <Presentation size={22} className="text-orange-600 dark:text-orange-400" /> Baknus Impress (Slide)
                             </button>
                             <div className="border-t border-slate-100 dark:border-slate-700 my-2"></div>
-                            <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center gap-4 px-6 py-3 hover:bg-slate-100 dark:hover:bg-slate-700 text-base font-medium text-slate-800 dark:text-slate-200">
-                                <Upload size={22} className="text-slate-600 dark:text-slate-400" /> File upload
+                            <button onClick={() => fileInputRef.current?.click()} className="w-full flex flex-col px-6 py-3 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200">
+                                <div className="flex items-center gap-4 text-base font-medium">
+                                    <Upload size={22} className="text-slate-600 dark:text-slate-400" /> File upload
+                                </div>
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 ml-9 mt-0.5">Maks 1 GB per file</span>
                             </button>
                             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
                         </div>
@@ -1563,6 +1566,7 @@ export default function Dashboard() {
                                 </div>
                                 <h3 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-white mb-2">Lepaskan file di sini</h3>
                                 <p className="text-slate-500 dark:text-slate-400 font-medium">Lepaskan untuk mengunggah file ke folder ini secara instan</p>
+                                <p className="text-blue-500 dark:text-blue-400 font-semibold text-sm mt-2">Maksimal 1 GB per upload</p>
                             </div>
                         </div>
                     )}
