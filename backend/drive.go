@@ -1310,7 +1310,7 @@ func AnalyzeFolderAI(c *gin.Context) {
 	resp, err := client.Post("http://192.168.100.129:11434/api/generate", "application/json", bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		log.Printf("Error calling local Ollama: %v", err)
-		c.JSON(http.StatusBadGateway, gin.H{"error": "Tidak dapat terhubung ke server BaknusAI. Pastikan server Ollama aktif."})
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("Tidak dapat terhubung ke server BaknusAI (%v). Pastikan server Ollama aktif.", err)})
 		return
 	}
 	defer resp.Body.Close()
