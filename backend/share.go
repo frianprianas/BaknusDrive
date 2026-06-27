@@ -358,6 +358,7 @@ func ListSharedWithMe(c *gin.Context) {
 			if !seenFiles[*s.FileID] {
 				f := *s.File
 				f.IsShared = true
+				f.IsSpecial = getIsSpecial(f.UserID, s.File.User)
 				if s.File.User.Role != "" {
 					f.OwnerRole = s.File.User.Role
 				} else if s.OwnerUser != nil {
@@ -385,6 +386,7 @@ func ListSharedWithMe(c *gin.Context) {
 			if !seenFolders[*s.FolderID] {
 				f := *s.Folder
 				f.IsShared = true
+				f.IsSpecial = getIsSpecial(f.UserID, s.Folder.User)
 				if s.Folder.User.Role != "" {
 					f.OwnerRole = s.Folder.User.Role
 				} else if s.OwnerUser != nil {

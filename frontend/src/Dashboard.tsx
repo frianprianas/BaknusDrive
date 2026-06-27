@@ -78,6 +78,8 @@ export default function Dashboard() {
     const adminItemsPerPage = 20;
     const [itemShares, setItemShares] = useState<any[]>([]);
     const [mySharesList, setMySharesList] = useState<any[]>([]);
+    const [specialCandidates, setSpecialCandidates] = useState<any[]>([]);
+    const [specialAllowed, setSpecialAllowed] = useState<any[]>([]);
 
     const [uploadProgress, setUploadProgress] = useState<{ active: boolean, percent: number, fileName: string }>({ active: false, percent: 0, fileName: "" });
     const [downloading, setDownloading] = useState<boolean>(false);
@@ -323,6 +325,13 @@ export default function Dashboard() {
                 const resp = await axios.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } });
                 console.log("Admin Users List:", resp.data.users);
                 setUsersList(resp.data.users || []);
+                try {
+                    const specialResp = await axios.get('/api/admin/special-share-users', { headers: { Authorization: `Bearer ${token}` } });
+                    setSpecialAllowed(specialResp.data.allowed || []);
+                    setSpecialCandidates(specialResp.data.candidates || []);
+                } catch (err) {
+                    console.error("Gagal mengambil data Guru/TU spesial:", err);
+                }
                 setFolders([]);
                 setFiles([]);
             } else if (currentView === 'admin-drive') {
@@ -1837,6 +1846,74 @@ export default function Dashboard() {
                         <div className="p-6">
                             <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Shield className="text-blue-500" /> Admin Dashboard (User Management)</h2>
 
+                            {/* Panel Guru/TU Khusus */}
+                            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm mb-8">
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
+                                    <Sparkles className="text-blue-500 animate-pulse" size={20} /> Pengaturan Guru/TU Spesial (AI & Share Khas)
+                                </h3>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                                    Pilih maksimal 2 orang Guru atau TU yang diberikan izin khusus untuk membuat folder sharing berwarna biru (ikon Shield) dan menggunakan fitur Analisis Folder AI.
+                                </p>
+                                <div className="flex flex-col md:flex-row gap-6 items-stretch">
+                                    <div className="flex-1 min-w-[280px]">
+                                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">
+                                            Pilih Guru / TU (Tahan Ctrl/Cmd untuk memilih 2 orang)
+                                        </label>
+                                        <select
+                                            multiple
+                                            value={specialAllowed.map(u => u.email)}
+                                            onChange={async (e) => {
+                                                const selectedEmails = Array.from(e.target.selectedOptions, option => option.value);
+                                                if (selectedEmails.length > 2) {
+                                                    alert("Maksimal hanya boleh memilih 2 orang Guru/TU!");
+                                                    return;
+                                                }
+                                                const token = localStorage.getItem('token');
+                                                try {
+                                                    await axios.post('/api/admin/special-share-users', { emails: selectedEmails }, {
+                                                        headers: { Authorization: `Bearer ${token}` }
+                                                    });
+                                                    // Refresh lists
+                                                    const specialResp = await axios.get('/api/admin/special-share-users', {
+                                                        headers: { Authorization: `Bearer ${token}` }
+                                                    });
+                                                    setSpecialAllowed(specialResp.data.allowed || []);
+                                                } catch (err: any) {
+                                                    alert("Gagal memperbarui izin khusus: " + (err.response?.data?.error || err.message));
+                                                }
+                                            }}
+                                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]"
+                                        >
+                                            {specialCandidates.map(c => (
+                                                <option key={c.email} value={c.email}>
+                                                    {c.full_name} ({c.email} - Role: {c.role})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="flex-1 min-w-[280px] bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col justify-center">
+                                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 block uppercase tracking-wider">Guru/TU Terpilih Saat Ini:</span>
+                                        {specialAllowed.length === 0 ? (
+                                            <span className="text-sm text-slate-400 italic">Belum ada yang dipilih.</span>
+                                        ) : (
+                                            <div className="flex flex-col gap-2">
+                                                {specialAllowed.map(u => (
+                                                    <div key={u.email} className="px-3 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 text-xs font-medium rounded-xl flex items-center justify-between border border-blue-100 dark:border-blue-800/50">
+                                                        <span className="flex items-center gap-1.5">
+                                                            <Shield size={14} className="fill-blue-200 text-blue-600 dark:fill-blue-800 dark:text-blue-300" />
+                                                            {u.full_name} ({u.email})
+                                                        </span>
+                                                        <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-800 text-[10px] font-bold rounded-md uppercase">
+                                                            {u.role}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Search and Filter */}
                             <div className="flex flex-col md:flex-row gap-4 mb-6">
                                 <div className="relative flex-1">
@@ -2238,10 +2315,10 @@ export default function Dashboard() {
                                                         <>
                                                             <FolderIcon
                                                                 size={22}
-                                                                fill={f.owner_role?.toLowerCase() === 'admin' && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? "#3b82f6" : "#5f6368"}
-                                                                className={f.owner_role?.toLowerCase() === 'admin' && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? "text-blue-500 dark:text-blue-400 border-none" : "text-slate-500 dark:text-slate-400 border-none"}
+                                                                fill={f.is_special && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? "#3b82f6" : "#5f6368"}
+                                                                className={f.is_special && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? "text-blue-500 dark:text-blue-400 border-none" : "text-slate-500 dark:text-slate-400 border-none"}
                                                             />
-                                                            {f.owner_role?.toLowerCase() === 'admin' && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? (
+                                                            {f.is_special && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? (
                                                                 <div className="absolute -bottom-1 -right-1 bg-blue-100 dark:bg-blue-900 rounded-full p-[2px] shadow-sm border border-blue-200 dark:border-blue-800">
                                                                     <Shield size={10} className="text-blue-600 dark:text-blue-400 fill-blue-600 dark:fill-blue-400" />
                                                                 </div>
@@ -2312,10 +2389,10 @@ export default function Dashboard() {
                                                     <>
                                                         <FolderIcon
                                                             size={24}
-                                                            fill={f.owner_role?.toLowerCase() === 'admin' && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? "#3b82f6" : "#5f6368"}
-                                                            className={f.owner_role?.toLowerCase() === 'admin' && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? "text-blue-500 dark:text-blue-400 shadow-sm border-none" : "text-slate-500 dark:text-slate-400 shadow-sm border-none"}
+                                                            fill={f.is_special && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? "#3b82f6" : "#5f6368"}
+                                                            className={f.is_special && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? "text-blue-500 dark:text-blue-400 shadow-sm border-none" : "text-slate-500 dark:text-slate-400 shadow-sm border-none"}
                                                         />
-                                                        {f.owner_role?.toLowerCase() === 'admin' && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? (
+                                                        {f.is_special && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? (
                                                             <div className="absolute -bottom-1 -right-1 bg-blue-100 dark:bg-blue-900 rounded-full p-[2px] shadow-sm border border-blue-200 dark:border-blue-800">
                                                                 <Shield size={10} className="text-blue-600 dark:text-blue-400 fill-blue-600 dark:fill-blue-400" />
                                                             </div>
@@ -2596,7 +2673,7 @@ export default function Dashboard() {
                                     </button>
                                 ) : (
                                     <>
-                                        {contextMenu.type === 'folder' && (contextMenu.item?.owner_role?.toLowerCase() === 'admin' && (contextMenu.item?.is_shared || user?.role?.toLowerCase() !== 'admin')) && (
+                                        {contextMenu.type === 'folder' && contextMenu.item?.is_special && (contextMenu.item?.is_shared || user?.role?.toLowerCase() !== 'admin') && (
                                             <>
                                                 <button 
                                                     className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-blue-600 dark:text-blue-400 font-semibold transition-colors animate-pulse" 

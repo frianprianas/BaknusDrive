@@ -144,3 +144,64 @@ func AdminListDrive(c *gin.Context) {
 		"files":   files,
 	})
 }
+
+// GetSpecialShareUsers returns allowed special share users and candidate Guru/TU users
+func GetSpecialShareUsers(c *gin.Context) {
+	var allowed []models.User
+	var candidates []models.User
+
+	if err := DB.Where("allowed_special_share = ?", true).Find(&allowed).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data user khusus"})
+		return
+	}
+
+	// Fetch candidates: role is Guru or TU (case insensitive)
+	if err := DB.Where("LOWER(role) = ? OR LOWER(role) = ?", "guru", "tu").Find(&candidates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data kandidat Guru/TU"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"allowed":    allowed,
+		"candidates": candidates,
+	})
+}
+
+type SetSpecialShareReq struct {
+	Emails []string `json:"emails" binding:"required"`
+}
+
+// SetSpecialShareUsers updates the list of users allowed to do special shares (max 2)
+func SetSpecialShareUsers(c *gin.Context) {
+	var req SetSpecialShareReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
+		return
+	}
+
+	if len(req.Emails) > 2 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Maksimal hanya boleh memilih 2 orang Guru/TU"})
+		return
+	}
+
+	tx := DB.Begin()
+
+	// 1. Reset everyone to false
+	if err := tx.Model(&models.User{}).Where("1 = 1").Update("allowed_special_share", false).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mereset status"})
+		return
+	}
+
+	// 2. Set to true for selected emails
+	if len(req.Emails) > 0 {
+		if err := tx.Model(&models.User{}).Where("email IN ?", req.Emails).Update("allowed_special_share", true).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui status user"})
+			return
+		}
+	}
+
+	tx.Commit()
+	c.JSON(http.StatusOK, gin.H{"message": "Daftar Guru/TU yang diizinkan berhasil diperbarui"})
+}
