@@ -130,6 +130,7 @@ func ListDrive(c *gin.Context) {
 	for i := range folders {
 		if folders[i].UserID != userID {
 			folders[i].OwnerName = folders[i].User.FullName
+			folders[i].OwnerRole = folders[i].User.Role
 		}
 		var count int64
 		DB.Model(&models.Share{}).Where("folder_id = ?", folders[i].ID).Count(&count)
@@ -138,6 +139,7 @@ func ListDrive(c *gin.Context) {
 	for i := range files {
 		if files[i].UserID != userID {
 			files[i].OwnerName = files[i].User.FullName
+			files[i].OwnerRole = files[i].User.Role
 		}
 		var count int64
 		DB.Model(&models.Share{}).Where("file_id = ?", files[i].ID).Count(&count)
@@ -528,6 +530,7 @@ func ListStarred(c *gin.Context) {
 	for i := range folders {
 		if folders[i].UserID != userID {
 			folders[i].OwnerName = folders[i].User.FullName
+			folders[i].OwnerRole = folders[i].User.Role
 		}
 		var count int64
 		DB.Model(&models.Share{}).Where("folder_id = ?", folders[i].ID).Count(&count)
@@ -536,6 +539,7 @@ func ListStarred(c *gin.Context) {
 	for i := range files {
 		if files[i].UserID != userID {
 			files[i].OwnerName = files[i].User.FullName
+			files[i].OwnerRole = files[i].User.Role
 		}
 		var count int64
 		DB.Model(&models.Share{}).Where("file_id = ?", files[i].ID).Count(&count)
@@ -563,6 +567,7 @@ func ListRecent(c *gin.Context) {
 	for i := range files {
 		if files[i].UserID != userID {
 			files[i].OwnerName = files[i].User.FullName
+			files[i].OwnerRole = files[i].User.Role
 		}
 		var count int64
 		DB.Model(&models.Share{}).Where("file_id = ?", files[i].ID).Count(&count)
@@ -593,6 +598,7 @@ func SearchDrive(c *gin.Context) {
 	for i := range folders {
 		if folders[i].UserID != userID {
 			folders[i].OwnerName = folders[i].User.FullName
+			folders[i].OwnerRole = folders[i].User.Role
 		}
 		var count int64
 		DB.Model(&models.Share{}).Where("folder_id = ?", folders[i].ID).Count(&count)
@@ -601,6 +607,7 @@ func SearchDrive(c *gin.Context) {
 	for i := range files {
 		if files[i].UserID != userID {
 			files[i].OwnerName = files[i].User.FullName
+			files[i].OwnerRole = files[i].User.Role
 		}
 		var count int64
 		DB.Model(&models.Share{}).Where("file_id = ?", files[i].ID).Count(&count)

@@ -2078,8 +2078,16 @@ export default function Dashboard() {
                                                         <div className="w-5 h-5 rounded bg-[#1a73e8] flex items-center justify-center text-white"><Check size={14} /></div>
                                                     ) : (
                                                         <>
-                                                            <FolderIcon size={22} fill="#5f6368" className="text-slate-500 dark:text-slate-400 border-none" />
-                                                            {f.is_shared && (
+                                                            <FolderIcon
+                                                                size={22}
+                                                                fill={f.owner_role?.toLowerCase() === 'admin' && f.user_id !== user?.email ? "#3b82f6" : "#5f6368"}
+                                                                className={f.owner_role?.toLowerCase() === 'admin' && f.user_id !== user?.email ? "text-blue-500 dark:text-blue-400 border-none" : "text-slate-500 dark:text-slate-400 border-none"}
+                                                            />
+                                                            {f.owner_role?.toLowerCase() === 'admin' && f.user_id !== user?.email ? (
+                                                                <div className="absolute -bottom-1 -right-1 bg-blue-100 dark:bg-blue-900 rounded-full p-[2px] shadow-sm border border-blue-200 dark:border-blue-800">
+                                                                    <Shield size={10} className="text-blue-600 dark:text-blue-400 fill-blue-600 dark:fill-blue-400" />
+                                                                </div>
+                                                            ) : f.is_shared && (
                                                                 <div className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-[1px] shadow-sm">
                                                                     <Users size={10} className="text-slate-600 dark:text-slate-400" />
                                                                 </div>
@@ -2143,7 +2151,22 @@ export default function Dashboard() {
                                                 {isSelected(f.id, 'folder') ? (
                                                     <div className="w-[24px] h-[24px] rounded bg-[#1a73e8] flex items-center justify-center text-white"><Check size={16} /></div>
                                                 ) : (
-                                                    <FolderIcon size={24} fill="#5f6368" className="text-slate-500 dark:text-slate-400 shadow-sm border-none" />
+                                                    <>
+                                                        <FolderIcon
+                                                            size={24}
+                                                            fill={f.owner_role?.toLowerCase() === 'admin' && f.user_id !== user?.email ? "#3b82f6" : "#5f6368"}
+                                                            className={f.owner_role?.toLowerCase() === 'admin' && f.user_id !== user?.email ? "text-blue-500 dark:text-blue-400 shadow-sm border-none" : "text-slate-500 dark:text-slate-400 shadow-sm border-none"}
+                                                        />
+                                                        {f.owner_role?.toLowerCase() === 'admin' && f.user_id !== user?.email ? (
+                                                            <div className="absolute -bottom-1 -right-1 bg-blue-100 dark:bg-blue-900 rounded-full p-[2px] shadow-sm border border-blue-200 dark:border-blue-800">
+                                                                <Shield size={10} className="text-blue-600 dark:text-blue-400 fill-blue-600 dark:fill-blue-400" />
+                                                            </div>
+                                                        ) : f.is_shared && (
+                                                            <div className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-[1px] shadow-sm">
+                                                                <Users size={10} className="text-slate-600 dark:text-slate-400" />
+                                                            </div>
+                                                        )}
+                                                    </>
                                                 )}
                                             </div>
                                             <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 truncate flex items-center gap-2">

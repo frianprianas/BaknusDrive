@@ -15,6 +15,7 @@ type Folder struct {
 	UserID           string         `gorm:"not null" json:"user_id"`
 	User             User           `json:"-"`
 	OwnerName        string         `gorm:"-" json:"owner_name,omitempty"`
+	OwnerRole        string         `gorm:"-" json:"owner_role,omitempty"`
 	IsShared         bool           `gorm:"-" json:"is_shared,omitempty"`
 	IsStarred        bool           `gorm:"default:false" json:"is_starred"`
 	IsPublic         bool           `gorm:"default:false" json:"is_public"`

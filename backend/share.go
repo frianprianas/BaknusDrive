@@ -358,8 +358,13 @@ func ListSharedWithMe(c *gin.Context) {
 			if !seenFiles[*s.FileID] {
 				f := *s.File
 				f.IsShared = true
-				if s.OwnerUser != nil && s.OwnerUser.FullName != "" {
-					f.OwnerName = s.OwnerUser.FullName
+				if s.OwnerUser != nil {
+					if s.OwnerUser.FullName != "" {
+						f.OwnerName = s.OwnerUser.FullName
+					} else {
+						f.OwnerName = s.SharedBy
+					}
+					f.OwnerRole = s.OwnerUser.Role
 				} else {
 					f.OwnerName = s.SharedBy
 				}
@@ -370,8 +375,13 @@ func ListSharedWithMe(c *gin.Context) {
 			if !seenFolders[*s.FolderID] {
 				f := *s.Folder
 				f.IsShared = true
-				if s.OwnerUser != nil && s.OwnerUser.FullName != "" {
-					f.OwnerName = s.OwnerUser.FullName
+				if s.OwnerUser != nil {
+					if s.OwnerUser.FullName != "" {
+						f.OwnerName = s.OwnerUser.FullName
+					} else {
+						f.OwnerName = s.SharedBy
+					}
+					f.OwnerRole = s.OwnerUser.Role
 				} else {
 					f.OwnerName = s.SharedBy
 				}
