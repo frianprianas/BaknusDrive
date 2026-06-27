@@ -1304,7 +1304,7 @@ func AnalyzeFolderAI(c *gin.Context) {
 
 	// Create client with timeout to prevent hanging
 	client := &http.Client{
-		Timeout: 45 * time.Second,
+		Timeout: 5 * time.Minute,
 	}
 
 	resp, err := client.Post("http://192.168.100.129:11434/api/generate", "application/json", bytes.NewBuffer(jsonBytes))
