@@ -333,8 +333,8 @@ func ListSharedWithMe(c *gin.Context) {
 	userRole := currentUser.Role
 
 	var shares []models.Share
-	DB.Preload("File").Preload("Folder").Preload("OwnerUser").
-		Where("shared_with = ? OR shared_with = ? OR shared_with = ?", userEmail, "ROLE:"+userRole, "CLASS:"+currentUser.Class).
+	DB.Preload("File.User").Preload("Folder.User").Preload("OwnerUser").
+		Where("LOWER(shared_with) = LOWER(?) OR LOWER(shared_with) = LOWER(?) OR LOWER(shared_with) = LOWER(?)", userEmail, "ROLE:"+userRole, "CLASS:"+currentUser.Class).
 		Find(&shares)
 
 	// Use anonymous structs so share_id is included in JSON without touching the GORM model
@@ -358,13 +358,23 @@ func ListSharedWithMe(c *gin.Context) {
 			if !seenFiles[*s.FileID] {
 				f := *s.File
 				f.IsShared = true
+				if s.File.User.Role != "" {
+					f.OwnerRole = s.File.User.Role
+				} else if s.OwnerUser != nil {
+					f.OwnerRole = s.OwnerUser.Role
+				}
+				if f.OwnerRole == "" {
+					var u models.User
+					if err := DB.Where("LOWER(id) = LOWER(?)", f.UserID).First(&u).Error; err == nil {
+						f.OwnerRole = u.Role
+					}
+				}
 				if s.OwnerUser != nil {
 					if s.OwnerUser.FullName != "" {
 						f.OwnerName = s.OwnerUser.FullName
 					} else {
 						f.OwnerName = s.SharedBy
 					}
-					f.OwnerRole = s.OwnerUser.Role
 				} else {
 					f.OwnerName = s.SharedBy
 				}
@@ -375,13 +385,23 @@ func ListSharedWithMe(c *gin.Context) {
 			if !seenFolders[*s.FolderID] {
 				f := *s.Folder
 				f.IsShared = true
+				if s.Folder.User.Role != "" {
+					f.OwnerRole = s.Folder.User.Role
+				} else if s.OwnerUser != nil {
+					f.OwnerRole = s.OwnerUser.Role
+				}
+				if f.OwnerRole == "" {
+					var u models.User
+					if err := DB.Where("LOWER(id) = LOWER(?)", f.UserID).First(&u).Error; err == nil {
+						f.OwnerRole = u.Role
+					}
+				}
 				if s.OwnerUser != nil {
 					if s.OwnerUser.FullName != "" {
 						f.OwnerName = s.OwnerUser.FullName
 					} else {
 						f.OwnerName = s.SharedBy
 					}
-					f.OwnerRole = s.OwnerUser.Role
 				} else {
 					f.OwnerName = s.SharedBy
 				}

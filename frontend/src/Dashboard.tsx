@@ -2080,10 +2080,10 @@ export default function Dashboard() {
                                                         <>
                                                             <FolderIcon
                                                                 size={22}
-                                                                fill={f.owner_role?.toLowerCase() === 'admin' && f.is_shared ? "#3b82f6" : "#5f6368"}
-                                                                className={f.owner_role?.toLowerCase() === 'admin' && f.is_shared ? "text-blue-500 dark:text-blue-400 border-none" : "text-slate-500 dark:text-slate-400 border-none"}
+                                                                fill={f.owner_role?.toLowerCase() === 'admin' && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? "#3b82f6" : "#5f6368"}
+                                                                className={f.owner_role?.toLowerCase() === 'admin' && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? "text-blue-500 dark:text-blue-400 border-none" : "text-slate-500 dark:text-slate-400 border-none"}
                                                             />
-                                                            {f.owner_role?.toLowerCase() === 'admin' && f.is_shared ? (
+                                                            {f.owner_role?.toLowerCase() === 'admin' && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? (
                                                                 <div className="absolute -bottom-1 -right-1 bg-blue-100 dark:bg-blue-900 rounded-full p-[2px] shadow-sm border border-blue-200 dark:border-blue-800">
                                                                     <Shield size={10} className="text-blue-600 dark:text-blue-400 fill-blue-600 dark:fill-blue-400" />
                                                                 </div>
@@ -2154,10 +2154,10 @@ export default function Dashboard() {
                                                     <>
                                                         <FolderIcon
                                                             size={24}
-                                                            fill={f.owner_role?.toLowerCase() === 'admin' && f.is_shared ? "#3b82f6" : "#5f6368"}
-                                                            className={f.owner_role?.toLowerCase() === 'admin' && f.is_shared ? "text-blue-500 dark:text-blue-400 shadow-sm border-none" : "text-slate-500 dark:text-slate-400 shadow-sm border-none"}
+                                                            fill={f.owner_role?.toLowerCase() === 'admin' && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? "#3b82f6" : "#5f6368"}
+                                                            className={f.owner_role?.toLowerCase() === 'admin' && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? "text-blue-500 dark:text-blue-400 shadow-sm border-none" : "text-slate-500 dark:text-slate-400 shadow-sm border-none"}
                                                         />
-                                                        {f.owner_role?.toLowerCase() === 'admin' && f.is_shared ? (
+                                                        {f.owner_role?.toLowerCase() === 'admin' && (f.is_shared || user?.role?.toLowerCase() !== 'admin') ? (
                                                             <div className="absolute -bottom-1 -right-1 bg-blue-100 dark:bg-blue-900 rounded-full p-[2px] shadow-sm border border-blue-200 dark:border-blue-800">
                                                                 <Shield size={10} className="text-blue-600 dark:text-blue-400 fill-blue-600 dark:fill-blue-400" />
                                                             </div>
