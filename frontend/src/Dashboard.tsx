@@ -479,35 +479,54 @@ export default function Dashboard() {
     //     setFolders([...folders]);
     // };
 
+    const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
+
+    const uploadChunk = async (chunk: Blob, chunkIndex: number, uploadId: string, token: string) => {
+        const formData = new FormData();
+        formData.append('file', chunk);
+        formData.append('upload_id', uploadId);
+        formData.append('chunk_index', chunkIndex.toString());
+        await axios.post('/api/drive/upload-chunk', formData, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+    };
+
     const handleFilesUpload = async (files: FileList | File[], targetFolderOverride?: number | null) => {
         if (!files || files.length === 0) return;
         setShowNewMenu(false);
         const token = localStorage.getItem('token');
+        if (!token) return;
 
         const folderIdToUse = targetFolderOverride !== undefined ? targetFolderOverride : currentFolderId;
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            const formData = new FormData();
-            formData.append('file', file);
-            if (folderIdToUse) {
-                formData.append('folder_id', folderIdToUse.toString());
-            } else if (currentView === 'computers' && selectedDevice) {
-                formData.append('device_id', selectedDevice.id.toString());
-            }
+            const uploadId = Date.now().toString() + "_" + Math.random().toString(36).substring(2, 9);
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
             try {
                 setUploadProgress({ active: true, percent: 0, fileName: file.name });
 
-                await axios.post('/api/drive/upload', formData, {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        'Content-Type': 'multipart/form-data'
-                    },
-                    onUploadProgress: (progressEvent: any) => {
-                        const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
-                        setUploadProgress(prev => ({ ...prev, percent: percentCompleted }));
-                    }
+                for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+                    const start = chunkIndex * CHUNK_SIZE;
+                    const end = Math.min(start + CHUNK_SIZE, file.size);
+                    const chunk = file.slice(start, end);
+
+                    await uploadChunk(chunk, chunkIndex, uploadId, token);
+
+                    const percentCompleted = Math.round(((chunkIndex + 1) / totalChunks) * 100);
+                    setUploadProgress(prev => ({ ...prev, percent: percentCompleted }));
+                }
+
+                await axios.post('/api/drive/upload-complete', {
+                    upload_id: uploadId,
+                    file_name: file.name,
+                    total_chunks: totalChunks,
+                    total_size: file.size,
+                    folder_id: folderIdToUse || null,
+                    device_id: currentView === 'computers' && selectedDevice ? selectedDevice.id : null
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
                 });
 
                 // Animation for completion

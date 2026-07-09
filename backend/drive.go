@@ -193,6 +193,159 @@ func ListDrive(c *gin.Context) {
 	})
 }
 
+func UploadChunk(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No chunk uploaded"})
+		return
+	}
+
+	uploadID := c.PostForm("upload_id")
+	chunkIndex := c.PostForm("chunk_index")
+
+	if uploadID == "" || chunkIndex == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing chunk parameters"})
+		return
+	}
+
+	tempDir := filepath.Join("storage", "temp", uploadID)
+	os.MkdirAll(tempDir, os.ModePerm)
+
+	savePath := filepath.Join(tempDir, chunkIndex)
+	if err := c.SaveUploadedFile(fileHeader, savePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save chunk"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Chunk uploaded"})
+}
+
+type UploadCompleteReq struct {
+	UploadID   string `json:"upload_id"`
+	FileName   string `json:"file_name"`
+	TotalChunks int   `json:"total_chunks"`
+	TotalSize  int64  `json:"total_size"`
+	FolderID   *uint  `json:"folder_id"`
+	DeviceID   *uint  `json:"device_id"`
+}
+
+func UploadComplete(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	var req UploadCompleteReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+		return
+	}
+
+	if req.FolderID != nil {
+		var parentFolder models.Folder
+		if err := DB.Where("id = ?", *req.FolderID).First(&parentFolder).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Target folder not found"})
+			return
+		}
+		if parentFolder.UserID != userID && !HasAccessToFolder(userID, *req.FolderID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "You do not have permission to upload files here"})
+			return
+		}
+	}
+
+	// Verify Quota
+	var currentUser models.User
+	if err := DB.Where("id = ?", userID).First(&currentUser).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "User not found"})
+		return
+	}
+
+	var totalSize int64
+	DB.Model(&models.File{}).Where("user_id = ?", userID).Select("COALESCE(SUM(size), 0)").Scan(&totalSize)
+
+	// Check existing for overwrite
+	var oldFile models.File
+	query := DB.Where("name = ? AND user_id = ?", req.FileName, userID)
+	if req.FolderID != nil {
+		query = query.Where("folder_id = ?", *req.FolderID)
+	} else {
+		query = query.Where("folder_id IS NULL")
+	}
+
+	exists := query.First(&oldFile).Error == nil
+
+	sizeDiff := req.TotalSize
+	if exists {
+		sizeDiff -= oldFile.Size
+	}
+
+	if totalSize+sizeDiff > currentUser.Quota {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Kapasitas penyimpanan Anda sudah penuh."})
+		return
+	}
+
+	// Merge chunks
+	userStoragePath := filepath.Join("storage", userID)
+	os.MkdirAll(userStoragePath, os.ModePerm)
+
+	safeFilename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), req.FileName)
+	finalPath := filepath.Join(userStoragePath, safeFilename)
+
+	out, err := os.Create(finalPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create final file"})
+		return
+	}
+	defer out.Close()
+
+	tempDir := filepath.Join("storage", "temp", req.UploadID)
+	for i := 0; i < req.TotalChunks; i++ {
+		chunkPath := filepath.Join(tempDir, strconv.Itoa(i))
+		in, err := os.Open(chunkPath)
+		if err != nil {
+			os.Remove(finalPath)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Missing chunk data"})
+			return
+		}
+		io.Copy(out, in)
+		in.Close()
+	}
+	out.Close()
+	os.RemoveAll(tempDir) // Cleanup temp chunks
+
+	mimeType := "application/octet-stream"
+
+	if exists {
+		os.Remove(oldFile.Path)
+		oldFile.Size = req.TotalSize
+		oldFile.Path = finalPath
+		oldFile.MimeType = mimeType
+		oldFile.DeviceID = req.DeviceID
+		if err := DB.Save(&oldFile).Error; err != nil {
+			os.Remove(finalPath) // rollback
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update metadata"})
+			return
+		}
+		DB.Model(&currentUser).Update("used_space", totalSize+sizeDiff)
+		c.JSON(http.StatusOK, oldFile)
+	} else {
+		fileRecord := models.File{
+			Name:     req.FileName,
+			MimeType: mimeType,
+			Size:     req.TotalSize,
+			Path:     finalPath,
+			FolderID: req.FolderID,
+			UserID:   userID,
+			DeviceID: req.DeviceID,
+		}
+		if err := DB.Create(&fileRecord).Error; err != nil {
+			os.Remove(finalPath) // rollback
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save metadata"})
+			return
+		}
+		DB.Model(&currentUser).Update("used_space", totalSize+req.TotalSize)
+		c.JSON(http.StatusOK, fileRecord)
+	}
+}
+
 func UploadFile(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 

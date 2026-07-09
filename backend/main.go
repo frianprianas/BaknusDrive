@@ -102,6 +102,8 @@ func main() {
 			driveAPI.GET("", ListDrive)
 			driveAPI.POST("/folder", CreateFolder)
 			driveAPI.POST("/upload", UploadFile)
+			driveAPI.POST("/upload-chunk", UploadChunk)
+			driveAPI.POST("/upload-complete", UploadComplete)
 			driveAPI.GET("/file/:id/download", DownloadFile)
 			driveAPI.GET("/folder/:id/download", DownloadFolder)
 			driveAPI.DELETE("/file/:id", DeleteFile)
