@@ -194,8 +194,6 @@ func ListDrive(c *gin.Context) {
 }
 
 func UploadChunk(c *gin.Context) {
-	userID := c.MustGet("userID").(string)
-
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No chunk uploaded"})
