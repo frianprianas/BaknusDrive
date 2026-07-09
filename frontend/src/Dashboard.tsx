@@ -501,6 +501,13 @@ export default function Dashboard() {
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
+
+            // Detect potential folders or empty files
+            if (file.size === 0) {
+                alert(`Gagal mengupload "${file.name}": Browser tidak mendukung upload folder secara langsung. Silakan kompres folder Anda menjadi format ZIP/RAR terlebih dahulu.`);
+                continue;
+            }
+
             const uploadId = Date.now().toString() + "_" + Math.random().toString(36).substring(2, 9);
             const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
