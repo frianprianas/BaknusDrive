@@ -1,8 +1,92 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import { Lock, Download, AlertCircle, File, Folder } from 'lucide-react';
+import {
+    Lock, Download, AlertCircle, Folder, File as FileIcon, Image as ImageIcon,
+    FileText, FileSpreadsheet, Presentation, FileAudio, FileVideo, FileArchive, FileCode
+} from 'lucide-react';
 import logo from './assets/logo.png';
+
+const getFileIconData = (fileName: string) => {
+    const name = (fileName || '').toLowerCase();
+
+    // 1. Archive files (.zip, .rar, .7z, .tar, .gz, etc.)
+    if (name.endsWith('.zip') || name.endsWith('.rar') || name.endsWith('.7z') || name.endsWith('.tar') || name.endsWith('.gz') || name.endsWith('.bz2') || name.endsWith('.xz')) {
+        return {
+            icon: <FileArchive size={32} />,
+            bgClass: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+        };
+    }
+
+    // 2. Audio files (.mp3, .wav, .ogg, .flac, .aac, .m4a, etc.)
+    if (name.endsWith('.mp3') || name.endsWith('.wav') || name.endsWith('.ogg') || name.endsWith('.flac') || name.endsWith('.aac') || name.endsWith('.m4a')) {
+        return {
+            icon: <FileAudio size={32} />,
+            bgClass: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-500 dark:text-cyan-400'
+        };
+    }
+
+    // 3. Video files (.mp4, .mkv, .avi, .mov, .webm, etc.)
+    if (name.endsWith('.mp4') || name.endsWith('.mkv') || name.endsWith('.avi') || name.endsWith('.mov') || name.endsWith('.webm') || name.endsWith('.wmv') || name.endsWith('.flv')) {
+        return {
+            icon: <FileVideo size={32} />,
+            bgClass: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+        };
+    }
+
+    // 4. Code / Source files
+    if (
+        name.endsWith('.js') || name.endsWith('.jsx') || name.endsWith('.ts') || name.endsWith('.tsx') ||
+        name.endsWith('.html') || name.endsWith('.css') || name.endsWith('.json') || name.endsWith('.py') ||
+        name.endsWith('.go') || name.endsWith('.java') || name.endsWith('.cpp') || name.endsWith('.c') ||
+        name.endsWith('.php') || name.endsWith('.sh') || name.endsWith('.yaml') || name.endsWith('.yml') ||
+        name.endsWith('.xml') || name.endsWith('.sql') || name.endsWith('.md')
+    ) {
+        return {
+            icon: <FileCode size={32} />,
+            bgClass: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+        };
+    }
+
+    // 5. PDF
+    if (name.endsWith('.pdf')) {
+        return {
+            icon: <FileText size={32} />,
+            bgClass: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+        };
+    }
+
+    // 6. Excel / Spreadsheets
+    if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv')) {
+        return {
+            icon: <FileSpreadsheet size={32} />,
+            bgClass: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+        };
+    }
+
+    // 7. Powerpoint / Presentation
+    if (name.endsWith('.pptx') || name.endsWith('.ppt')) {
+        return {
+            icon: <Presentation size={32} />,
+            bgClass: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+        };
+    }
+
+    // 8. Images (.gif, .jpg, .jpeg, .png, .webp, .svg, etc.)
+    if (name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png') || name.endsWith('.gif') || name.endsWith('.webp') || name.endsWith('.bmp') || name.endsWith('.svg') || name.endsWith('.ico')) {
+        return {
+            icon: <ImageIcon size={32} />,
+            bgClass: 'bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400'
+        };
+    }
+
+    // 9. Word / Text document or general file fallback
+    const isDoc = name.endsWith('.docx') || name.endsWith('.doc') || name.endsWith('.txt') || name.endsWith('.rtf') || name.endsWith('.log');
+    return {
+        icon: isDoc ? <FileText size={32} /> : <FileIcon size={32} />,
+        bgClass: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+    };
+};
 
 export default function PublicShare() {
     const { type, id } = useParams<{ type: string; id: string }>();
@@ -115,9 +199,14 @@ export default function PublicShare() {
                     <div className="py-2 animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-100 dark:border-slate-700/50 flex items-center justify-between mb-8 shadow-inner">
                             <div className="flex items-center gap-4 overflow-hidden">
-                                <div className={`p-4 rounded-xl ${metadata.type === 'folder' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
-                                    {metadata.type === 'folder' ? <Folder size={32} /> : <File size={32} />}
-                                </div>
+                                {(() => {
+                                    const fileIconData = metadata.type === 'folder' ? null : getFileIconData(metadata.name);
+                                    return (
+                                        <div className={`p-4 rounded-xl ${metadata.type === 'folder' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' : fileIconData?.bgClass}`}>
+                                            {metadata.type === 'folder' ? <Folder size={32} /> : fileIconData?.icon}
+                                        </div>
+                                    );
+                                })()}
                                 <div className="truncate">
                                     <h2 className="text-lg font-bold text-slate-800 dark:text-white truncate pr-4" title={metadata.name}>{metadata.name}</h2>
                                     <p className="text-sm text-slate-500 flex items-center gap-2 mt-1">

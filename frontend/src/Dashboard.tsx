@@ -7,6 +7,7 @@ import {
     Settings, LogOut, ChevronRight, Bell,
     Grid, List, AlertCircle, HardDrive, MonitorSmartphone,
     Star, Trash2, Folder as FolderIcon, File as FileIcon, Image as ImageIcon, FileText, FileSpreadsheet, Presentation,
+    FileAudio, FileVideo, FileArchive, FileCode,
     Cloud, Plus, Download, FolderPlus, Upload, FileUp, Check,
     Edit2, Copy, Trash, RotateCcw, Share2, Sun, Moon, Eye, Shield, Lock, Unlock,
     HelpCircle, Grip, UserX, Loader2, ExternalLink, ClipboardList, Pencil, Link, Brain, Sparkles
@@ -1352,21 +1353,81 @@ export default function Dashboard() {
         }
     };
 
-    const getFileIcon = (fileName: string, mimeType: string) => {
+    const getFileIcon = (fileName: string, mimeType: string, size = 22, className?: string) => {
         const name = (fileName || '').toLowerCase();
-        if (name.endsWith('.docx') || name.endsWith('.doc'))
-            return <FileText size={22} className="text-blue-600" />;
-        if (name.endsWith('.xlsx') || name.endsWith('.xls'))
-            return <FileSpreadsheet size={22} className="text-green-600" />;
-        if (name.endsWith('.pptx') || name.endsWith('.ppt'))
-            return <Presentation size={22} className="text-orange-500" />;
-        if (mimeType === 'application/pdf' || name.endsWith('.pdf'))
-            return <FileText size={22} className="text-red-500" />;
-        if (mimeType.startsWith('image/'))
-            return <ImageIcon size={22} className="text-pink-500" />;
-        if (mimeType.startsWith('video/'))
-            return <FileIcon size={22} className="text-purple-500" />;
-        return <FileText size={22} className="text-slate-500" />;
+        const mime = (mimeType || '').toLowerCase();
+
+        // 1. Archive files (.zip, .rar, .7z, .tar, .gz, etc.)
+        if (
+            name.endsWith('.zip') || name.endsWith('.rar') || name.endsWith('.7z') || 
+            name.endsWith('.tar') || name.endsWith('.gz') || name.endsWith('.bz2') || 
+            name.endsWith('.xz') || mime === 'application/zip' || 
+            mime === 'application/x-rar-compressed' || mime === 'application/x-7z-compressed' || 
+            mime === 'application/x-tar'
+        ) {
+            return <FileArchive size={size} className={className || "text-amber-600"} />;
+        }
+
+        // 2. Audio files (.mp3, .wav, .ogg, .flac, .aac, .m4a, etc.)
+        if (
+            name.endsWith('.mp3') || name.endsWith('.wav') || name.endsWith('.ogg') || 
+            name.endsWith('.flac') || name.endsWith('.aac') || name.endsWith('.m4a') || 
+            mime.startsWith('audio/')
+        ) {
+            return <FileAudio size={size} className={className || "text-cyan-500"} />;
+        }
+
+        // 3. Video files (.mp4, .mkv, .avi, .mov, .webm, etc.)
+        if (
+            name.endsWith('.mp4') || name.endsWith('.mkv') || name.endsWith('.avi') || 
+            name.endsWith('.mov') || name.endsWith('.webm') || name.endsWith('.wmv') || 
+            name.endsWith('.flv') || mime.startsWith('video/')
+        ) {
+            return <FileVideo size={size} className={className || "text-purple-500"} />;
+        }
+
+        // 4. Code / Source files
+        if (
+            name.endsWith('.js') || name.endsWith('.jsx') || name.endsWith('.ts') || name.endsWith('.tsx') ||
+            name.endsWith('.html') || name.endsWith('.css') || name.endsWith('.json') || name.endsWith('.py') ||
+            name.endsWith('.go') || name.endsWith('.java') || name.endsWith('.cpp') || name.endsWith('.c') ||
+            name.endsWith('.php') || name.endsWith('.sh') || name.endsWith('.yaml') || name.endsWith('.yml') ||
+            name.endsWith('.xml') || name.endsWith('.sql') || name.endsWith('.md')
+        ) {
+            return <FileCode size={size} className={className || "text-indigo-500"} />;
+        }
+
+        // 5. Word / Text documents
+        if (name.endsWith('.docx') || name.endsWith('.doc') || name.endsWith('.txt') || name.endsWith('.rtf') || name.endsWith('.log')) {
+            return <FileText size={size} className={className || "text-blue-600"} />;
+        }
+
+        // 6. Excel / Spreadsheets
+        if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv')) {
+            return <FileSpreadsheet size={size} className={className || "text-green-600"} />;
+        }
+
+        // 7. Powerpoint / Presentation
+        if (name.endsWith('.pptx') || name.endsWith('.ppt')) {
+            return <Presentation size={size} className={className || "text-orange-500"} />;
+        }
+
+        // 8. PDF
+        if (name.endsWith('.pdf') || mime === 'application/pdf') {
+            return <FileText size={size} className={className || "text-red-500"} />;
+        }
+
+        // 9. Images
+        if (
+            name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png') || 
+            name.endsWith('.gif') || name.endsWith('.webp') || name.endsWith('.bmp') || 
+            name.endsWith('.svg') || name.endsWith('.ico') || mime.startsWith('image/')
+        ) {
+            return <ImageIcon size={size} className={className || "text-pink-500"} />;
+        }
+
+        // Default fallback
+        return <FileIcon size={size} className={className || "text-slate-500"} />;
     };
 
     const formatSize = (bytes: number) => {
@@ -1809,7 +1870,7 @@ export default function Dashboard() {
                                                 {/* Item header */}
                                                 <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
                                                     <div className={`p-2.5 rounded-xl ${group.itemType === 'folder' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'}`}>
-                                                        {group.itemType === 'folder' ? <FolderIcon size={20} /> : <FileIcon size={20} />}
+                                                        {group.itemType === 'folder' ? <FolderIcon size={20} /> : getFileIcon(group.itemName, '', 20)}
                                                     </div>
                                                     <div>
                                                         <span className="font-bold text-slate-800 dark:text-slate-200 text-[15px]">{group.itemName}</span>
@@ -3070,7 +3131,7 @@ export default function Dashboard() {
                             ) : (
                                 <div className="text-white flex flex-col items-center max-w-2xl text-center bg-white/5 p-12 rounded-3xl border border-white/10 backdrop-blur-lg">
                                     <div className="p-6 bg-white/10 rounded-full mb-6">
-                                        <FileIcon size={64} className="text-white/80" />
+                                        {getFileIcon(previewFile.name, previewFile.mime_type, 64, "text-white/80")}
                                     </div>
                                     <h3 className="text-xl font-semibold mb-2">Tidak ada preview tersedia</h3>
                                     <p className="text-white/60 mb-6 leading-relaxed">Tipe file ini ({previewFile.mime_type || 'unknown'}) tidak dapat ditampilkan secara langsung pad browser Anda.</p>
