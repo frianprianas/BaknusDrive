@@ -100,7 +100,10 @@ func SyncMailcowUsers() error {
 		return fmt.Errorf("failed to parse Mailcow JSON: %v", err)
 	}
 
+	// Build map of active mailboxes
+	activeEmails := make(map[string]bool)
 	for _, mb := range mailboxes {
+		activeEmails[mb.Username] = true
 		role := "Siswa" // default Role
 		if len(mb.Tags) > 0 {
 			role = mb.Tags[0]
@@ -153,6 +156,22 @@ func SyncMailcowUsers() error {
 			}
 			if err := DB.Save(&existingUser).Error; err != nil {
 				log.Printf("Failed to update user %s: %v", user.Email, err)
+			}
+		}
+	}
+
+	// Deactivate and Soft-delete users that are no longer in Mailcow
+	var localUsers []models.User
+	if err := DB.Find(&localUsers).Error; err == nil {
+		for _, lu := range localUsers {
+			if !activeEmails[lu.ID] {
+				lu.IsActive = false
+				DB.Save(&lu)
+				if err := DB.Delete(&lu).Error; err != nil {
+					log.Printf("Failed to soft-delete user %s: %v", lu.ID, err)
+				} else {
+					log.Printf("Soft-deleted user %s (no longer in Mailcow)", lu.ID)
+				}
 			}
 		}
 	}
