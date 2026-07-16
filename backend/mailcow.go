@@ -82,6 +82,8 @@ func LoadStudentClasses() map[string]string {
 	loadCSV("backend/XII_PPLG.csv")
 	loadCSV("kls_12.csv")
 	loadCSV("backend/kls_12.csv")
+	loadCSV("kls_XI.csv")
+	loadCSV("backend/kls_XI.csv")
 
 	log.Printf("Successfully loaded %d student classes from CSV files", len(classes))
 	return classes
