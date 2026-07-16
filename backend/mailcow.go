@@ -1,11 +1,14 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"baknusdrive/models"
 )
@@ -21,6 +24,67 @@ type MailcowMailbox struct {
 	Quota    int64    `json:"quota"` // Quote might be in bytes or MB based on Mailcow settings, mostly bytes.
 	Tags     []string `json:"tags"`
 }
+
+func LoadStudentClasses() map[string]string {
+	classes := make(map[string]string)
+	file, err := os.Open("XII_PPLG.csv")
+	if err != nil {
+		file, err = os.Open("backend/XII_PPLG.csv")
+		if err != nil {
+			log.Printf("XII_PPLG.csv not found, skipping class sync: %v", err)
+			return classes
+		}
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	reader.Comma = ';'
+
+	header, err := reader.Read()
+	if err != nil {
+		log.Printf("Failed to read CSV header: %v", err)
+		return classes
+	}
+
+	emailIdx := -1
+	classIdx := -1
+	for i, h := range header {
+		cleanH := strings.ToUpper(strings.TrimSpace(h))
+		if cleanH == "EMAIL" {
+			emailIdx = i
+		} else if cleanH == "KELAS" {
+			classIdx = i
+		}
+	}
+
+	if emailIdx == -1 || classIdx == -1 {
+		log.Printf("Invalid CSV header, missing EMAIL or KELAS")
+		return classes
+	}
+
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Printf("Failed to read CSV record: %v", err)
+			continue
+		}
+
+		if len(record) > emailIdx && len(record) > classIdx {
+			email := strings.ToLower(strings.TrimSpace(record[emailIdx]))
+			class := strings.TrimSpace(record[classIdx])
+			if email != "" && class != "" {
+				classes[email] = class
+			}
+		}
+	}
+
+	log.Printf("Successfully loaded %d student classes from XII_PPLG.csv", len(classes))
+	return classes
+}
+
 
 func FetchExternalUserInfo(email string) (whatsapp string) {
 	resp, err := http.Get(fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/auth/info/%s", email))
@@ -71,6 +135,9 @@ func FetchExternalUserInfo(email string) (whatsapp string) {
 }
 
 func SyncMailcowUsers() error {
+	// Load student classes
+	studentClasses := LoadStudentClasses()
+
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/get/mailbox/all", MailcowURL), nil)
 	if err != nil {
 		return err
@@ -113,11 +180,18 @@ func SyncMailcowUsers() error {
 			quota = 10737418240 // 10 GB
 		}
 
+		class := ""
+		if c, ok := studentClasses[strings.ToLower(mb.Username)]; ok {
+			class = c
+			role = "Siswa" // Ensure role is Siswa if mapped in student classes
+		}
+
 		user := models.User{
 			ID:       mb.Username,
 			Email:    mb.Username,
 			FullName: mb.Name,
 			Role:     role,
+			Class:    class,
 			Quota:    quota,
 			IsActive: true,
 			Avatar:   fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/auth/avatar/%s", mb.Username),
@@ -153,6 +227,9 @@ func SyncMailcowUsers() error {
 
 			if user.FullName != mb.Username && user.FullName != "" {
 				existingUser.FullName = user.FullName
+			}
+			if user.Class != "" {
+				existingUser.Class = user.Class
 			}
 			if err := DB.Save(&existingUser).Error; err != nil {
 				log.Printf("Failed to update user %s: %v", user.Email, err)
