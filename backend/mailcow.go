@@ -27,61 +27,63 @@ type MailcowMailbox struct {
 
 func LoadStudentClasses() map[string]string {
 	classes := make(map[string]string)
-	file, err := os.Open("XII_PPLG.csv")
-	if err != nil {
-		file, err = os.Open("backend/XII_PPLG.csv")
+
+	loadCSV := func(filepath string) {
+		file, err := os.Open(filepath)
 		if err != nil {
-			log.Printf("XII_PPLG.csv not found, skipping class sync: %v", err)
-			return classes
+			return
 		}
-	}
-	defer file.Close()
+		defer file.Close()
 
-	reader := csv.NewReader(file)
-	reader.Comma = ';'
+		reader := csv.NewReader(file)
+		reader.Comma = ';'
 
-	header, err := reader.Read()
-	if err != nil {
-		log.Printf("Failed to read CSV header: %v", err)
-		return classes
-	}
-
-	emailIdx := -1
-	classIdx := -1
-	for i, h := range header {
-		cleanH := strings.ToUpper(strings.TrimSpace(h))
-		if cleanH == "EMAIL" {
-			emailIdx = i
-		} else if cleanH == "KELAS" {
-			classIdx = i
-		}
-	}
-
-	if emailIdx == -1 || classIdx == -1 {
-		log.Printf("Invalid CSV header, missing EMAIL or KELAS")
-		return classes
-	}
-
-	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
+		header, err := reader.Read()
 		if err != nil {
-			log.Printf("Failed to read CSV record: %v", err)
-			continue
+			return
 		}
 
-		if len(record) > emailIdx && len(record) > classIdx {
-			email := strings.ToLower(strings.TrimSpace(record[emailIdx]))
-			class := strings.TrimSpace(record[classIdx])
-			if email != "" && class != "" {
-				classes[email] = class
+		emailIdx := -1
+		classIdx := -1
+		for i, h := range header {
+			cleanH := strings.ToUpper(strings.TrimSpace(h))
+			if cleanH == "EMAIL" {
+				emailIdx = i
+			} else if cleanH == "KELAS" {
+				classIdx = i
+			}
+		}
+
+		if emailIdx == -1 || classIdx == -1 {
+			return
+		}
+
+		for {
+			record, err := reader.Read()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				continue
+			}
+
+			if len(record) > emailIdx && len(record) > classIdx {
+				email := strings.ToLower(strings.TrimSpace(record[emailIdx]))
+				class := strings.TrimSpace(record[classIdx])
+				if email != "" && class != "" {
+					classes[email] = class
+				}
 			}
 		}
 	}
 
-	log.Printf("Successfully loaded %d student classes from XII_PPLG.csv", len(classes))
+	// Load all available CSV files
+	loadCSV("XII_PPLG.csv")
+	loadCSV("backend/XII_PPLG.csv")
+	loadCSV("kls_12.csv")
+	loadCSV("backend/kls_12.csv")
+
+	log.Printf("Successfully loaded %d student classes from CSV files", len(classes))
 	return classes
 }
 
