@@ -492,7 +492,7 @@ func WopiLock(c *gin.Context) {
 
 	// Validate token
 	accessToken := c.Query("access_token")
-	userID, _ := resolveWopiToken(accessToken, fileID)
+	userID, _, _ := resolveWopiToken(accessToken, fileID)
 	if userID == "" {
 		internalToken := os.Getenv("INTERNAL_SYSTEM_TOKEN")
 		if accessToken != internalToken {
