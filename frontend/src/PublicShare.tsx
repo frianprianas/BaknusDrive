@@ -139,8 +139,8 @@ export default function PublicShare() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 w-full max-w-lg border border-slate-100 dark:border-slate-700 mt-[-10vh]">
+        <div className="h-full overflow-y-auto flex flex-col items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 w-full max-w-lg border border-slate-100 dark:border-slate-700 my-auto">
 
                 {/* Logo Section */}
                 <div className="flex justify-center mb-8">

@@ -127,7 +127,7 @@ const FormSubmission: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900">
+            <div className="h-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900">
                 <Loader2 size={48} className="animate-spin text-indigo-600 mb-4" />
                 <p className="text-slate-500 font-medium">Memuat formulir...</p>
             </div>
@@ -136,8 +136,8 @@ const FormSubmission: React.FC = () => {
 
     if (error) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl max-w-md w-full text-center">
+            <div className="h-full overflow-y-auto flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
+                <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl max-w-md w-full text-center my-auto">
                     <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500">
                         <AlertCircle size={40} />
                     </div>
@@ -153,8 +153,8 @@ const FormSubmission: React.FC = () => {
 
     if (submitted) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
-                <div className="bg-white dark:bg-slate-800 p-10 rounded-[40px] shadow-xl max-w-xl w-full text-center animate-in zoom-in duration-500">
+            <div className="h-full overflow-y-auto flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
+                <div className="bg-white dark:bg-slate-800 p-10 rounded-[40px] shadow-xl max-w-xl w-full text-center animate-in zoom-in duration-500 my-auto">
                     <div className="w-24 h-24 bg-green-50 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-8 text-green-500">
                         <CheckCircle2 size={56} />
                     </div>
@@ -171,7 +171,7 @@ const FormSubmission: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen overflow-y-auto bg-[#f0f4f9] dark:bg-slate-950 px-4 py-12 md:py-20 relative">
+        <div className="h-full overflow-y-auto bg-[#f0f4f9] dark:bg-slate-950 px-4 py-12 md:py-20 relative">
             {/* Login Modal */}
             {showLoginModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">

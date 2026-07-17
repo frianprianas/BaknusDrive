@@ -34,11 +34,11 @@ export default function Login() {
 
     return (
         <div
-            className="w-full h-full flex items-center justify-center p-4 bg-cover bg-center relative bg-[url('/bg_mobile.png')] md:bg-[url('/bg_image.png')]"
+            className="w-full h-full overflow-y-auto flex flex-col items-center justify-center p-4 bg-cover bg-center relative bg-[url('/bg_mobile.png')] md:bg-[url('/bg_image.png')]"
         >
             <div className="absolute inset-0 bg-slate-900/60 z-0 backdrop-blur-[2px]"></div>
 
-            <div className="w-full max-w-md glass rounded-3xl p-8 relative z-10 overflow-hidden group border border-white/20 shadow-2xl">
+            <div className="w-full max-w-md glass rounded-3xl p-8 relative z-10 overflow-hidden group border border-white/20 shadow-2xl my-auto">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-baknus-400 via-white to-baknus-600"></div>
 
                 <div className="flex flex-col items-center mb-8">
