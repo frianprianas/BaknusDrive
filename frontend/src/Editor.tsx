@@ -13,6 +13,7 @@ const Editor: React.FC = () => {
     const [fileName, setFileName] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [canWrite, setCanWrite] = useState(true);
 
     useEffect(() => {
         if (!token) {
@@ -25,13 +26,14 @@ const Editor: React.FC = () => {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(resp => {
-                const { url, file_name } = resp.data;
+                const { url, file_name, can_write } = resp.data;
                 if (!url) {
                     setError('Gagal mendapatkan URL editor dari server.');
                     return;
                 }
                 setCollaboraUrl(url);
                 setFileName(file_name || '');
+                setCanWrite(can_write !== false);
             })
             .catch(err => {
                 console.error('Failed to open doc:', err);
@@ -64,10 +66,17 @@ const Editor: React.FC = () => {
                         </>
                     )}
                     <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-700 mx-1" />
-                    <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
-                        Kolaborasi
-                    </span>
+                    {canWrite ? (
+                        <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
+                            Kolaborasi
+                        </span>
+                    ) : (
+                        <span className="text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1" title="Anda hanya memiliki hak akses untuk melihat dokumen ini. Perubahan tidak akan disimpan.">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                            Lihat Saja
+                        </span>
+                    )}
                 </div>
             </div>
 

@@ -21,6 +21,8 @@ type File struct {
 	OwnerRole        string         `gorm:"-" json:"owner_role,omitempty"`
 	IsShared         bool           `gorm:"-" json:"is_shared,omitempty"`
 	IsSpecial        bool           `gorm:"-" json:"is_special,omitempty"`
+	CanEdit          bool           `gorm:"-" json:"can_edit"`
+	CanDownload      bool           `gorm:"-" json:"can_download"`
 	IsStarred        bool           `gorm:"default:false" json:"is_starred"`
 	IsPublic         bool           `gorm:"default:false" json:"is_public"`
 	PublicPassword   *string        `json:"public_password,omitempty"`   // null if no password

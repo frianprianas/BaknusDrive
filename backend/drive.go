@@ -179,6 +179,9 @@ func ListDrive(c *gin.Context) {
 		DB.Preload("User").Where("user_id = ? AND folder_id IS NULL AND device_id IS NULL", userID).Find(&files)
 	}
 
+	var currentUser models.User
+	DB.Where("id = ?", userID).First(&currentUser)
+
 	for i := range folders {
 		if folders[i].UserID != userID {
 			folders[i].OwnerName = folders[i].User.FullName
@@ -188,6 +191,7 @@ func ListDrive(c *gin.Context) {
 		var count int64
 		DB.Model(&models.Share{}).Where("folder_id = ?", folders[i].ID).Count(&count)
 		folders[i].IsShared = count > 0
+		folders[i].CanEdit, folders[i].CanDownload = GetItemPermissions(currentUser, folders[i].UserID, &folders[i].ID, nil)
 	}
 	for i := range files {
 		if files[i].UserID != userID {
@@ -198,6 +202,7 @@ func ListDrive(c *gin.Context) {
 		var count int64
 		DB.Model(&models.Share{}).Where("file_id = ?", files[i].ID).Count(&count)
 		files[i].IsShared = count > 0
+		files[i].CanEdit, files[i].CanDownload = GetItemPermissions(currentUser, files[i].UserID, files[i].FolderID, &files[i].ID)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -510,7 +515,9 @@ func DownloadFile(c *gin.Context) {
 			if errShare := DB.Where("file_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", fileID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error; errShare == nil {
 				// File is directly shared
 				if errSharedItem := DB.Where("id = ?", fileID).First(&file).Error; errSharedItem == nil {
-					goto proceedDownload
+					if share.CanDownload {
+						goto proceedDownload
+					}
 				}
 			} else {
 				// File might be inside a shared folder, evaluate its parent
@@ -532,17 +539,23 @@ func DownloadFile(c *gin.Context) {
 								currentFolderID = fld.ParentID
 							}
 							if file.UserID == userID || parentShare.SharedBy == userID {
-								goto proceedDownload
+								_, canDownload := GetItemPermissions(currentUser, file.UserID, file.FolderID, &file.ID)
+								if canDownload {
+									goto proceedDownload
+								}
 							}
 						} else {
-							goto proceedDownload
+							_, canDownload := GetItemPermissions(currentUser, file.UserID, file.FolderID, &file.ID)
+							if canDownload {
+								goto proceedDownload
+							}
 						}
 					}
 				}
 			}
 		}
 
-		c.JSON(http.StatusNotFound, gin.H{"error": "File not found or access denied"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "File not found or download is disabled for this file"})
 		return
 	}
 
@@ -600,9 +613,18 @@ func DownloadFolder(c *gin.Context) {
 	}
 
 	// Verify access
-	if folder.UserID != userID && !HasAccessToFolder(userID, fid) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-		return
+	if folder.UserID != userID {
+		if !HasAccessToFolder(userID, fid) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+			return
+		}
+		var currentUser models.User
+		DB.Where("id = ?", userID).First(&currentUser)
+		_, canDownload := GetItemPermissions(currentUser, folder.UserID, &fid, nil)
+		if !canDownload {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Download is disabled for this shared folder"})
+			return
+		}
 	}
 
 	// Set headers for zip stream

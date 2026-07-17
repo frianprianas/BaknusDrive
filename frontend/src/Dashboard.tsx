@@ -55,6 +55,8 @@ export default function Dashboard() {
 
     const [shareModal, setShareModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null }>({ visible: false, item: null, type: null });
     const [isBlindDrop, setIsBlindDrop] = useState(false);
+    const [canEdit, setCanEdit] = useState(true);
+    const [canDownload, setCanDownload] = useState(true);
     const [aiModal, setAiModal] = useState<{ visible: boolean, folder: any, analysis: string, loading: boolean, error: string }>({
         visible: false,
         folder: null,
@@ -1159,6 +1161,8 @@ export default function Dashboard() {
         const type = contextMenu.type as 'file' | 'folder';
         setShareModal({ visible: true, item, type });
         setIsBlindDrop(false);
+        setCanEdit(true);
+        setCanDownload(true);
         setContextMenu({ ...contextMenu, visible: false });
         // Load existing shares for this item
         fetchItemShares(item.id, type);
@@ -1200,7 +1204,9 @@ export default function Dashboard() {
                 id: shareModal.item.id,
                 type: shareModal.type,
                 shared_with: target,
-                is_blind_drop: isBlindDrop
+                is_blind_drop: isBlindDrop,
+                can_edit: canEdit,
+                can_download: canDownload
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -2571,14 +2577,18 @@ export default function Dashboard() {
                                                             <RotateCcw size={18} />
                                                         </button>
                                                     ) : currentView === 'shared' ? (
-                                                        <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDownloadFile(f.id, f.name); }} className="p-2 hover:bg-slate-200 rounded-full text-blue-500" title="Download">
-                                                            <Download size={18} />
-                                                        </button>
-                                                    ) : (
-                                                        <>
+                                                        f.can_download !== false && (
                                                             <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDownloadFile(f.id, f.name); }} className="p-2 hover:bg-slate-200 rounded-full text-blue-500" title="Download">
                                                                 <Download size={18} />
                                                             </button>
+                                                        )
+                                                    ) : (
+                                                        <>
+                                                            {f.can_download !== false && (
+                                                                <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDownloadFile(f.id, f.name); }} className="p-2 hover:bg-slate-200 rounded-full text-blue-500" title="Download">
+                                                                    <Download size={18} />
+                                                                </button>
+                                                            )}
                                                             <button onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDeleteFile(f); }} className="p-2 hover:bg-slate-200 rounded-full text-red-500" title="Delete">
                                                                 <Trash2 size={18} />
                                                             </button>
@@ -2721,7 +2731,7 @@ export default function Dashboard() {
                             )
                         ) : contextMenu.item ? (
                             <>
-                                {(contextMenu.type === 'file' || contextMenu.type === 'folder') && (
+                                {(contextMenu.type === 'file' || contextMenu.type === 'folder') && contextMenu.item?.can_download !== false && (
                                     <>
                                         <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => {
                                             if (contextMenu.type === 'file') {
@@ -2938,27 +2948,69 @@ export default function Dashboard() {
                             </div>
 
                             <div className="p-6 flex-1 overflow-y-auto">
-                                {shareModal.type === 'folder' && (
-                                    <div className="mb-6 bg-slate-50 border border-slate-200 rounded-xl p-4">
-                                        <label className="flex items-center justify-between cursor-pointer">
-                                            <div>
-                                                <div className="text-sm font-semibold text-slate-800">Mode Share: Khusus (Tugas)</div>
-                                                <div className="text-xs text-slate-500 mt-1 max-w-[320px]">
-                                                    Penerima hanya bisa melihat file yang mereka upload sendiri. Cocok untuk pengumpulan tugas kelas.
+                                <div className="mb-6 bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
+                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pengaturan Izin (Permissions)</div>
+                                    
+                                    <label className="flex items-center justify-between cursor-pointer">
+                                        <div>
+                                            <div className="text-sm font-semibold text-slate-800">Izinkan Edit (Kolaborasi)</div>
+                                            <div className="text-xs text-slate-500 mt-0.5">
+                                                Penerima dapat mengedit dokumen ini secara langsung (Collabora).
+                                            </div>
+                                        </div>
+                                        <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                                            <input 
+                                                type="checkbox" 
+                                                id="toggle-can-edit" 
+                                                checked={canEdit} 
+                                                onChange={(e) => setCanEdit(e.target.checked)} 
+                                                className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 checked:right-0 checked:border-blue-500 transition-all z-10" 
+                                            />
+                                            <label htmlFor="toggle-can-edit" className="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                                        </div>
+                                    </label>
+
+                                    <label className="flex items-center justify-between cursor-pointer border-t border-slate-200 pt-3">
+                                        <div>
+                                            <div className="text-sm font-semibold text-slate-800">Izinkan Unduh (Download & Copy)</div>
+                                            <div className="text-xs text-slate-500 mt-0.5">
+                                                Penerima dapat mengunduh file asli dan menyalin isi dokumen.
+                                            </div>
+                                        </div>
+                                        <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                                            <input 
+                                                type="checkbox" 
+                                                id="toggle-can-download" 
+                                                checked={canDownload} 
+                                                onChange={(e) => setCanDownload(e.target.checked)} 
+                                                className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 checked:right-0 checked:border-blue-500 transition-all z-10" 
+                                            />
+                                            <label htmlFor="toggle-can-download" className="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                                        </div>
+                                    </label>
+
+                                    {shareModal.type === 'folder' && (
+                                        <div className="border-t border-slate-200 pt-3">
+                                            <label className="flex items-center justify-between cursor-pointer">
+                                                <div>
+                                                    <div className="text-sm font-semibold text-slate-800">Mode Share: Khusus (Tugas)</div>
+                                                    <div className="text-xs text-slate-500 mt-0.5">
+                                                        Penerima hanya bisa melihat file yang mereka upload sendiri.
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
-                                                <input type="checkbox" name="toggle" id="toggle-blind-drop" checked={isBlindDrop} onChange={(e) => setIsBlindDrop(e.target.checked)} className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 checked:right-0 checked:border-blue-500 transition-all z-10" />
-                                                <label htmlFor="toggle-blind-drop" className="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
-                                            </div>
-                                        </label>
-                                        <style>{`
-                                            .toggle-checkbox:checked + .toggle-label { background-color: #3b82f6; }
-                                            .toggle-checkbox:checked { right: 0; border-color: #3b82f6; }
-                                            .toggle-checkbox { right: 24px; transition: right 0.2s; }
-                                        `}</style>
-                                    </div>
-                                )}
+                                                <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                                                    <input type="checkbox" name="toggle" id="toggle-blind-drop" checked={isBlindDrop} onChange={(e) => setIsBlindDrop(e.target.checked)} className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 checked:right-0 checked:border-blue-500 transition-all z-10" />
+                                                    <label htmlFor="toggle-blind-drop" className="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    )}
+                                    <style>{`
+                                        .toggle-checkbox:checked + .toggle-label { background-color: #3b82f6; }
+                                        .toggle-checkbox:checked { right: 0; border-color: #3b82f6; }
+                                        .toggle-checkbox { right: 24px; transition: right 0.2s; }
+                                    `}</style>
+                                </div>
                                 <label className="text-sm font-medium text-slate-700 mb-3 block">Bagikan cepat ke Tag / Role</label>
                                 <div className="mb-8 flex gap-3">
                                     <button onClick={() => submitShare('ROLE:Guru')} className="flex-1 bg-teal-50 hover:bg-teal-100 text-teal-700 font-medium py-3 rounded-xl transition-all border border-teal-200 shadow-sm flex flex-col items-center gap-1">
@@ -3094,9 +3146,11 @@ export default function Dashboard() {
                                 <span className="text-lg font-medium tracking-wide">{previewFile.name}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button onClick={() => handleDownloadFile(previewFile.id, previewFile.name)} className="p-2 hover:bg-white/20 rounded-full transition-colors flex items-center gap-2 px-4 bg-white/10 mr-2">
-                                    <Download size={20} /> <span className="text-sm font-medium">Download</span>
-                                </button>
+                                {previewFile.can_download !== false && (
+                                    <button onClick={() => handleDownloadFile(previewFile.id, previewFile.name)} className="p-2 hover:bg-white/20 rounded-full transition-colors flex items-center gap-2 px-4 bg-white/10 mr-2">
+                                        <Download size={20} /> <span className="text-sm font-medium">Download</span>
+                                    </button>
+                                )}
                                 <button onClick={closePreview} className="p-2 hover:bg-white/20 rounded-full transition-colors bg-white/10">
                                     <X size={24} />
                                 </button>
@@ -3122,15 +3176,23 @@ export default function Dashboard() {
                                     <h3 className="text-xl font-semibold mb-2">Tidak ada preview tersedia</h3>
                                     <p className="text-white/60 mb-6 leading-relaxed">Tipe file ini ({previewFile.mime_type || 'unknown'}) tidak dapat ditampilkan secara langsung pad browser Anda.</p>
 
-                                    {/\.(doc|docx|xls|xlsx|ppt|pptx|odt|ods|odp)$/i.test(previewFile.name) && (
+                                    {/\.(doc|docx|xls|xlsx|ppt|pptx|odt|ods|odp)$/i.test(previewFile.name) && previewFile.can_download !== false && (
                                         <p className="text-white/80 mb-8 text-[14px] bg-black/30 p-4 rounded-xl border border-white/5 shadow-inner">
                                             ℹ️ <b>Informasi:</b> Dokumen dari Microsoft Office atau aplikasi Perkantoran sejenisnya memerlukan aplikasi khusus di Desktop / HP untuk dapat dirender. Oleh karena itu, Anda harus mengunduh file ini terlebih dahulu.
                                         </p>
                                     )}
 
-                                    <button onClick={() => handleDownloadFile(previewFile.id, previewFile.name)} className="bg-blue-500 hover:bg-blue-600 px-8 py-3 rounded-full font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-blue-500/30">
-                                        <Download size={20} /> Download File
-                                    </button>
+                                    {previewFile.can_download === false && (
+                                        <p className="text-red-400 mb-8 text-[14px] bg-red-950/45 p-4 rounded-xl border border-red-500/30 shadow-inner">
+                                            ⚠️ <b>Akses Dibatasi:</b> Pemilik file telah menonaktifkan fitur download untuk dokumen ini.
+                                        </p>
+                                    )}
+
+                                    {previewFile.can_download !== false && (
+                                        <button onClick={() => handleDownloadFile(previewFile.id, previewFile.name)} className="bg-blue-500 hover:bg-blue-600 px-8 py-3 rounded-full font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-blue-500/30">
+                                            <Download size={20} /> Download File
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>

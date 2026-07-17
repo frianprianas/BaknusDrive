@@ -116,6 +116,8 @@ type ShareReq struct {
 	ID          uint   `json:"id" binding:"required"`
 	SharedWith  string `json:"shared_with" binding:"required"`
 	IsBlindDrop bool   `json:"is_blind_drop"`
+	CanEdit     *bool  `json:"can_edit"`
+	CanDownload *bool  `json:"can_download"`
 }
 
 func ShareItem(c *gin.Context) {
@@ -156,6 +158,14 @@ func ShareItem(c *gin.Context) {
 	share.SharedBy = userID
 	share.SharedWith = req.SharedWith
 	share.IsBlindDrop = req.IsBlindDrop
+	share.CanEdit = true
+	if req.CanEdit != nil {
+		share.CanEdit = *req.CanEdit
+	}
+	share.CanDownload = true
+	if req.CanDownload != nil {
+		share.CanDownload = *req.CanDownload
+	}
 
 	if req.Type == "file" {
 		var file models.File
@@ -283,12 +293,15 @@ func ListMyShares(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 
 	type ShareEntry struct {
-		ShareID    uint        `json:"share_id"`
-		SharedWith string      `json:"shared_with"`
-		ItemType   string      `json:"item_type"` // "file" or "folder"
-		ItemID     interface{} `json:"item_id"`
-		ItemName   string      `json:"item_name"`
-		CreatedAt  interface{} `json:"created_at"`
+		ShareID     uint        `json:"share_id"`
+		SharedWith  string      `json:"shared_with"`
+		ItemType    string      `json:"item_type"` // "file" or "folder"
+		ItemID      interface{} `json:"item_id"`
+		ItemName    string      `json:"item_name"`
+		IsBlindDrop bool        `json:"is_blind_drop"`
+		CanEdit     bool        `json:"can_edit"`
+		CanDownload bool        `json:"can_download"`
+		CreatedAt   interface{} `json:"created_at"`
 	}
 
 	var shares []models.Share
@@ -300,9 +313,12 @@ func ListMyShares(c *gin.Context) {
 	var result []ShareEntry
 	for _, s := range shares {
 		entry := ShareEntry{
-			ShareID:    s.ID,
-			SharedWith: s.SharedWith,
-			CreatedAt:  s.CreatedAt,
+			ShareID:     s.ID,
+			SharedWith:  s.SharedWith,
+			IsBlindDrop: s.IsBlindDrop,
+			CanEdit:     s.CanEdit,
+			CanDownload: s.CanDownload,
+			CreatedAt:   s.CreatedAt,
 		}
 		if s.FileID != nil && s.File != nil {
 			entry.ItemType = "file"
@@ -339,14 +355,17 @@ func ListSharedWithMe(c *gin.Context) {
 		Where("LOWER(shared_with) = LOWER(?) OR LOWER(shared_with) = LOWER(?) OR LOWER(shared_with) = LOWER(?)", userEmail, "ROLE:"+userRole, "CLASS:"+currentUser.Class).
 		Find(&shares)
 
-	// Use anonymous structs so share_id is included in JSON without touching the GORM model
 	type SharedFile struct {
 		models.File
-		ShareID uint `json:"share_id"`
+		ShareID     uint `json:"share_id"`
+		CanEdit     bool `json:"can_edit"`
+		CanDownload bool `json:"can_download"`
 	}
 	type SharedFolder struct {
 		models.Folder
-		ShareID uint `json:"share_id"`
+		ShareID     uint `json:"share_id"`
+		CanEdit     bool `json:"can_edit"`
+		CanDownload bool `json:"can_download"`
 	}
 
 	var files []SharedFile
@@ -381,7 +400,7 @@ func ListSharedWithMe(c *gin.Context) {
 				} else {
 					f.OwnerName = s.SharedBy
 				}
-				files = append(files, SharedFile{File: f, ShareID: s.ID})
+				files = append(files, SharedFile{File: f, ShareID: s.ID, CanEdit: s.CanEdit, CanDownload: s.CanDownload})
 				seenFiles[*s.FileID] = true
 			}
 		} else if s.FolderID != nil && s.Folder != nil {
@@ -409,7 +428,7 @@ func ListSharedWithMe(c *gin.Context) {
 				} else {
 					f.OwnerName = s.SharedBy
 				}
-				folders = append(folders, SharedFolder{Folder: f, ShareID: s.ID})
+				folders = append(folders, SharedFolder{Folder: f, ShareID: s.ID, CanEdit: s.CanEdit, CanDownload: s.CanDownload})
 				seenFolders[*s.FolderID] = true
 			}
 		}
@@ -641,4 +660,37 @@ func DownloadPublicFolder(c *gin.Context) {
 	if err := zipWriter.Close(); err != nil {
 		log.Printf("Error closing zip writer: %v", err)
 	}
+}
+
+// GetItemPermissions checks recursively if a folder/file has share settings
+// and returns (canEdit, canDownload). Owners and Admins always get true, true.
+func GetItemPermissions(currentUser models.User, itemUserID string, folderID *uint, fileID *uint) (bool, bool) {
+	if itemUserID == currentUser.ID || strings.ToLower(currentUser.Role) == "admin" {
+		return true, true
+	}
+
+	// 1. Check direct file share first
+	if fileID != nil {
+		var share models.Share
+		if err := DB.Where("file_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", *fileID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error; err == nil {
+			return share.CanEdit, share.CanDownload
+		}
+	}
+
+	// 2. Check parent folder shares recursively
+	currentFolderID := folderID
+	for currentFolderID != nil && *currentFolderID != 0 {
+		var share models.Share
+		if err := DB.Where("folder_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", *currentFolderID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error; err == nil {
+			return share.CanEdit, share.CanDownload
+		}
+
+		var parentFolder models.Folder
+		if err := DB.Where("id = ?", *currentFolderID).First(&parentFolder).Error; err != nil || parentFolder.ParentID == nil {
+			break
+		}
+		currentFolderID = parentFolder.ParentID
+	}
+
+	return false, false
 }

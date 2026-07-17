@@ -128,53 +128,63 @@ func OpenDoc(c *gin.Context) {
 		return
 	}
 
-	// Determine if user can write
-	canWrite := file.UserID == userID
-	if !canWrite {
-		// Check if shared with write access (current model: all shares allow write)
-		var currentUser models.User
-		if err := DB.Where("id = ?", userID).First(&currentUser).Error; err == nil {
-			var share models.Share
-			if DB.Where("file_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)",
-				fileID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error == nil {
-				canWrite = true
-			} else if file.FolderID != nil {
-				hasAccess, isBlindDrop := CheckFolderAccess(userID, *file.FolderID)
-				if hasAccess {
-					if isBlindDrop {
-						var parentShare models.Share
-						currentFolderID := file.FolderID
-						for currentFolderID != nil {
-							if errShare := DB.Where("folder_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", *currentFolderID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&parentShare).Error; errShare == nil {
-								break
-							}
-							var fld models.Folder
-							if errFld := DB.Where("id = ?", *currentFolderID).First(&fld).Error; errFld != nil || fld.ParentID == nil {
-								break
-							}
-							currentFolderID = fld.ParentID
+	// Determine if user has view access and what permissions they have
+	var hasViewAccess bool
+	var canWrite bool
+	var canDownload bool
+
+	var currentUser models.User
+	DB.Where("id = ?", userID).First(&currentUser)
+
+	if file.UserID == userID || strings.ToLower(currentUser.Role) == "admin" {
+		hasViewAccess = true
+		canWrite = true
+		canDownload = true
+	} else {
+		// Check direct file share
+		var share models.Share
+		if DB.Where("file_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", fileID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error == nil {
+			hasViewAccess = true
+			canWrite = share.CanEdit
+			canDownload = share.CanDownload
+		} else if file.FolderID != nil {
+			hasAccess, isBlindDrop := CheckFolderAccess(userID, *file.FolderID)
+			if hasAccess {
+				if isBlindDrop {
+					var parentShare models.Share
+					currentFolderID := file.FolderID
+					for currentFolderID != nil {
+						if errShare := DB.Where("folder_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", *currentFolderID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&parentShare).Error; errShare == nil {
+							break
 						}
-						if file.UserID == userID || parentShare.SharedBy == userID {
-							canWrite = true
+						var fld models.Folder
+						if errFld := DB.Where("id = ?", *currentFolderID).First(&fld).Error; errFld != nil || fld.ParentID == nil {
+							break
 						}
-					} else {
-						canWrite = true
+						currentFolderID = fld.ParentID
 					}
+					if file.UserID == userID || parentShare.SharedBy == userID {
+						hasViewAccess = true
+						canWrite, canDownload = GetItemPermissions(currentUser, file.UserID, file.FolderID, &file.ID)
+					}
+				} else {
+					hasViewAccess = true
+					canWrite, canDownload = GetItemPermissions(currentUser, file.UserID, file.FolderID, &file.ID)
 				}
 			}
 		}
 	}
 
-	if !canWrite && file.UserID != userID {
+	if !hasViewAccess {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
 
 	// ── Generate per-user WOPI access token (TTL 8 hours) ──
-	// Key: "wopi_token:<token>"  Value: "<userID>:<fileID>"
+	// Key: "wopi_token:<token>"  Value: "<userID>|<fileID>|<canWrite>|<canDownload>"
 	token := fmt.Sprintf("wopi_%s_%d_%d", userID, fileID, time.Now().UnixNano())
 	tokenKey := "wopi_token:" + token
-	tokenValue := fmt.Sprintf("%s|%d", userID, fileID)
+	tokenValue := fmt.Sprintf("%s|%d|%t|%t", userID, fileID, canWrite, canDownload)
 	if err := RedisClient.Set(context.Background(), tokenKey, tokenValue, 8*time.Hour).Err(); err != nil {
 		log.Printf("[OpenDoc] Failed to store WOPI token in Redis: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create editor session"})
@@ -182,13 +192,9 @@ func OpenDoc(c *gin.Context) {
 	}
 
 	// ── Build WOPI src URL (Collabora uses this to call back to backend for file info) ──
-	// WopiPublicBaseURL must be reachable by the Collabora container (internal Docker: http://backend:8080)
 	wopiSrc := fmt.Sprintf("%s/wopi/files/%d", WopiPublicBaseURL, fileID)
 
 	// ── Build the final Collabora URL ──
-	// Modern Collabora CODE uses /browser/dist/cool.html (not the old /loleaflet path)
-	// CollaboraPublicURL = https://baknusdrive.smkbn666.sch.id
-	// Nginx routes /browser and /cool to Collabora container on port 8085
 	collaboraURL := fmt.Sprintf(
 		"%s/browser/dist/cool.html?WOPISrc=%s&access_token=%s&lang=id",
 		CollaboraPublicURL,
@@ -199,12 +205,13 @@ func OpenDoc(c *gin.Context) {
 	log.Printf("[OpenDoc] User=%s FileID=%d → %s", userID, fileID, collaboraURL)
 
 	c.JSON(http.StatusOK, gin.H{
-		"url":       collaboraURL,
-		"token":     token,
-		"file_id":   fileID,
-		"file_name": file.Name,
-		"can_write": canWrite,
-		"wopi_src":  wopiSrc,
+		"url":          collaboraURL,
+		"token":        token,
+		"file_id":      fileID,
+		"file_name":    file.Name,
+		"can_write":    canWrite,
+		"can_download": canDownload,
+		"wopi_src":     wopiSrc,
 	})
 }
 
@@ -266,7 +273,7 @@ func WopiCheckFileInfo(c *gin.Context) {
 
 	// ── Resolve user identity from WOPI token ──
 	accessToken := c.Query("access_token")
-	userID, canWrite := resolveWopiToken(accessToken, fileID)
+	userID, canWrite, canDownload := resolveWopiToken(accessToken, fileID)
 	if userID == "" {
 		// Fallback to INTERNAL_DOC_TOKEN for system access (legacy)
 		internalToken := os.Getenv("INTERNAL_SYSTEM_TOKEN")
@@ -283,6 +290,7 @@ func WopiCheckFileInfo(c *gin.Context) {
 		}
 		userID = f.UserID
 		canWrite = true
+		canDownload = true
 	}
 
 	var file models.File
@@ -312,43 +320,51 @@ func WopiCheckFileInfo(c *gin.Context) {
 		"Version":          fmt.Sprintf("%d", file.UpdatedAt.Unix()),
 		// Write permissions
 		"UserCanWrite":            canWrite,
-		"SupportsUpdate":          true,
+		"SupportsUpdate":          canWrite,
 		"UserCanNotWriteRelative": true,
 		// ── Collaboration fields (Collabora/LibreOffice Online) ──
 		"SupportsLocks":       true,
 		"SupportsCoauthoring": true,
 		// PostMessage for close button
 		"PostMessageOrigin": "https://baknusdrive.smkbn666.sch.id",
-		// Enable user list
-		"DisablePrint":     false,
-		"DisableExport":    false,
-		"DisableCopy":      false,
-		"HidePrintOption":  false,
-		"HideExportOption": false,
-		"HideSaveOption":   false,
+		// Enable user list & disable actions based on canDownload
+		"DisablePrint":     !canDownload,
+		"DisableExport":    !canDownload,
+		"DisableCopy":      !canDownload,
+		"HidePrintOption":  !canDownload,
+		"HideExportOption": !canDownload,
+		"HideSaveOption":   !canWrite,
 	})
 }
 
 // resolveWopiToken looks up "wopi_token:<token>" in Redis.
-// Returns (userID, canWrite). If not found, returns ("", false).
-func resolveWopiToken(token string, fileID int) (string, bool) {
+// Returns (userID, canWrite, canDownload). If not found, returns ("", false, false).
+func resolveWopiToken(token string, fileID int) (string, bool, bool) {
 	if token == "" {
-		return "", false
+		return "", false, false
 	}
 	val, err := RedisClient.Get(context.Background(), "wopi_token:"+token).Result()
 	if err != nil {
-		return "", false
+		return "", false, false
 	}
-	// val = "userID|fileID"
-	parts := strings.SplitN(val, "|", 2)
-	if len(parts) != 2 {
-		return "", false
+	// val = "userID|fileID|canWrite|canDownload"
+	parts := strings.Split(val, "|")
+	if len(parts) < 2 {
+		return "", false, false
 	}
 	storedFileID, _ := strconv.Atoi(parts[1])
 	if storedFileID != fileID {
-		return "", false
+		return "", false, false
 	}
-	return parts[0], true // canWrite is determined by share logic in OpenDoc; here assume true since token was issued
+	canWrite := true
+	if len(parts) >= 3 {
+		canWrite = parts[2] == "true"
+	}
+	canDownload := true
+	if len(parts) >= 4 {
+		canDownload = parts[3] == "true"
+	}
+	return parts[0], canWrite, canDownload
 }
 
 // ─────────────────────────────────────────────
@@ -360,7 +376,7 @@ func WopiGetFile(c *gin.Context) {
 
 	// Validate token
 	accessToken := c.Query("access_token")
-	userID, _ := resolveWopiToken(accessToken, fileID)
+	userID, _, _ := resolveWopiToken(accessToken, fileID)
 	if userID == "" {
 		internalToken := os.Getenv("INTERNAL_SYSTEM_TOKEN")
 		if accessToken != internalToken {
@@ -399,7 +415,7 @@ func WopiPutFile(c *gin.Context) {
 	log.Printf("[WOPI PutFile] fileID=%d token=%q method=%s", fileID, accessToken, c.Request.Method)
 
 	// Validate token
-	userID, canWrite := resolveWopiToken(accessToken, fileID)
+	userID, canWrite, _ := resolveWopiToken(accessToken, fileID)
 	if userID == "" {
 		internalToken := os.Getenv("INTERNAL_SYSTEM_TOKEN")
 		if accessToken != internalToken {
