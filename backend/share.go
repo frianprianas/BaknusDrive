@@ -677,7 +677,7 @@ func GetItemPermissions(currentUser models.User, itemUserID string, folderID *ui
 	if fileID != nil {
 		var share models.Share
 		if err := DB.Where("file_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", *fileID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error; err == nil {
-			return share.CanEdit, share.CanDownload
+			return share.CanEdit != nil && *share.CanEdit, share.CanDownload != nil && *share.CanDownload
 		}
 	}
 
@@ -686,7 +686,7 @@ func GetItemPermissions(currentUser models.User, itemUserID string, folderID *ui
 	for currentFolderID != nil && *currentFolderID != 0 {
 		var share models.Share
 		if err := DB.Where("folder_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", *currentFolderID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error; err == nil {
-			return share.CanEdit, share.CanDownload
+			return share.CanEdit != nil && *share.CanEdit, share.CanDownload != nil && *share.CanDownload
 		}
 
 		var parentFolder models.Folder

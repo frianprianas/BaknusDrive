@@ -537,7 +537,7 @@ func DownloadFile(c *gin.Context) {
 			if errShare := DB.Where("file_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", fileID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error; errShare == nil {
 				// File is directly shared
 				if errSharedItem := DB.Where("id = ?", fileID).First(&file).Error; errSharedItem == nil {
-					if share.CanDownload {
+					if share.CanDownload != nil && *share.CanDownload {
 						goto proceedDownload
 					}
 				}

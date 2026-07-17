@@ -145,8 +145,8 @@ func OpenDoc(c *gin.Context) {
 		var share models.Share
 		if DB.Where("file_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", fileID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error == nil {
 			hasViewAccess = true
-			canWrite = share.CanEdit
-			canDownload = share.CanDownload
+			canWrite = share.CanEdit != nil && *share.CanEdit
+			canDownload = share.CanDownload != nil && *share.CanDownload
 		} else if file.FolderID != nil {
 			hasAccess, isBlindDrop := CheckFolderAccess(userID, *file.FolderID)
 			if hasAccess {
