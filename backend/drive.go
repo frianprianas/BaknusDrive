@@ -78,6 +78,19 @@ func CheckFolderAccess(userID string, folderID uint) (bool, bool) {
 	for currentFolderID != nil {
 		var share models.Share
 		if err := DB.Where("folder_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", *currentFolderID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error; err == nil {
+			if share.IsBlindDrop {
+				// If the target folder is a subfolder of this blind drop (folderID != *currentFolderID),
+				// only the creator of the target folder or the share creator (share.SharedBy) is allowed access.
+				if folderID != *currentFolderID {
+					var targetFolder models.Folder
+					if err2 := DB.Where("id = ?", folderID).First(&targetFolder).Error; err2 == nil {
+						if targetFolder.UserID == userID || share.SharedBy == userID {
+							return true, true
+						}
+					}
+					return false, false
+				}
+			}
 			return true, share.IsBlindDrop
 		}
 
@@ -502,8 +515,28 @@ func DownloadFile(c *gin.Context) {
 			} else {
 				// File might be inside a shared folder, evaluate its parent
 				if errFileDetails := DB.Where("id = ?", fileID).First(&file).Error; errFileDetails == nil && file.FolderID != nil {
-					if HasAccessToFolder(userID, *file.FolderID) {
-						goto proceedDownload
+					hasAccess, isBlindDrop := CheckFolderAccess(userID, *file.FolderID)
+					if hasAccess {
+						if isBlindDrop {
+							// If it's a blind drop, only the file creator or the share owner who shared the folder can access it.
+							var parentShare models.Share
+							currentFolderID := file.FolderID
+							for currentFolderID != nil {
+								if errShare := DB.Where("folder_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", *currentFolderID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&parentShare).Error; errShare == nil {
+									break
+								}
+								var fld models.Folder
+								if errFld := DB.Where("id = ?", *currentFolderID).First(&fld).Error; errFld != nil || fld.ParentID == nil {
+									break
+								}
+								currentFolderID = fld.ParentID
+							}
+							if file.UserID == userID || parentShare.SharedBy == userID {
+								goto proceedDownload
+							}
+						} else {
+							goto proceedDownload
+						}
 					}
 				}
 			}

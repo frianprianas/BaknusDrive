@@ -138,8 +138,29 @@ func OpenDoc(c *gin.Context) {
 			if DB.Where("file_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)",
 				fileID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error == nil {
 				canWrite = true
-			} else if file.FolderID != nil && HasAccessToFolder(userID, *file.FolderID) {
-				canWrite = true
+			} else if file.FolderID != nil {
+				hasAccess, isBlindDrop := CheckFolderAccess(userID, *file.FolderID)
+				if hasAccess {
+					if isBlindDrop {
+						var parentShare models.Share
+						currentFolderID := file.FolderID
+						for currentFolderID != nil {
+							if errShare := DB.Where("folder_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", *currentFolderID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&parentShare).Error; errShare == nil {
+								break
+							}
+							var fld models.Folder
+							if errFld := DB.Where("id = ?", *currentFolderID).First(&fld).Error; errFld != nil || fld.ParentID == nil {
+								break
+							}
+							currentFolderID = fld.ParentID
+						}
+						if file.UserID == userID || parentShare.SharedBy == userID {
+							canWrite = true
+						}
+					} else {
+						canWrite = true
+					}
+				}
 			}
 		}
 	}

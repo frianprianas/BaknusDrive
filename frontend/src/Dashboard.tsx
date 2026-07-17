@@ -2744,23 +2744,6 @@ export default function Dashboard() {
                                         <RotateCcw size={16} className="text-green-500" />
                                         Restore
                                     </button>
-                                ) : currentView === 'shared' ? (
-                                    <button
-                                        className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-red-600 transition-colors"
-                                        onClick={async () => {
-                                            if (contextMenu.item?.share_id) {
-                                                if (!confirm('Hapus akses Anda ke item ini?')) return;
-                                                await handleUnshare(contextMenu.item.share_id);
-                                                fetchDriveData();
-                                                setContextMenu({ ...contextMenu, visible: false });
-                                            } else {
-                                                alert("Gagal menghapus akses: ID share tidak ditemukan.");
-                                            }
-                                        }}
-                                    >
-                                        <UserX size={16} className="text-red-500" />
-                                        Hapus Akses
-                                    </button>
                                 ) : (
                                     <>
                                         {contextMenu.type === 'folder' && contextMenu.item?.is_special && (contextMenu.item?.is_shared || user?.role?.toLowerCase() !== 'admin') && (
@@ -2775,65 +2758,68 @@ export default function Dashboard() {
                                                 <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
                                             </>
                                         )}
-                                        <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleShareMenu}>
-                                            <Share2 size={16} className="text-slate-500 dark:text-slate-400" />
-                                            Share
-                                        </button>
-                                        <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleToggleStar}>
-                                            <Star size={16} className={contextMenu.item.is_starred ? "text-yellow-400 fill-yellow-400" : "text-slate-500 dark:text-slate-400"} />
-                                            {contextMenu.item.is_starred ? "Remove from starred" : "Add to starred"}
-                                        </button>
-                                        {contextMenu.type === 'file' && (
+                                        {(contextMenu.item?.user_id === user?.id || contextMenu.item?.user_id === user?.email || user?.role?.toLowerCase() === 'admin') && (
                                             <>
-                                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleTogglePublic}>
-                                                    <Link size={16} className={contextMenu.item.is_public ? "text-green-500" : "text-slate-500 dark:text-slate-400"} />
-                                                    {contextMenu.item.is_public ? "Turn off public link" : "Get public link"}
+                                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleShareMenu}>
+                                                    <Share2 size={16} className="text-slate-500 dark:text-slate-400" />
+                                                    Share
                                                 </button>
-                                                {contextMenu.item.is_public && (
-                                                    <button
-                                                        className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-blue-600 dark:text-blue-400 transition-colors"
-                                                        onClick={() => {
-                                                            const link = `${window.location.origin}/api/public/${contextMenu.type}/${contextMenu.item.id}/download`;
-                                                            navigator.clipboard.writeText(link);
-                                                            // We assume baknusmail can handle compose via URL or at least the user can just paste the link they just copied
-                                                            window.open('https://baknusmail.smkbn666.sch.id', '_blank');
-                                                            setContextMenu({ ...contextMenu, visible: false });
-                                                        }}
-                                                    >
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                                                        Kirim Email (Copied)
-                                                    </button>
+                                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleToggleStar}>
+                                                    <Star size={16} className={contextMenu.item.is_starred ? "text-yellow-400 fill-yellow-400" : "text-slate-500 dark:text-slate-400"} />
+                                                    {contextMenu.item.is_starred ? "Remove from starred" : "Add to starred"}
+                                                </button>
+                                                {contextMenu.type === 'file' && (
+                                                    <>
+                                                        <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleTogglePublic}>
+                                                            <Link size={16} className={contextMenu.item.is_public ? "text-green-500" : "text-slate-500 dark:text-slate-400"} />
+                                                            {contextMenu.item.is_public ? "Turn off public link" : "Get public link"}
+                                                        </button>
+                                                        {contextMenu.item.is_public && (
+                                                            <button
+                                                                className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-blue-600 dark:text-blue-400 transition-colors"
+                                                                onClick={() => {
+                                                                    const link = `${window.location.origin}/api/public/${contextMenu.type}/${contextMenu.item.id}/download`;
+                                                                    navigator.clipboard.writeText(link);
+                                                                    window.open('https://baknusmail.smkbn666.sch.id', '_blank');
+                                                                    setContextMenu({ ...contextMenu, visible: false });
+                                                                }}
+                                                            >
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                                                                Kirim Email (Copied)
+                                                            </button>
+                                                        )}
+                                                    </>
                                                 )}
+                                                <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleRenameMenu}>
+                                                    <Edit2 size={16} className="text-slate-500 dark:text-slate-400" />
+                                                    Rename
+                                                </button>
+                                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => handleClipboardCopy(contextMenu.item, contextMenu.type as 'file' | 'folder')}>
+                                                    <Copy size={16} className="text-slate-500 dark:text-slate-400" />
+                                                    Copy
+                                                </button>
+                                                <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => handleClipboardCut(contextMenu.item, contextMenu.type as 'file' | 'folder')}>
+                                                    <ClipboardList size={16} className="text-slate-500 dark:text-slate-400" />
+                                                    Cut
+                                                </button>
+                                                <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                                                <button
+                                                    className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-red-600 transition-colors"
+                                                    onClick={() => {
+                                                        if (selectedItems.length > 1) {
+                                                            handleBulkDelete();
+                                                        } else {
+                                                            contextMenu.type === 'file' ? handleDeleteFile(contextMenu.item) : handleDeleteFolder(contextMenu.item);
+                                                        }
+                                                        setContextMenu({ ...contextMenu, visible: false });
+                                                    }}
+                                                >
+                                                    <Trash size={16} className="text-red-500" />
+                                                    {selectedItems.length > 1 ? `Remove Selected (${selectedItems.length})` : 'Remove'}
+                                                </button>
                                             </>
                                         )}
-                                        <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
-                                        <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleRenameMenu}>
-                                            <Edit2 size={16} className="text-slate-500 dark:text-slate-400" />
-                                            Rename
-                                        </button>
-                                        <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => handleClipboardCopy(contextMenu.item, contextMenu.type as 'file' | 'folder')}>
-                                            <Copy size={16} className="text-slate-500 dark:text-slate-400" />
-                                            Copy
-                                        </button>
-                                        <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={() => handleClipboardCut(contextMenu.item, contextMenu.type as 'file' | 'folder')}>
-                                            <ClipboardList size={16} className="text-slate-500 dark:text-slate-400" />
-                                            Cut
-                                        </button>
-                                        <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
-                                        <button
-                                            className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-red-600 transition-colors"
-                                            onClick={() => {
-                                                if (selectedItems.length > 1) {
-                                                    handleBulkDelete();
-                                                } else {
-                                                    contextMenu.type === 'file' ? handleDeleteFile(contextMenu.item) : handleDeleteFolder(contextMenu.item);
-                                                }
-                                                setContextMenu({ ...contextMenu, visible: false });
-                                            }}
-                                        >
-                                            <Trash size={16} className="text-red-500" />
-                                            {selectedItems.length > 1 ? `Remove Selected (${selectedItems.length})` : 'Remove'}
-                                        </button>
                                     </>
                                 )}
                             </>

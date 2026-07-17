@@ -264,8 +264,8 @@ func UnshareItem(c *gin.Context) {
 		return
 	}
 
-	isReceiver := share.SharedWith == currentUser.Email || share.SharedWith == "ROLE:"+currentUser.Role || share.SharedWith == "CLASS:"+currentUser.Class
-	if share.SharedBy != userID && !isReceiver {
+	isAdmin := strings.ToLower(currentUser.Role) == "admin"
+	if share.SharedBy != userID && !isAdmin {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized to unshare this item"})
 		return
 	}
