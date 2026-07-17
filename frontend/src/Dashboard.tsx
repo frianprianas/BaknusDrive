@@ -3114,9 +3114,18 @@ export default function Dashboard() {
                                                 }
                                                 return (
                                                     <div key={s.id} className={`flex items-center justify-between px-4 py-3 rounded-xl border ${badgeColor} border-opacity-50`}>
-                                                        <span className="text-sm font-medium flex items-center gap-2">
-                                                            <span>{icon}</span> {label}
-                                                        </span>
+                                                        <div className="flex flex-col gap-1.5">
+                                                            <span className="text-sm font-medium flex items-center gap-2">
+                                                                <span>{icon}</span> {label}
+                                                            </span>
+                                                            {(s.is_blind_drop || s.can_edit === false || s.can_download === false) && (
+                                                                <div className="flex flex-wrap gap-1.5 text-[10px] uppercase tracking-wider font-bold">
+                                                                    {s.is_blind_drop && <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md">Mode Tugas</span>}
+                                                                    {s.can_edit === false && <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-md">Read-Only</span>}
+                                                                    {s.can_download === false && <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-md">No Download</span>}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                         <button
                                                             onClick={() => handleUnshare(s.id)}
                                                             className="ml-4 p-1.5 rounded-lg bg-white/70 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors border border-transparent hover:border-red-200 shrink-0"
