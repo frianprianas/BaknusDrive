@@ -76,6 +76,7 @@ func CheckFolderAccess(userID string, folderID uint) (bool, bool) {
 
 	currentFolderID := &folderID
 	for currentFolderID != nil {
+		// 1. Check if user is the receiver of a share
 		var share models.Share
 		if err := DB.Where("folder_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", *currentFolderID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error; err == nil {
 			if share.IsBlindDrop {
@@ -92,6 +93,12 @@ func CheckFolderAccess(userID string, folderID uint) (bool, bool) {
 				}
 			}
 			return true, share.IsBlindDrop
+		}
+
+		// 2. Check if user is the creator (sender) of a share
+		var ownerShare models.Share
+		if err := DB.Where("folder_id = ? AND shared_by = ?", *currentFolderID, userID).First(&ownerShare).Error; err == nil {
+			return true, ownerShare.IsBlindDrop
 		}
 
 		var folder models.Folder
@@ -151,7 +158,22 @@ func ListDrive(c *gin.Context) {
 					folderQuery := DB.Preload("User").Where("parent_id = ?", pid)
 					fileQuery := DB.Preload("User").Where("folder_id = ?", pid)
 
-					if isBlindDrop && parentFolder.UserID != userID {
+					isShareCreator := false
+					currentFolderID := &pid
+					for currentFolderID != nil {
+						var share models.Share
+						if err := DB.Where("folder_id = ? AND shared_by = ?", *currentFolderID, userID).First(&share).Error; err == nil {
+							isShareCreator = true
+							break
+						}
+						var folder models.Folder
+						if err := DB.Where("id = ?", *currentFolderID).First(&folder).Error; err != nil || folder.ParentID == nil {
+							break
+						}
+						currentFolderID = folder.ParentID
+					}
+
+					if isBlindDrop && parentFolder.UserID != userID && !isShareCreator {
 						folderQuery = folderQuery.Where("user_id = ?", userID)
 						fileQuery = fileQuery.Where("user_id = ?", userID)
 					}

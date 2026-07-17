@@ -158,13 +158,17 @@ func ShareItem(c *gin.Context) {
 	share.SharedBy = userID
 	share.SharedWith = req.SharedWith
 	share.IsBlindDrop = req.IsBlindDrop
-	share.CanEdit = true
 	if req.CanEdit != nil {
-		share.CanEdit = *req.CanEdit
+		share.CanEdit = req.CanEdit
+	} else {
+		t := true
+		share.CanEdit = &t
 	}
-	share.CanDownload = true
 	if req.CanDownload != nil {
-		share.CanDownload = *req.CanDownload
+		share.CanDownload = req.CanDownload
+	} else {
+		t := true
+		share.CanDownload = &t
 	}
 
 	if req.Type == "file" {
@@ -316,8 +320,8 @@ func ListMyShares(c *gin.Context) {
 			ShareID:     s.ID,
 			SharedWith:  s.SharedWith,
 			IsBlindDrop: s.IsBlindDrop,
-			CanEdit:     s.CanEdit,
-			CanDownload: s.CanDownload,
+			CanEdit:     s.CanEdit == nil || *s.CanEdit,
+			CanDownload: s.CanDownload == nil || *s.CanDownload,
 			CreatedAt:   s.CreatedAt,
 		}
 		if s.FileID != nil && s.File != nil {
@@ -400,7 +404,7 @@ func ListSharedWithMe(c *gin.Context) {
 				} else {
 					f.OwnerName = s.SharedBy
 				}
-				files = append(files, SharedFile{File: f, ShareID: s.ID, CanEdit: s.CanEdit, CanDownload: s.CanDownload})
+				files = append(files, SharedFile{File: f, ShareID: s.ID, CanEdit: s.CanEdit == nil || *s.CanEdit, CanDownload: s.CanDownload == nil || *s.CanDownload})
 				seenFiles[*s.FileID] = true
 			}
 		} else if s.FolderID != nil && s.Folder != nil {
@@ -428,7 +432,7 @@ func ListSharedWithMe(c *gin.Context) {
 				} else {
 					f.OwnerName = s.SharedBy
 				}
-				folders = append(folders, SharedFolder{Folder: f, ShareID: s.ID, CanEdit: s.CanEdit, CanDownload: s.CanDownload})
+				folders = append(folders, SharedFolder{Folder: f, ShareID: s.ID, CanEdit: s.CanEdit == nil || *s.CanEdit, CanDownload: s.CanDownload == nil || *s.CanDownload})
 				seenFolders[*s.FolderID] = true
 			}
 		}
