@@ -2509,6 +2509,20 @@ export default function Dashboard() {
                                                     </>
                                                 )}
                                             </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 truncate flex items-center gap-2">
+                                                    {f.name} {f.is_starred && <Star size={14} className="text-yellow-400 fill-yellow-400" />}
+                                                </span>
+                                                {f.contributors && f.contributors.length > 0 && (
+                                                    <span className="text-[11px] text-slate-400 dark:text-slate-500 truncate">
+                                                        Kontributor: {f.contributors.join(', ')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )
+                                ))}
+                            </div>
 
                             {/* Files */}
                             {files.length > 0 && viewMode === 'grid' && <div className="px-5 pb-2 mt-4 text-sm font-medium text-slate-500 dark:text-slate-400">Files</div>}
