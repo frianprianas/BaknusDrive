@@ -20,6 +20,7 @@ type Folder struct {
 	IsSpecial        bool           `gorm:"-" json:"is_special,omitempty"`
 	CanEdit          bool           `gorm:"-" json:"can_edit"`
 	CanDownload      bool           `gorm:"-" json:"can_download"`
+	Contributors     []string       `gorm:"-" json:"contributors,omitempty"`
 	IsStarred        bool           `gorm:"default:false" json:"is_starred"`
 	IsPublic         bool           `gorm:"default:false" json:"is_public"`
 	PublicPassword   *string        `json:"public_password,omitempty"`   // null if no password

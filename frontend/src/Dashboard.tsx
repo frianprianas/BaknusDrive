@@ -2401,6 +2401,7 @@ export default function Dashboard() {
                                                 }
                                             }}
                                             onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, f, 'folder')}
+                                            title={f.contributors && f.contributors.length > 0 ? `Kontributor: ${f.contributors.join(', ')}` : undefined}
                                             className={`px-5 py-3 md:py-2 grid grid-cols-12 gap-4 items-center group cursor-pointer border-b border-slate-100 dark:border-slate-800 md:border-transparent last:border-none transition-colors selectable-item ${isSelected(f.id, 'folder') ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-[#f3fbfa] dark:hover:bg-slate-700/50'}`}
                                         >
                                             <div className="col-span-10 md:col-span-6 flex items-center gap-4">
@@ -2426,9 +2427,16 @@ export default function Dashboard() {
                                                         </>
                                                     )}
                                                 </div>
-                                                <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white truncate flex items-center gap-2">
-                                                    {f.name} {f.is_starred && <Star size={14} className="text-yellow-400 fill-yellow-400" />}
-                                                </span>
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white truncate flex items-center gap-2">
+                                                        {f.name} {f.is_starred && <Star size={14} className="text-yellow-400 fill-yellow-400" />}
+                                                    </span>
+                                                    {f.contributors && f.contributors.length > 0 && (
+                                                        <span className="text-[11px] text-slate-400 dark:text-slate-500 truncate">
+                                                            Kontributor: {f.contributors.join(', ')}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="col-span-2 hidden md:flex items-center gap-2">
                                                 <div className="w-6 h-6 rounded-full bg-[#007b83] text-white flex flex-shrink-0 items-center justify-center text-[10px] font-bold">
@@ -2476,6 +2484,7 @@ export default function Dashboard() {
                                                 }
                                             }}
                                             onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, f, 'folder')}
+                                            title={f.contributors && f.contributors.length > 0 ? `Kontributor: ${f.contributors.join(', ')}` : undefined}
                                             className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer group transition-colors selectable-item ${isSelected(f.id, 'folder') ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700' : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
                                         >
                                             <div className="relative flex-shrink-0">
@@ -2500,13 +2509,6 @@ export default function Dashboard() {
                                                     </>
                                                 )}
                                             </div>
-                                            <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 truncate flex items-center gap-2">
-                                                {f.name} {f.is_starred && <Star size={14} className="text-yellow-400 fill-yellow-400" />}
-                                            </span>
-                                        </div>
-                                    )
-                                ))}
-                            </div>
 
                             {/* Files */}
                             {files.length > 0 && viewMode === 'grid' && <div className="px-5 pb-2 mt-4 text-sm font-medium text-slate-500 dark:text-slate-400">Files</div>}

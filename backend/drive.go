@@ -214,6 +214,7 @@ func ListDrive(c *gin.Context) {
 		DB.Model(&models.Share{}).Where("folder_id = ?", folders[i].ID).Count(&count)
 		folders[i].IsShared = count > 0
 		folders[i].CanEdit, folders[i].CanDownload = GetItemPermissions(currentUser, folders[i].UserID, &folders[i].ID, nil)
+		folders[i].Contributors = GetFolderContributors(folders[i].ID)
 	}
 	for i := range files {
 		if files[i].UserID != userID {
@@ -876,6 +877,7 @@ func SearchDrive(c *gin.Context) {
 		var count int64
 		DB.Model(&models.Share{}).Where("folder_id = ?", folders[i].ID).Count(&count)
 		folders[i].IsShared = count > 0
+		folders[i].Contributors = GetFolderContributors(folders[i].ID)
 	}
 	for i := range files {
 		if files[i].UserID != userID {
@@ -1829,4 +1831,60 @@ func parseInlineMarkdown(text string) string {
 	text = reItalic.ReplaceAllString(text, "<em>$1</em>")
 
 	return text
+}
+
+// GetFolderContributors returns distinct full names of users who contributed files/folders to the directory recursively
+func GetFolderContributors(folderID uint) []string {
+	var subfolderIDs []uint
+	query := `
+		WITH RECURSIVE subfolders AS (
+			SELECT id FROM folders WHERE id = ? AND deleted_at IS NULL
+			UNION ALL
+			SELECT f.id FROM folders f
+			INNER JOIN subfolders sf ON f.parent_id = sf.id
+			WHERE f.deleted_at IS NULL
+		)
+		SELECT id FROM subfolders;
+	`
+	if err := DB.Raw(query, folderID).Scan(&subfolderIDs).Error; err != nil {
+		return []string{}
+	}
+
+	if len(subfolderIDs) == 0 {
+		return []string{}
+	}
+
+	var userIDs []string
+	contributorQuery := `
+		SELECT DISTINCT user_id FROM (
+			SELECT user_id FROM files WHERE folder_id IN (?) AND deleted_at IS NULL
+			UNION
+			SELECT user_id FROM folders WHERE parent_id IN (?) AND deleted_at IS NULL
+		) AS contribs
+	`
+	if err := DB.Raw(contributorQuery, subfolderIDs, subfolderIDs).Scan(&userIDs).Error; err != nil {
+		return []string{}
+	}
+
+	if len(userIDs) == 0 {
+		return []string{}
+	}
+
+	var names []string
+	var users []models.User
+	if err := DB.Where("id IN (?)", userIDs).Find(&users).Error; err == nil {
+		for _, u := range users {
+			name := u.FullName
+			if name == "" {
+				name = u.Email
+			}
+			names = append(names, name)
+		}
+	}
+
+	if names == nil {
+		return []string{}
+	}
+
+	return names
 }
