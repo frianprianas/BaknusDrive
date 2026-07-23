@@ -198,7 +198,7 @@ func SyncMailcowUsers() error {
 			Class:    class,
 			Quota:    quota,
 			IsActive: true,
-			Avatar:   fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/auth/avatar/%s", mb.Username),
+			Avatar:   fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/public/avatar/%s", mb.Username),
 		}
 
 		if user.FullName == "" {

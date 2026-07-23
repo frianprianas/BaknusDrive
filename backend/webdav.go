@@ -109,7 +109,7 @@ func AuthMiddlewareBasic() gin.HandlerFunc {
 				Role:     "Siswa",
 				Quota:    5368709120, // 5 GB
 				IsActive: true,
-				Avatar:   fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/auth/avatar/%s", emailStr),
+				Avatar:   fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/public/avatar/%s", emailStr),
 			}
 			DB.Create(&user)
 		}

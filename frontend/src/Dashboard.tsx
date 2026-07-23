@@ -1664,7 +1664,7 @@ export default function Dashboard() {
                             >
                                 {user?.email ? (
                                     <img
-                                        src={`https://baknusmail.smkbn666.sch.id/api/auth/avatar/${user.email}`}
+                                        src={`https://baknusmail.smkbn666.sch.id/api/public/avatar/${user.email}`}
                                         alt="Avatar"
                                         className="w-full h-full object-cover"
                                         onError={(e) => {
@@ -1684,7 +1684,7 @@ export default function Dashboard() {
                                         <div className="w-20 h-20 bg-[#1a73e8] text-white rounded-full flex items-center justify-center text-3xl font-bold mb-3 shadow-lg overflow-hidden border-2 border-slate-100 dark:border-slate-700">
                                             {user?.email ? (
                                                 <img
-                                                    src={`https://baknusmail.smkbn666.sch.id/api/auth/avatar/${user.email}`}
+                                                    src={`https://baknusmail.smkbn666.sch.id/api/public/avatar/${user.email}`}
                                                     alt="Avatar"
                                                     className="w-full h-full object-cover"
                                                     onError={(e) => {
@@ -3326,7 +3326,7 @@ export default function Dashboard() {
                                     <div className="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-xl overflow-hidden ring-4 ring-blue-50 dark:ring-slate-700">
                                         {user?.email ? (
                                             <img
-                                                src={`https://baknusmail.smkbn666.sch.id/api/auth/avatar/${user.email}`}
+                                                src={`https://baknusmail.smkbn666.sch.id/api/public/avatar/${user.email}`}
                                                 alt="Profile"
                                                 className="w-full h-full object-cover"
                                                 onError={(e) => {

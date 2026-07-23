@@ -74,14 +74,14 @@ func LoginHandler(c *gin.Context) {
 			Role:     "Siswa",
 			Quota:    5368709120, // 5 GB
 			IsActive: true,
-			Avatar:   fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/auth/avatar/%s", emailStr),
+			Avatar:   fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/public/avatar/%s", emailStr),
 			WhatsApp: FetchExternalUserInfo(emailStr),
 		}
 		DB.Create(&user)
 	} else {
 		// Always update avatar and WhatsApp on login to stay sync'd
 		updated := false
-		newAvatar := fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/auth/avatar/%s", emailStr)
+		newAvatar := fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/public/avatar/%s", emailStr)
 		if user.Avatar != newAvatar {
 			user.Avatar = newAvatar
 			updated = true
@@ -141,7 +141,7 @@ func Me(c *gin.Context) {
 
 	// Refresh data
 	updated := false
-	newAvatar := fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/auth/avatar/%s", email)
+	newAvatar := fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/public/avatar/%s", email)
 	if user.Avatar != newAvatar {
 		user.Avatar = newAvatar
 		updated = true
