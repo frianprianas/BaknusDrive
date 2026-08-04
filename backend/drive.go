@@ -1888,3 +1888,71 @@ func GetFolderContributors(folderID uint) []string {
 
 	return names
 }
+
+func GetFileMetadata(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	fileID := c.Param("id")
+
+	var file models.File
+	var currentUser models.User
+	if err := DB.Where("id = ?", userID).First(&currentUser).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+		return
+	}
+	isAdmin := strings.ToLower(currentUser.Role) == "admin"
+
+	if err := DB.Preload("User").Where("id = ?", fileID).First(&file).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+
+	if isAdmin || file.UserID == userID {
+		goto proceed
+	}
+
+	{
+		var share models.Share
+		if errShare := DB.Where("file_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", file.ID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&share).Error; errShare == nil {
+			goto proceed
+		}
+
+		if file.FolderID != nil {
+			hasAccess, isBlindDrop := CheckFolderAccess(userID, *file.FolderID)
+			if hasAccess {
+				if isBlindDrop {
+					var parentShare models.Share
+					currentFolderID := file.FolderID
+					for currentFolderID != nil {
+						if errShare := DB.Where("folder_id = ? AND (shared_with = ? OR shared_with = ? OR shared_with = ?)", *currentFolderID, currentUser.Email, "ROLE:"+currentUser.Role, "CLASS:"+currentUser.Class).First(&parentShare).Error; errShare == nil {
+							break
+						}
+						var fld models.Folder
+						if errFld := DB.Where("id = ?", *currentFolderID).First(&fld).Error; errFld != nil || fld.ParentID == nil {
+							break
+						}
+						currentFolderID = fld.ParentID
+					}
+					if file.UserID == userID || parentShare.SharedBy == userID {
+						goto proceed
+					}
+				} else {
+					goto proceed
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+	return
+
+proceed:
+	file.OwnerName = file.User.FullName
+	if file.OwnerName == "" {
+		file.OwnerName = file.User.Email
+	}
+	file.OwnerRole = file.User.Role
+	file.CanEdit, file.CanDownload = GetItemPermissions(currentUser, file.UserID, file.FolderID, &file.ID)
+
+	c.JSON(http.StatusOK, file)
+}
+

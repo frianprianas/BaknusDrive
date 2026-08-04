@@ -919,6 +919,41 @@ export default function Dashboard() {
         }
     };
 
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const folderParam = params.get('folder');
+        const fileParam = params.get('file');
+
+        if (folderParam) {
+            const folderId = parseInt(folderParam);
+            if (!isNaN(folderId)) {
+                setCurrentFolderId(folderId);
+                setCurrentView('drive');
+            }
+        } else if (fileParam) {
+            const fileId = parseInt(fileParam);
+            if (!isNaN(fileId)) {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    axios.get(`/api/drive/file/${fileId}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }).then(resp => {
+                        const file = resp.data;
+                        if (file) {
+                            if (isDocFile(file)) {
+                                openDocEditor(file);
+                            } else {
+                                handlePreview(file);
+                            }
+                        }
+                    }).catch(err => {
+                        console.error("Gagal memuat file dari link share", err);
+                    });
+                }
+            }
+        }
+    }, []);
+
     const handleCreateDoc = (type: string) => {
         setShowNewMenu(false);
         const defaultName = type === 'docx' ? 'Dokumen Baru' : type === 'xlsx' ? 'Spreadsheet Baru' : 'Presentasi Baru';
@@ -1450,6 +1485,8 @@ export default function Dashboard() {
         if (isNaN(d.getTime())) return '-';
         return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
     };
+
+    const shareLink = shareModal.item ? (shareModal.type === 'folder' ? window.location.origin + '/?folder=' + shareModal.item.id : (isDocFile(shareModal.item) ? window.location.origin + '/editor/' + shareModal.item.id : window.location.origin + '/?file=' + shareModal.item.id)) : '';
 
     return (
         <div className="flex h-screen w-full bg-[#f8fafd] dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-sans overflow-hidden transition-colors">
@@ -3026,86 +3063,110 @@ export default function Dashboard() {
                                         .toggle-checkbox:checked { right: 0; border-color: #3b82f6; }
                                         .toggle-checkbox { right: 24px; transition: right 0.2s; }
                                     `}</style>
-                                </div>
-                                <label className="text-sm font-medium text-slate-700 mb-3 block">Bagikan cepat ke Tag / Role</label>
-                                <div className="mb-8 flex gap-3">
-                                    <button onClick={() => submitShare('ROLE:Guru')} className="flex-1 bg-teal-50 hover:bg-teal-100 text-teal-700 font-medium py-3 rounded-xl transition-all border border-teal-200 shadow-sm flex flex-col items-center gap-1">
-                                        <Users size={20} className="mb-1" /> All Guru
-                                    </button>
-                                    <button onClick={() => submitShare('ROLE:Siswa')} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-3 rounded-xl transition-all border border-blue-200 shadow-sm flex flex-col items-center gap-1">
-                                        <Users size={20} className="mb-1" /> All Siswa
-                                    </button>
-                                    <button onClick={() => submitShare('ROLE:TU')} className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-3 rounded-xl transition-all border border-indigo-200 shadow-sm flex flex-col items-center gap-1">
-                                        <Users size={20} className="mb-1" /> All TU
-                                    </button>
-                                </div>
+                                                {/* Share Link Copy Box */}
+                                 <div className="mb-6 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Link Kolaborasi / Share Link</label>
+                                     <div className="flex gap-2">
+                                         <input
+                                             type="text"
+                                             readOnly
+                                             value={shareLink}
+                                             onClick={(e) => (e.target as HTMLInputElement).select()}
+                                             className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 outline-none select-all font-mono shadow-inner"
+                                         />
+                                         <button
+                                             onClick={() => {
+                                                 navigator.clipboard.writeText(shareLink);
+                                                 alert("Link berhasil disalin ke clipboard!");
+                                             }}
+                                             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm active:scale-95 shrink-0"
+                                         >
+                                             <Copy size={14} /> Salin Link
+                                         </button>
+                                     </div>
+                                 </div>
 
-                                <div className="mb-4 mt-6">
-                                    <label className="text-sm font-medium text-slate-700 mb-3 block">Atau bagikan ke Kelas Spesifik</label>
-                                    <div className="flex gap-2">
-                                        <div className="relative flex-1">
-                                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                                <Search size={18} className="text-slate-400" />
-                                            </div>
-                                            <select
-                                                value={searchClass}
-                                                onChange={(e) => setSearchClass(e.target.value)}
-                                                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-sm appearance-none font-medium text-slate-700"
-                                            >
-                                                <option value="" disabled>Pilih nama kelas...</option>
-                                                {Array.from(new Set(usersList.map(u => u.class).filter(c => c && c.trim() !== ''))).sort().map(c => (
-                                                    <option key={String(c)} value={String(c)}>{String(c)}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <button onClick={() => {
-                                            if (searchClass.trim() !== '') {
-                                                submitShare('CLASS:' + searchClass.trim());
-                                                setSearchClass('');
-                                            }
-                                        }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl transition-colors font-semibold shrink-0">Bagikan</button>
-                                    </div>
-                                </div>
+                                 <label className="text-sm font-semibold text-slate-700 mb-2.5 block">Bagikan Cepat ke Tag / Role</label>
+                                 <div className="mb-6 flex gap-3">
+                                     <button onClick={() => submitShare('ROLE:Guru')} className="flex-1 bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold py-2.5 px-4 rounded-xl transition-all border border-teal-200 shadow-sm flex items-center justify-center gap-2 text-sm active:scale-95">
+                                         <Users size={16} /> Semua Guru
+                                     </button>
+                                     <button onClick={() => submitShare('ROLE:Siswa')} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold py-2.5 px-4 rounded-xl transition-all border border-blue-200 shadow-sm flex items-center justify-center gap-2 text-sm active:scale-95">
+                                         <Users size={16} /> Semua Siswa
+                                     </button>
+                                     <button onClick={() => submitShare('ROLE:TU')} className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold py-2.5 px-4 rounded-xl transition-all border border-indigo-200 shadow-sm flex items-center justify-center gap-2 text-sm active:scale-95">
+                                         <Users size={16} /> Semua TU
+                                     </button>
+                                 </div>
 
-                                <div className="mb-4 mt-6 border-t border-slate-100 pt-6">
-                                    <label className="text-sm font-medium text-slate-700 mb-3 block">Atau bagikan ke orang spesifik</label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <Search size={18} className="text-slate-400" />
-                                        </div>
-                                        <input
-                                            type="text"
-                                            placeholder="Cari nama atau email..."
-                                            value={searchUser}
-                                            onChange={(e) => setSearchUser(e.target.value)}
-                                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-[15px]"
-                                        />
-                                    </div>
-                                </div>
+                                 <div className="mb-6">
+                                     <label className="text-sm font-semibold text-slate-700 mb-2.5 block">Atau Bagikan ke Kelas Spesifik</label>
+                                     <div className="flex gap-2">
+                                         <div className="relative flex-1">
+                                             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                 <Search size={18} className="text-slate-400" />
+                                             </div>
+                                             <select
+                                                 value={searchClass}
+                                                 onChange={(e) => setSearchClass(e.target.value)}
+                                                 className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-sm appearance-none font-medium text-slate-700"
+                                             >
+                                                 <option value="" disabled>Pilih nama kelas...</option>
+                                                 {Array.from(new Set(usersList.map(u => u.class).filter(c => c && c.trim() !== ''))).sort().map(c => (
+                                                     <option key={String(c)} value={String(c)}>{String(c)}</option>
+                                                 ))}
+                                             </select>
+                                         </div>
+                                         <button onClick={() => {
+                                             if (searchClass.trim() !== '') {
+                                                 submitShare('CLASS:' + searchClass.trim());
+                                                 setSearchClass('');
+                                             }
+                                         }} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl transition-all font-semibold shrink-0 text-sm shadow-sm active:scale-95">Bagikan</button>
+                                     </div>
+                                 </div>
 
-                                <div className="space-y-3">
-                                    {usersList.filter(u => u.email.toLowerCase().includes(searchUser.toLowerCase()) || u.full_name?.toLowerCase().includes(searchUser.toLowerCase())).slice(0, 15).map(u => (
-                                        <div key={u.email} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 border border-slate-100 rounded-[16px] hover:shadow-md hover:border-slate-200 bg-white transition-all cursor-pointer" onClick={() => submitShare(u.email)}>
-                                            <div className="flex items-center gap-4 overflow-hidden">
-                                                <div className="w-[42px] h-[42px] rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 text-white flex shrink-0 items-center justify-center font-bold text-lg shadow-sm">
-                                                    {u.full_name?.charAt(0)?.toUpperCase() || u.email.charAt(0).toUpperCase()}
-                                                </div>
-                                                <div className="flex flex-col truncate">
-                                                    <span className="font-semibold text-slate-800 text-[15px] truncate">{u.full_name || u.email}</span>
-                                                    <span className="text-[13px] text-slate-500 truncate flex items-center gap-1">
-                                                        {u.email} <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-300 mx-0.5"></span> <span className="font-medium text-slate-600">{u.role}</span>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={(e: React.MouseEvent) => { e.stopPropagation(); submitShare(u.email); }}
-                                                className="mt-3 sm:mt-0 text-[14px] font-medium bg-[#f0f4f9] hover:bg-[#e1e5ea] text-[#1f1f1f] px-5 py-2 rounded-full transition-colors shrink-0 flex items-center gap-1.5"
-                                            >
-                                                Bagikan
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
+                                 <div className="mb-4 mt-6 border-t border-slate-100 pt-6">
+                                     <label className="text-sm font-semibold text-slate-700 mb-2.5 block">Atau Bagikan ke Orang Spesifik</label>
+                                     <div className="relative">
+                                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                             <Search size={18} className="text-slate-400" />
+                                         </div>
+                                         <input
+                                             type="text"
+                                             placeholder="Cari nama atau email..."
+                                             value={searchUser}
+                                             onChange={(e) => setSearchUser(e.target.value)}
+                                             className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-sm"
+                                         />
+                                     </div>
+                                 </div>
+
+                                 <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                                     {usersList.filter(u => u.email.toLowerCase().includes(searchUser.toLowerCase()) || u.full_name?.toLowerCase().includes(searchUser.toLowerCase())).slice(0, 15).map(u => (
+                                         <div key={u.email} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:shadow-sm hover:border-slate-200 bg-white transition-all">
+                                             <div className="flex items-center gap-3 overflow-hidden">
+                                                 <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 text-white flex shrink-0 items-center justify-center font-bold text-base shadow-sm">
+                                                     {u.full_name?.charAt(0)?.toUpperCase() || u.email.charAt(0).toUpperCase()}
+                                                 </div>
+                                                 <div className="flex flex-col truncate">
+                                                     <span className="font-semibold text-slate-800 text-[14px] truncate">{u.full_name || u.email}</span>
+                                                     <span className="text-xs text-slate-500 truncate flex items-center gap-1.5 mt-0.5">
+                                                         {u.email} 
+                                                         <span className="inline-block w-1 h-1 rounded-full bg-slate-300"></span> 
+                                                         <span className="font-medium text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide">{u.role}</span>
+                                                     </span>
+                                                 </div>
+                                             </div>
+                                             <button
+                                                 onClick={() => submitShare(u.email)}
+                                                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all font-semibold shrink-0 text-xs shadow-sm active:scale-95"
+                                             >
+                                                 Bagikan
+                                             </button>
+                                         </div>
+                                     ))}
+                                 </div>
 
                                 {/* Existing Shares / Unshare section */}
                                 {itemShares.length > 0 && (
