@@ -1966,21 +1966,21 @@ export default function Dashboard() {
                                                 <div className="divide-y divide-slate-50 dark:divide-slate-700/50">
                                                     {group.shares.map((s: any) => {
                                                         let label = s.shared_with;
-                                                        let badgeBg = 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
+                                                        let badgeColor = 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
                                                         let icon = '👤';
                                                         if (s.shared_with?.startsWith('ROLE:')) {
                                                             label = 'Semua ' + s.shared_with.replace('ROLE:', '');
-                                                            badgeBg = 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400';
+                                                            badgeColor = 'bg-teal-50 text-teal-700 border-teal-100 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800';
                                                             icon = '👥';
                                                         } else if (s.shared_with?.startsWith('CLASS:')) {
                                                             label = 'Kelas ' + s.shared_with.replace('CLASS:', '');
-                                                            badgeBg = 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400';
+                                                            badgeColor = 'bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800';
                                                             icon = '🏫';
                                                         }
                                                         return (
                                                             <div key={s.share_id} className="flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                                                                 <div className="flex items-center gap-3">
-                                                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${badgeBg}`}>
+                                                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold border ${badgeColor}`}>
                                                                         <span>{icon}</span> {label}
                                                                     </span>
                                                                     <span className="text-xs text-slate-400">
@@ -3033,25 +3033,25 @@ export default function Dashboard() {
                 {/* Share Modal */}
                 {shareModal.visible && (
                     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[200]">
-                        <div className="bg-white rounded-3xl shadow-xl w-[550px] flex flex-col overflow-hidden max-h-[85vh]">
-                            <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl w-[550px] flex flex-col overflow-hidden max-h-[85vh] text-slate-800 dark:text-slate-200">
+                            <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
                                 <div>
-                                    <h2 className="text-[20px] font-medium text-slate-800">Share "{shareModal.item?.name}"</h2>
-                                    <p className="text-sm text-slate-500 mt-0.5">Berbagi file dengan siswa, guru, atau tenaga kependidikan</p>
+                                    <h2 className="text-[20px] font-medium text-slate-800 dark:text-white">Share "{shareModal.item?.name}"</h2>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Berbagi file dengan siswa, guru, atau tenaga kependidikan</p>
                                 </div>
-                                <button onClick={() => setShareModal({ visible: false, item: null, type: null })} className="text-slate-400 hover:text-slate-600 bg-white hover:bg-slate-100 p-2 rounded-full transition-colors">
+                                <button onClick={() => setShareModal({ visible: false, item: null, type: null })} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 p-2 rounded-full transition-colors border border-transparent dark:border-slate-600">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 </button>
                             </div>
 
                             <div className="p-6 flex-1 overflow-y-auto">
-                                <div className="mb-6 bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
-                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pengaturan Izin (Permissions)</div>
+                                <div className="mb-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-4">
+                                    <div className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pengaturan Izin (Permissions)</div>
                                     
                                     <label className="flex items-center justify-between cursor-pointer">
                                         <div>
-                                            <div className="text-sm font-semibold text-slate-800">Izinkan Edit (Kolaborasi)</div>
-                                            <div className="text-xs text-slate-500 mt-0.5">
+                                            <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Izinkan Edit (Kolaborasi)</div>
+                                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                                 Penerima dapat mengedit dokumen ini secara langsung (Collabora).
                                             </div>
                                         </div>
@@ -3063,14 +3063,14 @@ export default function Dashboard() {
                                                 onChange={(e) => setCanEdit(e.target.checked)} 
                                                 className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 checked:right-0 checked:border-blue-500 transition-all z-10" 
                                             />
-                                            <label htmlFor="toggle-can-edit" className="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                                            <label htmlFor="toggle-can-edit" className="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 dark:bg-slate-700 cursor-pointer"></label>
                                         </div>
                                     </label>
 
-                                    <label className="flex items-center justify-between cursor-pointer border-t border-slate-200 pt-3">
+                                    <label className="flex items-center justify-between cursor-pointer border-t border-slate-200 dark:border-slate-700 pt-3">
                                         <div>
-                                            <div className="text-sm font-semibold text-slate-800">Izinkan Unduh (Download & Copy)</div>
-                                            <div className="text-xs text-slate-500 mt-0.5">
+                                            <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Izinkan Unduh (Download & Copy)</div>
+                                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                                 Penerima dapat mengunduh file asli dan menyalin isi dokumen.
                                             </div>
                                         </div>
@@ -3082,22 +3082,22 @@ export default function Dashboard() {
                                                 onChange={(e) => setCanDownload(e.target.checked)} 
                                                 className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 checked:right-0 checked:border-blue-500 transition-all z-10" 
                                             />
-                                            <label htmlFor="toggle-can-download" className="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                                            <label htmlFor="toggle-can-download" className="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 dark:bg-slate-700 cursor-pointer"></label>
                                         </div>
                                     </label>
 
                                     {shareModal.type === 'folder' && (
-                                        <div className="border-t border-slate-200 pt-3">
+                                        <div className="border-t border-slate-200 dark:border-slate-700 pt-3">
                                             <label className="flex items-center justify-between cursor-pointer">
                                                 <div>
-                                                    <div className="text-sm font-semibold text-slate-800">Mode Share: Khusus (Tugas)</div>
-                                                    <div className="text-xs text-slate-500 mt-0.5">
+                                                    <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Mode Share: Khusus (Tugas)</div>
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                                         Penerima hanya bisa melihat file yang mereka upload sendiri.
                                                     </div>
                                                 </div>
                                                 <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
                                                     <input type="checkbox" name="toggle" id="toggle-blind-drop" checked={isBlindDrop} onChange={(e) => setIsBlindDrop(e.target.checked)} className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 checked:right-0 checked:border-blue-500 transition-all z-10" />
-                                                    <label htmlFor="toggle-blind-drop" className="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                                                    <label htmlFor="toggle-blind-drop" className="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 dark:bg-slate-700 cursor-pointer"></label>
                                                 </div>
                                             </label>
                                         </div>
@@ -3109,15 +3109,15 @@ export default function Dashboard() {
                                     `}</style>
                                 </div>
                                                 {/* Share Link Copy Box */}
-                                 <div className="mb-6 bg-slate-50 border border-slate-200 rounded-xl p-4">
-                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Link Kolaborasi / Share Link</label>
+                                 <div className="mb-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
+                                     <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 block">Link Kolaborasi / Share Link</label>
                                      <div className="flex gap-2">
                                          <input
                                              type="text"
                                              readOnly
                                              value={shareLink}
                                              onClick={(e) => (e.target as HTMLInputElement).select()}
-                                             className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 outline-none select-all font-mono shadow-inner"
+                                             className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-600 dark:text-slate-300 outline-none select-all font-mono shadow-inner"
                                          />
                                          <button
                                              onClick={() => {
@@ -3131,21 +3131,21 @@ export default function Dashboard() {
                                      </div>
                                  </div>
 
-                                 <label className="text-sm font-semibold text-slate-700 mb-2.5 block">Bagikan Cepat ke Tag / Role</label>
+                                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5 block">Bagikan Cepat ke Tag / Role</label>
                                  <div className="mb-6 flex gap-3">
-                                     <button onClick={() => submitShare('ROLE:Guru')} className="flex-1 bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold py-2.5 px-4 rounded-xl transition-all border border-teal-200 shadow-sm flex items-center justify-center gap-2 text-sm active:scale-95">
+                                     <button onClick={() => submitShare('ROLE:Guru')} className="flex-1 bg-teal-50 hover:bg-teal-100 text-teal-700 dark:bg-teal-950/20 dark:hover:bg-teal-900/30 dark:text-teal-400 font-semibold py-2.5 px-4 rounded-xl transition-all border border-teal-200 dark:border-teal-800 shadow-sm flex items-center justify-center gap-2 text-sm active:scale-95">
                                          <Users size={16} /> Semua Guru
                                      </button>
-                                     <button onClick={() => submitShare('ROLE:Siswa')} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold py-2.5 px-4 rounded-xl transition-all border border-blue-200 shadow-sm flex items-center justify-center gap-2 text-sm active:scale-95">
+                                     <button onClick={() => submitShare('ROLE:Siswa')} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/20 dark:hover:bg-blue-900/30 dark:text-blue-400 font-semibold py-2.5 px-4 rounded-xl transition-all border border-blue-200 dark:border-blue-800 shadow-sm flex items-center justify-center gap-2 text-sm active:scale-95">
                                          <Users size={16} /> Semua Siswa
                                      </button>
-                                     <button onClick={() => submitShare('ROLE:TU')} className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold py-2.5 px-4 rounded-xl transition-all border border-indigo-200 shadow-sm flex items-center justify-center gap-2 text-sm active:scale-95">
+                                     <button onClick={() => submitShare('ROLE:TU')} className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/20 dark:hover:bg-indigo-900/30 dark:text-indigo-400 font-semibold py-2.5 px-4 rounded-xl transition-all border border-indigo-200 dark:border-indigo-850 shadow-sm flex items-center justify-center gap-2 text-sm active:scale-95">
                                          <Users size={16} /> Semua TU
                                      </button>
                                  </div>
 
                                  <div className="mb-6">
-                                     <label className="text-sm font-semibold text-slate-700 mb-2.5 block">Atau Bagikan ke Kelas Spesifik</label>
+                                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5 block">Atau Bagikan ke Kelas Spesifik</label>
                                      <div className="flex gap-2">
                                          <div className="relative flex-1">
                                              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -3154,7 +3154,7 @@ export default function Dashboard() {
                                              <select
                                                  value={searchClass}
                                                  onChange={(e) => setSearchClass(e.target.value)}
-                                                 className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-sm appearance-none font-medium text-slate-700"
+                                                 className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-xl outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 dark:focus:bg-slate-800 transition-all text-sm appearance-none font-medium text-slate-700 dark:text-slate-200"
                                              >
                                                  <option value="" disabled>Pilih nama kelas...</option>
                                                  {Array.from(new Set(usersList.map(u => u.class).filter(c => c && c.trim() !== ''))).sort().map(c => (
@@ -3171,8 +3171,8 @@ export default function Dashboard() {
                                      </div>
                                  </div>
 
-                                 <div className="mb-4 mt-6 border-t border-slate-100 pt-6">
-                                     <label className="text-sm font-semibold text-slate-700 mb-2.5 block">Atau Bagikan ke Orang Spesifik</label>
+                                 <div className="mb-4 mt-6 border-t border-slate-100 dark:border-slate-700 pt-6">
+                                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5 block">Atau Bagikan ke Orang Spesifik</label>
                                      <div className="relative">
                                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                              <Search size={18} className="text-slate-400" />
@@ -3182,24 +3182,24 @@ export default function Dashboard() {
                                              placeholder="Cari nama atau email..."
                                              value={searchUser}
                                              onChange={(e) => setSearchUser(e.target.value)}
-                                             className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-sm"
+                                             className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-xl outline-none focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-950/30 transition-all text-sm text-slate-800 dark:text-slate-100"
                                          />
                                      </div>
                                  </div>
 
                                  <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
                                      {usersList.filter(u => u.email.toLowerCase().includes(searchUser.toLowerCase()) || u.full_name?.toLowerCase().includes(searchUser.toLowerCase())).slice(0, 15).map(u => (
-                                         <div key={u.email} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:shadow-sm hover:border-slate-200 bg-white transition-all">
+                                         <div key={u.email} className="flex items-center justify-between p-3 border border-slate-100 dark:border-slate-700 rounded-xl hover:shadow-sm hover:border-slate-200 dark:hover:border-slate-600 bg-white dark:bg-slate-900 transition-all">
                                              <div className="flex items-center gap-3 overflow-hidden">
                                                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 text-white flex shrink-0 items-center justify-center font-bold text-base shadow-sm">
                                                      {u.full_name?.charAt(0)?.toUpperCase() || u.email.charAt(0).toUpperCase()}
                                                  </div>
                                                  <div className="flex flex-col truncate">
-                                                     <span className="font-semibold text-slate-800 text-[14px] truncate">{u.full_name || u.email}</span>
-                                                     <span className="text-xs text-slate-500 truncate flex items-center gap-1.5 mt-0.5">
+                                                     <span className="font-semibold text-slate-800 dark:text-slate-100 text-[14px] truncate">{u.full_name || u.email}</span>
+                                                     <span className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
                                                          {u.email} 
-                                                         <span className="inline-block w-1 h-1 rounded-full bg-slate-300"></span> 
-                                                         <span className="font-medium text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide">{u.role}</span>
+                                                         <span className="inline-block w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700"></span> 
+                                                         <span className="font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide">{u.role}</span>
                                                      </span>
                                                  </div>
                                              </div>
@@ -3769,14 +3769,14 @@ export default function Dashboard() {
                 {/* Access Details Modal */}
                 {accessDetailsModal.visible && accessDetailsModal.folder && (
                     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[200] p-4" onClick={() => setAccessDetailsModal({ visible: false, folder: null, shares: [], loading: false })}>
-                        <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-transparent dark:border-slate-700" onClick={e => e.stopPropagation()}>
                             {/* Modal Header */}
-                            <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                            <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50 text-slate-800 dark:text-white">
                                 <div>
-                                    <h2 className="text-lg font-bold text-slate-800">Detail Akses & Kontributor</h2>
-                                    <p className="text-xs text-slate-500 mt-0.5">Folder: <span className="font-semibold text-slate-700">{accessDetailsModal.folder.name}</span></p>
+                                    <h2 className="text-lg font-bold text-slate-800 dark:text-white">Detail Akses & Kontributor</h2>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Folder: <span className="font-semibold text-slate-700 dark:text-slate-300">{accessDetailsModal.folder.name}</span></p>
                                 </div>
-                                <button onClick={() => setAccessDetailsModal({ visible: false, folder: null, shares: [], loading: false })} className="text-slate-400 hover:text-slate-600 bg-white hover:bg-slate-100 p-2 rounded-full transition-colors border border-slate-100">
+                                <button onClick={() => setAccessDetailsModal({ visible: false, folder: null, shares: [], loading: false })} className="text-slate-400 dark:text-slate-200 hover:text-slate-600 dark:hover:text-slate-200 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 p-2 rounded-full transition-colors border border-slate-100 dark:border-slate-650">
                                     <X size={18} />
                                 </button>
                             </div>
@@ -3785,23 +3785,23 @@ export default function Dashboard() {
                             <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
                                 {/* Owner section */}
                                 <div>
-                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Pemilik Folder</h3>
-                                    <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 p-3 rounded-xl">
+                                    <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Pemilik Folder</h3>
+                                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-700 p-3 rounded-xl">
                                         <div className="w-9 h-9 rounded-full bg-blue-500 text-white flex shrink-0 items-center justify-center font-bold text-sm shadow-sm">
                                             {accessDetailsModal.folder.owner_name?.charAt(0)?.toUpperCase() || 'P'}
                                         </div>
                                         <div className="flex flex-col min-w-0">
-                                            <span className="font-semibold text-slate-800 text-sm truncate">{accessDetailsModal.folder.owner_name || 'Pemilik'}</span>
-                                            <span className="text-[11px] text-slate-500 truncate mt-0.5">Pembuat Folder • {accessDetailsModal.folder.owner_role || 'User'}</span>
+                                            <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm truncate">{accessDetailsModal.folder.owner_name || 'Pemilik'}</span>
+                                            <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">Pembuat Folder • {accessDetailsModal.folder.owner_role || 'User'}</span>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Shared With section */}
                                 <div>
-                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Daftar Penerima Akses</h3>
+                                    <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Daftar Penerima Akses</h3>
                                     {accessDetailsModal.loading ? (
-                                        <div className="flex items-center justify-center py-4 gap-2 text-slate-500 text-xs">
+                                        <div className="flex items-center justify-center py-4 gap-2 text-slate-500 dark:text-slate-400 text-xs">
                                             <Loader2 size={16} className="animate-spin text-blue-500" />
                                             Memuat penerima akses...
                                         </div>
@@ -3809,26 +3809,26 @@ export default function Dashboard() {
                                         <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
                                             {accessDetailsModal.shares.map((s: any) => {
                                                 let label = s.shared_with;
-                                                let badgeColor = 'bg-slate-100 text-slate-600 border-slate-200';
+                                                let badgeColor = 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-805';
                                                 let icon = '👤';
                                                 if (s.shared_with?.startsWith('ROLE:')) {
                                                     label = s.shared_with.replace('ROLE:', 'Semua ');
-                                                    badgeColor = 'bg-teal-50 text-teal-700 border-teal-100';
+                                                    badgeColor = 'bg-teal-50 text-teal-700 border-teal-100 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30';
                                                     icon = '👥';
                                                 } else if (s.shared_with?.startsWith('CLASS:')) {
                                                     label = 'Kelas ' + s.shared_with.replace('CLASS:', '');
-                                                    badgeColor = 'bg-indigo-50 text-indigo-700 border-indigo-100';
+                                                    badgeColor = 'bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30';
                                                     icon = '🏫';
                                                 }
                                                 return (
                                                     <div key={s.id} className={`flex items-center justify-between px-3 py-2 rounded-xl border ${badgeColor} text-xs font-medium`}>
-                                                        <span className="flex items-center gap-2 truncate">
+                                                        <span className="flex items-center gap-2 truncate text-slate-700 dark:text-slate-200">
                                                             <span>{icon}</span> <span className="truncate">{label}</span>
                                                         </span>
                                                         {(s.is_blind_drop || s.can_edit === false || s.can_download === false) && (
                                                             <div className="flex gap-1 text-[9px] uppercase font-bold shrink-0">
-                                                                {s.is_blind_drop && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Tugas</span>}
-                                                                {s.can_edit === false && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded">Read-Only</span>}
+                                                                {s.is_blind_drop && <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 rounded">Tugas</span>}
+                                                                {s.can_edit === false && <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 rounded">Read-Only</span>}
                                                             </div>
                                                         )}
                                                     </div>
@@ -3836,36 +3836,63 @@ export default function Dashboard() {
                                             })}
                                         </div>
                                     ) : (
-                                        <p className="text-xs text-slate-400 italic bg-slate-50/50 border border-dashed border-slate-200 rounded-xl p-3 text-center">Folder ini belum dibagikan ke siapa pun.</p>
+                                        <p className="text-xs text-slate-400 dark:text-slate-500 italic bg-slate-50/50 dark:bg-slate-900/20 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-3 text-center">Folder ini belum dibagikan ke siapa pun.</p>
                                     )}
                                 </div>
 
                                 {/* Contributors section */}
                                 <div>
-                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Daftar Kontributor</h3>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h3 className="text-xs font-bold text-slate-400 dark:text-slate-550 uppercase tracking-wider">Daftar Kontributor</h3>
+                                        {accessDetailsModal.folder.contributors && accessDetailsModal.folder.contributors.length > 0 && (
+                                            <button
+                                                onClick={() => {
+                                                    const listStr = accessDetailsModal.folder.contributors.join(", ");
+                                                    navigator.clipboard.writeText(listStr);
+                                                    alert("Daftar kontributor berhasil disalin ke clipboard!");
+                                                }}
+                                                className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 transition-colors bg-transparent border-none p-0 cursor-pointer"
+                                            >
+                                                <Copy size={12} /> Salin Semua
+                                            </button>
+                                        )}
+                                    </div>
                                     {accessDetailsModal.folder.contributors && accessDetailsModal.folder.contributors.length > 0 ? (
                                         <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
                                             {accessDetailsModal.folder.contributors.map((name: string, index: number) => (
-                                                <div key={index} className="flex items-center gap-3 bg-white border border-slate-100 p-2.5 rounded-xl hover:bg-slate-50 transition-colors">
-                                                    <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex shrink-0 items-center justify-center font-bold text-xs">
-                                                        {name.charAt(0).toUpperCase()}
+                                                <div key={index} className="flex items-center justify-between bg-white dark:bg-slate-900/30 border border-slate-100 dark:border-slate-700/50 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                                    <div className="flex items-center gap-3 overflow-hidden">
+                                                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex shrink-0 items-center justify-center font-bold text-xs">
+                                                            {name.charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span className="font-semibold text-slate-700 dark:text-slate-200 text-xs truncate">{name}</span>
+                                                            <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">Mengunggah file / Mengubah isi</span>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex flex-col min-w-0">
-                                                        <span className="font-semibold text-slate-700 text-xs truncate">{name}</span>
-                                                        <span className="text-[10px] text-slate-400 truncate">Mengunggah file / Mengubah isi</span>
-                                                    </div>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            navigator.clipboard.writeText(name);
+                                                            alert(`Nama "${name}" disalin ke clipboard!`);
+                                                        }}
+                                                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shrink-0"
+                                                        title="Salin nama kontributor"
+                                                    >
+                                                        <Copy size={12} />
+                                                    </button>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-xs text-slate-400 italic bg-slate-50/50 border border-dashed border-slate-200 rounded-xl p-3 text-center">Belum ada kontributor lain dalam folder ini.</p>
+                                        <p className="text-xs text-slate-400 dark:text-slate-500 italic bg-slate-50/50 dark:bg-slate-900/20 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-3 text-center">Belum ada kontributor lain dalam folder ini.</p>
                                     )}
                                 </div>
                             </div>
 
                             {/* Modal Footer */}
-                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
-                                <button onClick={() => setAccessDetailsModal({ visible: false, folder: null, shares: [], loading: false })} className="px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 bg-slate-100 rounded-xl transition-all shadow-sm active:scale-95">
+                            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-700 flex justify-end">
+                                <button onClick={() => setAccessDetailsModal({ visible: false, folder: null, shares: [], loading: false })} className="px-5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 bg-slate-100 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-xl transition-all shadow-sm active:scale-95">
                                     Tutup
                                 </button>
                             </div>
