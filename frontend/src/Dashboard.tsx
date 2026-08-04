@@ -54,6 +54,12 @@ export default function Dashboard() {
     const [clipboard, setClipboard] = useState<{ item: any, type: 'file' | 'folder', action: 'copy' | 'cut' } | null>(null);
 
     const [shareModal, setShareModal] = useState<{ visible: boolean, item: any, type: 'file' | 'folder' | null }>({ visible: false, item: null, type: null });
+    const [accessDetailsModal, setAccessDetailsModal] = useState<{ visible: boolean, folder: any, shares: any[], loading: boolean }>({
+        visible: false,
+        folder: null,
+        shares: [],
+        loading: false
+    });
     const [isBlindDrop, setIsBlindDrop] = useState(false);
     const [canEdit, setCanEdit] = useState(true);
     const [canDownload, setCanDownload] = useState(true);
@@ -1201,6 +1207,38 @@ export default function Dashboard() {
         setContextMenu({ ...contextMenu, visible: false });
         // Load existing shares for this item
         fetchItemShares(item.id, type);
+    };
+
+    const handleShowAccessDetails = async () => {
+        if (!contextMenu.item) return;
+        const folder = contextMenu.item;
+        setAccessDetailsModal({
+            visible: true,
+            folder: folder,
+            shares: [],
+            loading: true
+        });
+        setContextMenu({ ...contextMenu, visible: false });
+
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await axios.get(`/api/drive/shares`, {
+                params: { id: folder.id, type: 'folder' },
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setAccessDetailsModal(prev => ({
+                ...prev,
+                shares: resp.data.shares || [],
+                loading: false
+            }));
+        } catch (error) {
+            console.error("Gagal mengambil data share folder", error);
+            setAccessDetailsModal(prev => ({
+                ...prev,
+                shares: [],
+                loading: false
+            }));
+        }
     };
 
     const fetchItemShares = async (itemId: number, itemType: string) => {
@@ -2826,7 +2864,13 @@ export default function Dashboard() {
                                                 <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleShareMenu}>
                                                     <Share2 size={16} className="text-slate-500 dark:text-slate-400" />
                                                     Share
-                                                </button>
+                                                 </button>
+                                                 {contextMenu.type === 'folder' && (
+                                                     <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleShowAccessDetails}>
+                                                         <Users size={16} className="text-slate-500 dark:text-slate-400" />
+                                                         Detail Akses & Kontributor
+                                                     </button>
+                                                 )}
                                                 <button className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors" onClick={handleToggleStar}>
                                                     <Star size={16} className={contextMenu.item.is_starred ? "text-yellow-400 fill-yellow-400" : "text-slate-500 dark:text-slate-400"} />
                                                     {contextMenu.item.is_starred ? "Remove from starred" : "Add to starred"}
@@ -3718,6 +3762,113 @@ export default function Dashboard() {
                             >
                                 Oke, Siap!
                             </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Access Details Modal */}
+                {accessDetailsModal.visible && accessDetailsModal.folder && (
+                    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[200] p-4" onClick={() => setAccessDetailsModal({ visible: false, folder: null, shares: [], loading: false })}>
+                        <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                            {/* Modal Header */}
+                            <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-800">Detail Akses & Kontributor</h2>
+                                    <p className="text-xs text-slate-500 mt-0.5">Folder: <span className="font-semibold text-slate-700">{accessDetailsModal.folder.name}</span></p>
+                                </div>
+                                <button onClick={() => setAccessDetailsModal({ visible: false, folder: null, shares: [], loading: false })} className="text-slate-400 hover:text-slate-600 bg-white hover:bg-slate-100 p-2 rounded-full transition-colors border border-slate-100">
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            {/* Modal Body */}
+                            <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+                                {/* Owner section */}
+                                <div>
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Pemilik Folder</h3>
+                                    <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 p-3 rounded-xl">
+                                        <div className="w-9 h-9 rounded-full bg-blue-500 text-white flex shrink-0 items-center justify-center font-bold text-sm shadow-sm">
+                                            {accessDetailsModal.folder.owner_name?.charAt(0)?.toUpperCase() || 'P'}
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="font-semibold text-slate-800 text-sm truncate">{accessDetailsModal.folder.owner_name || 'Pemilik'}</span>
+                                            <span className="text-[11px] text-slate-500 truncate mt-0.5">Pembuat Folder • {accessDetailsModal.folder.owner_role || 'User'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Shared With section */}
+                                <div>
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Daftar Penerima Akses</h3>
+                                    {accessDetailsModal.loading ? (
+                                        <div className="flex items-center justify-center py-4 gap-2 text-slate-500 text-xs">
+                                            <Loader2 size={16} className="animate-spin text-blue-500" />
+                                            Memuat penerima akses...
+                                        </div>
+                                    ) : accessDetailsModal.shares.length > 0 ? (
+                                        <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
+                                            {accessDetailsModal.shares.map((s: any) => {
+                                                let label = s.shared_with;
+                                                let badgeColor = 'bg-slate-100 text-slate-600 border-slate-200';
+                                                let icon = '👤';
+                                                if (s.shared_with?.startsWith('ROLE:')) {
+                                                    label = s.shared_with.replace('ROLE:', 'Semua ');
+                                                    badgeColor = 'bg-teal-50 text-teal-700 border-teal-100';
+                                                    icon = '👥';
+                                                } else if (s.shared_with?.startsWith('CLASS:')) {
+                                                    label = 'Kelas ' + s.shared_with.replace('CLASS:', '');
+                                                    badgeColor = 'bg-indigo-50 text-indigo-700 border-indigo-100';
+                                                    icon = '🏫';
+                                                }
+                                                return (
+                                                    <div key={s.id} className={`flex items-center justify-between px-3 py-2 rounded-xl border ${badgeColor} text-xs font-medium`}>
+                                                        <span className="flex items-center gap-2 truncate">
+                                                            <span>{icon}</span> <span className="truncate">{label}</span>
+                                                        </span>
+                                                        {(s.is_blind_drop || s.can_edit === false || s.can_download === false) && (
+                                                            <div className="flex gap-1 text-[9px] uppercase font-bold shrink-0">
+                                                                {s.is_blind_drop && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Tugas</span>}
+                                                                {s.can_edit === false && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded">Read-Only</span>}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-slate-400 italic bg-slate-50/50 border border-dashed border-slate-200 rounded-xl p-3 text-center">Folder ini belum dibagikan ke siapa pun.</p>
+                                    )}
+                                </div>
+
+                                {/* Contributors section */}
+                                <div>
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Daftar Kontributor</h3>
+                                    {accessDetailsModal.folder.contributors && accessDetailsModal.folder.contributors.length > 0 ? (
+                                        <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
+                                            {accessDetailsModal.folder.contributors.map((name: string, index: number) => (
+                                                <div key={index} className="flex items-center gap-3 bg-white border border-slate-100 p-2.5 rounded-xl hover:bg-slate-50 transition-colors">
+                                                    <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex shrink-0 items-center justify-center font-bold text-xs">
+                                                        {name.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="font-semibold text-slate-700 text-xs truncate">{name}</span>
+                                                        <span className="text-[10px] text-slate-400 truncate">Mengunggah file / Mengubah isi</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-slate-400 italic bg-slate-50/50 border border-dashed border-slate-200 rounded-xl p-3 text-center">Belum ada kontributor lain dalam folder ini.</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+                                <button onClick={() => setAccessDetailsModal({ visible: false, folder: null, shares: [], loading: false })} className="px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 bg-slate-100 rounded-xl transition-all shadow-sm active:scale-95">
+                                    Tutup
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
