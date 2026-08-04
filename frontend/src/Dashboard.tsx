@@ -3063,6 +3063,7 @@ export default function Dashboard() {
                                         .toggle-checkbox:checked { right: 0; border-color: #3b82f6; }
                                         .toggle-checkbox { right: 24px; transition: right 0.2s; }
                                     `}</style>
+                                </div>
                                                 {/* Share Link Copy Box */}
                                  <div className="mb-6 bg-slate-50 border border-slate-200 rounded-xl p-4">
                                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Link Kolaborasi / Share Link</label>
