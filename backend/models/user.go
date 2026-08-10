@@ -19,6 +19,7 @@ type User struct {
 	WhatsApp            string         `gorm:"type:varchar(20)" json:"whatsapp"`
 	Avatar              string         `gorm:"type:text" json:"avatar"`
 	AllowedSpecialShare bool           `gorm:"default:false" json:"allowed_special_share"`
+	LastLogin           *time.Time     `json:"last_login"`
 	CreatedAt           time.Time      `json:"created_at"`
 	UpdatedAt           time.Time      `json:"updated_at"`
 	DeletedAt           gorm.DeletedAt `gorm:"index" json:"-"`

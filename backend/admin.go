@@ -114,6 +114,7 @@ func GetAdminUsers(c *gin.Context) {
 		SharedDriveCount int        `json:"shared_drive_count"`
 		SharedDriveSize  int64      `json:"shared_drive_size"`
 		LastActivity     *time.Time `json:"last_activity"`
+		LastLogin        *time.Time `json:"last_login"`
 	}
 
 	results := make([]UserJSON, len(users))
@@ -137,6 +138,7 @@ func GetAdminUsers(c *gin.Context) {
 			SharedDriveCount: userStats.SharedDriveCount,
 			SharedDriveSize:  userStats.SharedDriveSize,
 			LastActivity:     userStats.LastActivity,
+			LastLogin:        user.LastLogin,
 		}
 	}
 

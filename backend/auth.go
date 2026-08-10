@@ -65,17 +65,19 @@ func LoginHandler(c *gin.Context) {
 
 	// 2. Setup Session token (simple random or JWT, here we will use a basic token stored in Redis)
 	user := models.User{}
+	now := time.Now()
 	if err := DB.Where("email = ?", emailStr).First(&user).Error; err != nil {
 		// If user not in DB, sync them now or just create a stub
 		user = models.User{
-			ID:       emailStr,
-			Email:    emailStr,
-			FullName: emailStr, // fallback
-			Role:     "Siswa",
-			Quota:    5368709120, // 5 GB
-			IsActive: true,
-			Avatar:   fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/public/avatar/%s", emailStr),
-			WhatsApp: FetchExternalUserInfo(emailStr),
+			ID:        emailStr,
+			Email:     emailStr,
+			FullName:  emailStr, // fallback
+			Role:      "Siswa",
+			Quota:     5368709120, // 5 GB
+			IsActive:  true,
+			Avatar:    fmt.Sprintf("https://baknusmail.smkbn666.sch.id/api/public/avatar/%s", emailStr),
+			WhatsApp:  FetchExternalUserInfo(emailStr),
+			LastLogin: &now,
 		}
 		DB.Create(&user)
 	} else {
@@ -92,6 +94,9 @@ func LoginHandler(c *gin.Context) {
 			user.WhatsApp = newWA
 			updated = true
 		}
+
+		user.LastLogin = &now
+		updated = true
 
 		if updated {
 			DB.Save(&user)
