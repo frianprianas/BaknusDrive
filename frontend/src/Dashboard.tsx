@@ -83,6 +83,15 @@ export default function Dashboard() {
     const [quotaModal, setQuotaModal] = useState<{ visible: boolean, user: any }>({ visible: false, user: null });
     const [tempQuotaGB, setTempQuotaGB] = useState<string>("");
     const [tempClass, setTempClass] = useState<string>("");
+    const [userActivityModal, setUserActivityModal] = useState<{ visible: boolean, user: any, activities: any[], loading: boolean }>({
+        visible: false,
+        user: null,
+        activities: [],
+        loading: false,
+    });
+    const [activitySearchQuery, setActivitySearchQuery] = useState('');
+    const [activityCurrentPage, setActivityCurrentPage] = useState(1);
+    const activityItemsPerPage = 8;
     const [searchClass, setSearchClass] = useState("");
     const [adminCurrentPage, setAdminCurrentPage] = useState(1);
     const adminItemsPerPage = 20;
@@ -2117,7 +2126,7 @@ export default function Dashboard() {
                                             <th className="px-6 py-5 font-semibold">Pengguna</th>
                                             <th className="px-6 py-5 font-semibold">Role</th>
                                             <th className="px-6 py-5 font-semibold">Kelas</th>
-                                            <th className="px-6 py-5 font-semibold">Penyimpanan</th>
+                                    <th className="px-6 py-5 font-semibold">Penyimpanan</th>
                                             <th className="px-6 py-5 font-semibold">Status</th>
                                             <th className="px-6 py-5 font-semibold text-right">Aksi</th>
                                         </tr>
@@ -2139,9 +2148,23 @@ export default function Dashboard() {
                                                     {paginatedUsers.map((u) => (
                                                         <tr key={u.id || u.email || Math.random()} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                                             <td className="px-6 py-5">
-                                                                <div className="flex flex-col">
+                                                                <div className="flex flex-col animate-in fade-in slide-in-from-left duration-250">
                                                                     <span className="font-bold text-slate-800 dark:text-slate-200 text-base">{u.full_name || u.email}</span>
                                                                     <span className="text-[15px] text-slate-500">{u.email}</span>
+                                                                    {(u.own_drive_count > 0 || u.shared_drive_count > 0) && (
+                                                                        <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                                                                            {u.own_drive_count > 0 && (
+                                                                                <span className="inline-flex items-center px-2 py-0.5 bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-450 rounded-md font-semibold border border-green-200 dark:border-green-800/30">
+                                                                                    Drive Sendiri: {u.own_drive_count} file ({formatSize(u.own_drive_size)})
+                                                                                </span>
+                                                                            )}
+                                                                            {u.shared_drive_count > 0 && (
+                                                                                <span className="inline-flex items-center px-2 py-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 rounded-md font-semibold border border-indigo-200 dark:border-indigo-800/30">
+                                                                                    Shared: {u.shared_drive_count} file ({formatSize(u.shared_drive_size)})
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </td>
                                                             <td className="px-6 py-5">
@@ -2180,6 +2203,27 @@ export default function Dashboard() {
                                                                     className="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-sm font-bold transition-colors dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 flex items-center gap-1.5"
                                                                 >
                                                                     <FolderIcon size={16} /> Lihat File
+                                                                </button>
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        setUserActivityModal({ visible: true, user: u, activities: [], loading: true });
+                                                                        setActivitySearchQuery('');
+                                                                        setActivityCurrentPage(1);
+                                                                        try {
+                                                                            const token = localStorage.getItem('token');
+                                                                            const resp = await axios.get(`/api/admin/users/${u.id || u.email}/activity`, {
+                                                                                headers: { Authorization: `Bearer ${token}` }
+                                                                            });
+                                                                            setUserActivityModal({ visible: true, user: u, activities: resp.data.activity || [], loading: false });
+                                                                        } catch (err) {
+                                                                            console.error("Gagal mengambil aktivitas user:", err);
+                                                                            alert("Gagal mengambil aktivitas user");
+                                                                            setUserActivityModal(prev => ({ ...prev, loading: false }));
+                                                                        }
+                                                                    }}
+                                                                    className="px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl text-sm font-bold transition-colors dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 flex items-center gap-1.5"
+                                                                >
+                                                                    <Clock size={16} /> Aktivitas
                                                                 </button>
                                                                 <button
                                                                     onClick={() => {
@@ -3326,6 +3370,220 @@ export default function Dashboard() {
                                     )}
                                 </div>
                             )}
+                        </div>
+                    </div>
+                )}
+                {/* User Activity Modal */}
+                {userActivityModal.visible && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[250] p-4 animate-in fade-in duration-200">
+                        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[85vh]">
+                            {/* Modal Header */}
+                            <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl text-indigo-600 dark:text-indigo-400">
+                                        <Clock size={24} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-bold text-slate-800 dark:text-white leading-tight">Detail Aktivitas Upload Pengguna</h2>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                            {userActivityModal.user?.full_name || userActivityModal.user?.email} ({userActivityModal.user?.email}) • Role: {userActivityModal.user?.role} {userActivityModal.user?.class ? `• Kelas: ${userActivityModal.user.class}` : ''}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setUserActivityModal({ visible: false, user: null, activities: [], loading: false })} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl">
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            {/* Modal Body */}
+                            <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-6">
+                                {userActivityModal.loading ? (
+                                    <div className="flex flex-col items-center justify-center py-20 gap-3">
+                                        <Loader2 className="text-indigo-500 animate-spin" size={40} />
+                                        <span className="text-sm text-slate-500 font-semibold dark:text-slate-400">Memuat data aktivitas...</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Stats Cards */}
+                                        {(() => {
+                                            const totalFiles = userActivityModal.activities.length;
+                                            const totalSize = userActivityModal.activities.reduce((acc, curr) => acc + curr.size, 0);
+                                            const ownFiles = userActivityModal.activities.filter(a => a.is_own_drive);
+                                            const ownCount = ownFiles.length;
+                                            const ownSize = ownFiles.reduce((acc, curr) => acc + curr.size, 0);
+                                            const sharedFiles = userActivityModal.activities.filter(a => !a.is_own_drive);
+                                            const sharedCount = sharedFiles.length;
+                                            const sharedSize = sharedFiles.reduce((acc, curr) => acc + curr.size, 0);
+
+                                            return (
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                    <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+                                                        <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
+                                                            <HardDrive size={24} />
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Total Upload</span>
+                                                            <span className="text-lg font-bold text-slate-800 dark:text-white">{totalFiles} file</span>
+                                                            <span className="text-xs text-slate-500 block">{formatSize(totalSize)}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+                                                        <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-600 dark:text-green-400">
+                                                            <FolderIcon size={24} />
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Drive Sendiri</span>
+                                                            <span className="text-lg font-bold text-slate-800 dark:text-white">{ownCount} file</span>
+                                                            <span className="text-xs text-slate-500 block">{formatSize(ownSize)}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+                                                        <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl text-indigo-600 dark:text-indigo-400">
+                                                            <Users size={24} />
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Shared Folder</span>
+                                                            <span className="text-lg font-bold text-slate-800 dark:text-white">{sharedCount} file</span>
+                                                            <span className="text-xs text-slate-500 block">{formatSize(sharedSize)}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* Search Filter */}
+                                        <div className="relative">
+                                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                            <input
+                                                type="text"
+                                                placeholder="Cari nama file..."
+                                                value={activitySearchQuery}
+                                                onChange={(e) => { setActivitySearchQuery(e.target.value); setActivityCurrentPage(1); }}
+                                                className="w-full pl-11 pr-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                            />
+                                        </div>
+
+                                        {/* File List Table */}
+                                        <div className="overflow-x-auto border border-slate-100 dark:border-slate-750 rounded-2xl bg-white dark:bg-slate-800 flex-1">
+                                            <table className="w-full text-left text-sm whitespace-nowrap">
+                                                <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-b border-slate-150 dark:border-slate-700 font-semibold">
+                                                    <tr>
+                                                        <th className="px-5 py-4">Nama File</th>
+                                                        <th className="px-5 py-4">Ukuran</th>
+                                                        <th className="px-5 py-4">Tanggal Upload</th>
+                                                        <th className="px-5 py-4">Lokasi / Drive</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    {(() => {
+                                                        const filtered = userActivityModal.activities.filter(a =>
+                                                            (a.name || '').toLowerCase().includes(activitySearchQuery.toLowerCase())
+                                                        );
+                                                        const totalPages = Math.ceil(filtered.length / activityItemsPerPage) || 1;
+                                                        const paginated = filtered.slice(
+                                                            (activityCurrentPage - 1) * activityItemsPerPage,
+                                                            activityCurrentPage * activityItemsPerPage
+                                                        );
+
+                                                        if (filtered.length === 0) {
+                                                            return (
+                                                                <tr>
+                                                                    <td colSpan={4} className="px-5 py-10 text-center text-slate-400 italic dark:text-slate-500">
+                                                                        Belum ada file yang diunggah atau tidak ditemukan hasil pencocokan.
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <>
+                                                                {paginated.map((act) => {
+                                                                    // Resolve file type icon
+                                                                    let Icon = FileIcon;
+                                                                    if (act.mime_type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(act.name)) Icon = ImageIcon;
+                                                                    else if (act.mime_type === 'application/pdf' || /\.(pdf)$/i.test(act.name)) Icon = FileText;
+                                                                    else if (act.mime_type?.startsWith('video/') || /\.(mp4|webm|ogg)$/i.test(act.name)) Icon = FileVideo;
+                                                                    else if (act.mime_type?.startsWith('audio/') || /\.(mp3|wav|ogg|m4a)$/i.test(act.name)) Icon = FileAudio;
+                                                                    else if (/\.(docx|doc)$/i.test(act.name)) Icon = FileText;
+                                                                    else if (/\.(xlsx|xls|csv)$/i.test(act.name)) Icon = FileSpreadsheet;
+                                                                    else if (/\.(pptx|ppt)$/i.test(act.name)) Icon = Presentation;
+                                                                    else if (/\.(zip|rar|7z|tar|gz)$/i.test(act.name)) Icon = FileArchive;
+
+                                                                    return (
+                                                                        <tr key={act.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                                                                            <td className="px-5 py-3.5 flex items-center gap-2 max-w-sm overflow-hidden text-ellipsis">
+                                                                                <div className="p-1.5 bg-slate-100 dark:bg-slate-700/50 rounded-lg text-slate-500 shrink-0">
+                                                                                    <Icon size={16} />
+                                                                                </div>
+                                                                                <span className="font-medium text-slate-750 dark:text-slate-200 truncate" title={act.name}>{act.name}</span>
+                                                                            </td>
+                                                                            <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">
+                                                                                {formatSize(act.size)}
+                                                                            </td>
+                                                                            <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">
+                                                                                {formatDateID(act.created_at)}
+                                                                            </td>
+                                                                            <td className="px-5 py-3.5">
+                                                                                {act.is_own_drive ? (
+                                                                                    <div className="flex flex-col">
+                                                                                        <span className="inline-flex self-start items-center px-2 py-0.5 rounded text-[11px] font-bold bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400 border border-green-200/55 dark:border-green-800/25">
+                                                                                            Drive Sendiri
+                                                                                        </span>
+                                                                                        <span className="text-xs text-slate-450 dark:text-slate-500 mt-0.5 truncate max-w-[200px]" title={act.folder_name ? `Folder: /${act.folder_name}` : 'Root: /'}>
+                                                                                            {act.folder_name ? `/${act.folder_name}` : '/'}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <div className="flex flex-col">
+                                                                                        <span className="inline-flex self-start items-center px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 border border-indigo-200/55 dark:border-indigo-800/25">
+                                                                                            Shared Folder
+                                                                                        </span>
+                                                                                        <span className="text-xs text-slate-450 dark:text-slate-500 mt-0.5 truncate max-w-[200px]" title={`Milik: ${act.root_owner_name || act.root_owner_email} (${act.root_owner_email}) /${act.folder_name}`}>
+                                                                                            Milik: {act.root_owner_name || act.root_owner_email} {act.folder_name ? `/${act.folder_name}` : ''}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                )}
+                                                                            </td>
+                                                                        </tr>
+                                                                    );
+                                                                })}
+
+                                                                {totalPages > 1 && (
+                                                                    <tr>
+                                                                        <td colSpan={4} className="px-5 py-3 bg-slate-50/50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-700">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <span className="text-xs text-slate-500">
+                                                                                    Halaman {activityCurrentPage} dari {totalPages}
+                                                                                </span>
+                                                                                <div className="flex gap-1">
+                                                                                    <button
+                                                                                        disabled={activityCurrentPage === 1}
+                                                                                        onClick={() => setActivityCurrentPage(p => Math.max(1, p - 1))}
+                                                                                        className="px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 transition"
+                                                                                    >
+                                                                                        Sebelumnya
+                                                                                    </button>
+                                                                                    <button
+                                                                                        disabled={activityCurrentPage === totalPages}
+                                                                                        onClick={() => setActivityCurrentPage(p => Math.min(totalPages, p + 1))}
+                                                                                        className="px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 transition"
+                                                                                    >
+                                                                                        Berikutnya
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                )}
+                                                            </>
+                                                        );
+                                                    })()}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}

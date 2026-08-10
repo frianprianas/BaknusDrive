@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -33,7 +34,7 @@ func AdminMiddleware() gin.HandlerFunc {
 	}
 }
 
-// GetAdminUsers returns a list of all users and their storage usage
+// GetAdminUsers returns a list of all users and their storage usage with detailed upload stats
 func GetAdminUsers(c *gin.Context) {
 	var users []models.User
 	if err := DB.Find(&users).Error; err != nil {
@@ -41,15 +42,78 @@ func GetAdminUsers(c *gin.Context) {
 		return
 	}
 
+	type UserStats struct {
+		UploaderID       string     `gorm:"column:uploader_id"`
+		TotalFiles       int        `gorm:"column:total_files"`
+		TotalSize        int64      `gorm:"column:total_size"`
+		OwnDriveCount    int        `gorm:"column:own_drive_count"`
+		OwnDriveSize     int64      `gorm:"column:own_drive_size"`
+		SharedDriveCount int        `gorm:"column:shared_drive_count"`
+		SharedDriveSize  int64      `gorm:"column:shared_drive_size"`
+		LastActivity     *time.Time `gorm:"column:last_activity"`
+	}
+
+	statsQuery := `
+		WITH RECURSIVE folder_roots AS (
+			SELECT id, user_id AS root_owner_id
+			FROM folders
+			WHERE parent_id IS NULL AND deleted_at IS NULL
+			UNION ALL
+			SELECT f.id, fr.root_owner_id
+			FROM folders f
+			INNER JOIN folder_roots fr ON f.parent_id = fr.id
+			WHERE f.deleted_at IS NULL
+		),
+		classified_files AS (
+			SELECT 
+				fi.user_id AS uploader_id,
+				fi.size,
+				fi.created_at,
+				CASE 
+					WHEN fi.folder_id IS NULL THEN TRUE
+					WHEN fr.root_owner_id = fi.user_id THEN TRUE
+					ELSE FALSE
+				END AS is_own_drive
+			FROM files fi
+			LEFT JOIN folder_roots fr ON fi.folder_id = fr.id
+			WHERE fi.deleted_at IS NULL
+		)
+		SELECT 
+			uploader_id,
+			COUNT(*) AS total_files,
+			SUM(size) AS total_size,
+			COUNT(CASE WHEN is_own_drive = TRUE THEN 1 END) AS own_drive_count,
+			SUM(CASE WHEN is_own_drive = TRUE THEN size ELSE 0 END) AS own_drive_size,
+			COUNT(CASE WHEN is_own_drive = FALSE THEN 1 END) AS shared_drive_count,
+			SUM(CASE WHEN is_own_drive = FALSE THEN size ELSE 0 END) AS shared_drive_size,
+			MAX(created_at) AS last_activity
+		FROM classified_files
+		GROUP BY uploader_id
+	`
+	var stats []UserStats
+	if err := DB.Raw(statsQuery).Scan(&stats).Error; err != nil {
+		log.Printf("Failed to fetch user stats: %v", err)
+	}
+
+	statsMap := make(map[string]UserStats)
+	for _, s := range stats {
+		statsMap[s.UploaderID] = s
+	}
+
 	type UserJSON struct {
-		ID        string `json:"id"`
-		Email     string `json:"email"`
-		FullName  string `json:"full_name"`
-		Role      string `json:"role"`
-		Class     string `json:"class"`
-		Quota     int64  `json:"quota"`
-		UsedSpace int64  `json:"used_space"`
-		IsActive  bool   `json:"is_active"`
+		ID               string     `json:"id"`
+		Email            string     `json:"email"`
+		FullName         string     `json:"full_name"`
+		Role             string     `json:"role"`
+		Class            string     `json:"class"`
+		Quota            int64      `json:"quota"`
+		UsedSpace        int64      `json:"used_space"`
+		IsActive         bool       `json:"is_active"`
+		OwnDriveCount    int        `json:"own_drive_count"`
+		OwnDriveSize     int64      `json:"own_drive_size"`
+		SharedDriveCount int        `json:"shared_drive_count"`
+		SharedDriveSize  int64      `json:"shared_drive_size"`
+		LastActivity     *time.Time `json:"last_activity"`
 	}
 
 	results := make([]UserJSON, len(users))
@@ -57,15 +121,22 @@ func GetAdminUsers(c *gin.Context) {
 		var totalSize int64
 		DB.Model(&models.File{}).Where("user_id = ?", user.ID).Select("COALESCE(SUM(size), 0)").Scan(&totalSize)
 
+		userStats := statsMap[user.ID]
+
 		results[i] = UserJSON{
-			ID:        user.ID,
-			Email:     user.Email,
-			FullName:  user.FullName,
-			Role:      user.Role,
-			Class:     user.Class,
-			Quota:     user.Quota,
-			UsedSpace: totalSize,
-			IsActive:  user.IsActive,
+			ID:               user.ID,
+			Email:            user.Email,
+			FullName:         user.FullName,
+			Role:             user.Role,
+			Class:            user.Class,
+			Quota:            user.Quota,
+			UsedSpace:        totalSize,
+			IsActive:         user.IsActive,
+			OwnDriveCount:    userStats.OwnDriveCount,
+			OwnDriveSize:     userStats.OwnDriveSize,
+			SharedDriveCount: userStats.SharedDriveCount,
+			SharedDriveSize:  userStats.SharedDriveSize,
+			LastActivity:     userStats.LastActivity,
 		}
 	}
 
@@ -204,4 +275,66 @@ func SetSpecialShareUsers(c *gin.Context) {
 
 	tx.Commit()
 	c.JSON(http.StatusOK, gin.H{"message": "Daftar Guru/TU yang diizinkan berhasil diperbarui"})
+}
+
+// GetAdminUserActivity returns a list of files uploaded by a user with classification and ownership info
+func GetAdminUserActivity(c *gin.Context) {
+	targetUID := c.Param("id") // user email/id
+
+	type ActivityJSON struct {
+		ID             uint       `json:"id"`
+		Name           string     `json:"name"`
+		Size           int64      `json:"size"`
+		MimeType       string     `json:"mime_type"`
+		CreatedAt      time.Time  `json:"created_at"`
+		FolderID       *uint      `json:"folder_id"`
+		FolderName     string     `json:"folder_name"`
+		IsOwnDrive     bool       `json:"is_own_drive"`
+		RootOwnerID    string     `json:"root_owner_id"`
+		RootOwnerName  string     `json:"root_owner_name"`
+		RootOwnerEmail string     `json:"root_owner_email"`
+	}
+
+	query := `
+		WITH RECURSIVE folder_roots AS (
+			SELECT id, parent_id, name, user_id AS root_owner_id
+			FROM folders
+			WHERE parent_id IS NULL AND deleted_at IS NULL
+			UNION ALL
+			SELECT f.id, f.parent_id, f.name, fr.root_owner_id
+			FROM folders f
+			INNER JOIN folder_roots fr ON f.parent_id = fr.id
+			WHERE f.deleted_at IS NULL
+		)
+		SELECT 
+			fi.id,
+			fi.name,
+			fi.size,
+			fi.mime_type,
+			fi.created_at,
+			fi.folder_id,
+			COALESCE(fo.name, '') AS folder_name,
+			CASE 
+				WHEN fi.folder_id IS NULL THEN TRUE
+				WHEN fr.root_owner_id = fi.user_id THEN TRUE
+				ELSE FALSE
+			END AS is_own_drive,
+			COALESCE(fr.root_owner_id, '') AS root_owner_id,
+			COALESCE(u.full_name, '') AS root_owner_name,
+			COALESCE(u.email, '') AS root_owner_email
+		FROM files fi
+		LEFT JOIN folders fo ON fi.folder_id = fo.id AND fo.deleted_at IS NULL
+		LEFT JOIN folder_roots fr ON fi.folder_id = fr.id
+		LEFT JOIN users u ON fr.root_owner_id = u.id AND u.deleted_at IS NULL
+		WHERE fi.user_id = ? AND fi.deleted_at IS NULL
+		ORDER BY fi.created_at DESC
+	`
+
+	var results []ActivityJSON
+	if err := DB.Raw(query, targetUID).Scan(&results).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user activity: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"activity": results})
 }

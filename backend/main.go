@@ -164,6 +164,7 @@ func main() {
 		{
 			adminAPI.GET("/users", GetAdminUsers)
 			adminAPI.PUT("/user/:id", AdminUpdateUser)
+			adminAPI.GET("/users/:id/activity", GetAdminUserActivity)
 			adminAPI.GET("/drive", AdminListDrive)
 			adminAPI.GET("/special-share-users", GetSpecialShareUsers)
 			adminAPI.POST("/special-share-users", SetSpecialShareUsers)
