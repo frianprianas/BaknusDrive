@@ -2146,8 +2146,9 @@ export default function Dashboard() {
                                             <th className="px-6 py-5 font-semibold">Pengguna</th>
                                             <th className="px-6 py-5 font-semibold">Role</th>
                                             <th className="px-6 py-5 font-semibold">Kelas</th>
-                                    <th className="px-6 py-5 font-semibold">Penyimpanan</th>
+                                            <th className="px-6 py-5 font-semibold">Penyimpanan</th>
                                             <th className="px-6 py-5 font-semibold">Status</th>
+                                            <th className="px-6 py-5 font-semibold">Akses Terakhir</th>
                                             <th className="px-6 py-5 font-semibold text-right">Aksi</th>
                                         </tr>
                                     </thead>
@@ -2191,10 +2192,6 @@ export default function Dashboard() {
                                                                 <div className="flex flex-col animate-in fade-in slide-in-from-left duration-250">
                                                                     <span className="font-bold text-slate-800 dark:text-slate-200 text-base">{u.full_name || u.email}</span>
                                                                     <span className="text-[15px] text-slate-500">{u.email}</span>
-                                                                    <span className="text-xs text-slate-400 dark:text-slate-500 mt-1 flex items-center gap-1">
-                                                                        <Clock size={12} className="shrink-0" />
-                                                                        {u.last_login ? `Terakhir Login: ${formatDateTimeID(u.last_login)}` : 'Belum Pernah Login'}
-                                                                    </span>
                                                                     {(u.own_drive_count > 0 || u.shared_drive_count > 0) && (
                                                                         <div className="flex flex-wrap gap-2 mt-2 text-xs">
                                                                             {u.own_drive_count > 0 && (
@@ -2234,6 +2231,11 @@ export default function Dashboard() {
                                                                     <span className="inline-flex items-center gap-1.5 text-red-600 dark:text-red-400 font-bold text-[15px]">
                                                                         <Lock size={16} /> Nonaktif
                                                                     </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-6 py-5 text-slate-700 dark:text-slate-300 text-sm font-semibold">
+                                                                {u.last_login ? formatDateTimeID(u.last_login) : (
+                                                                    <span className="text-slate-400 dark:text-slate-500 italic">Belum Pernah</span>
                                                                 )}
                                                             </td>
                                                             <td className="px-6 py-5 text-right flex items-center justify-end gap-3">
@@ -2291,7 +2293,7 @@ export default function Dashboard() {
 
                                                     {totalPages > 1 && (
                                                         <tr>
-                                                            <td colSpan={6} className="px-6 py-5 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700">
+                                                            <td colSpan={7} className="px-6 py-5 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700">
                                                                 <div className="flex items-center justify-between">
                                                                     <span className="text-sm font-medium text-slate-500">
                                                                         Menampilkan {((adminCurrentPage - 1) * adminItemsPerPage) + 1} hingga {Math.min(adminCurrentPage * adminItemsPerPage, sortedUsers.length)} dari {sortedUsers.length} entri
