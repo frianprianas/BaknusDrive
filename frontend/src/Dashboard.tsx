@@ -92,6 +92,7 @@ export default function Dashboard() {
     const [activitySearchQuery, setActivitySearchQuery] = useState('');
     const [activityCurrentPage, setActivityCurrentPage] = useState(1);
     const activityItemsPerPage = 8;
+    const [sortBy, setSortBy] = useState<string>("usage-desc");
     const [searchClass, setSearchClass] = useState("");
     const [adminCurrentPage, setAdminCurrentPage] = useState(1);
     const adminItemsPerPage = 20;
@@ -2117,6 +2118,17 @@ export default function Dashboard() {
                                     <option value="TU">TU</option>
                                     <option value="Admin">Admin</option>
                                 </select>
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => { setSortBy(e.target.value); setAdminCurrentPage(1); }}
+                                    className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[180px] font-semibold"
+                                >
+                                    <option value="usage-desc">💾 Penyimpanan Terbanyak</option>
+                                    <option value="usage-asc">💾 Penyimpanan Tersedikit</option>
+                                    <option value="name-asc">👤 Nama (A - Z)</option>
+                                    <option value="name-desc">👤 Nama (Z - A)</option>
+                                    <option value="activity-desc">⚡ Aktivitas Terbaru</option>
+                                </select>
                             </div>
 
                             <div className="overflow-x-auto bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
@@ -2140,8 +2152,24 @@ export default function Dashboard() {
                                                     return (u.full_name || '').toLowerCase().includes(search) ||
                                                         (u.email || '').toLowerCase().includes(search);
                                                 });
-                                            const totalPages = Math.ceil(filteredUsers.length / adminItemsPerPage) || 1;
-                                            const paginatedUsers = filteredUsers.slice((adminCurrentPage - 1) * adminItemsPerPage, adminCurrentPage * adminItemsPerPage);
+                                            const sortedUsers = [...filteredUsers].sort((a, b) => {
+                                                if (sortBy === 'name-asc') {
+                                                    return (a.full_name || '').localeCompare(b.full_name || '');
+                                                } else if (sortBy === 'name-desc') {
+                                                    return (b.full_name || '').localeCompare(a.full_name || '');
+                                                } else if (sortBy === 'usage-desc') {
+                                                    return (b.used_space || 0) - (a.used_space || 0);
+                                                } else if (sortBy === 'usage-asc') {
+                                                    return (a.used_space || 0) - (b.used_space || 0);
+                                                } else if (sortBy === 'activity-desc') {
+                                                    const timeA = a.last_activity ? new Date(a.last_activity).getTime() : 0;
+                                                    const timeB = b.last_activity ? new Date(b.last_activity).getTime() : 0;
+                                                    return timeB - timeA;
+                                                }
+                                                return 0;
+                                            });
+                                            const totalPages = Math.ceil(sortedUsers.length / adminItemsPerPage) || 1;
+                                            const paginatedUsers = sortedUsers.slice((adminCurrentPage - 1) * adminItemsPerPage, adminCurrentPage * adminItemsPerPage);
 
                                             return (
                                                 <>
@@ -2250,7 +2278,7 @@ export default function Dashboard() {
                                                             <td colSpan={6} className="px-6 py-5 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700">
                                                                 <div className="flex items-center justify-between">
                                                                     <span className="text-sm font-medium text-slate-500">
-                                                                        Menampilkan {((adminCurrentPage - 1) * adminItemsPerPage) + 1} hingga {Math.min(adminCurrentPage * adminItemsPerPage, filteredUsers.length)} dari {filteredUsers.length} entri
+                                                                        Menampilkan {((adminCurrentPage - 1) * adminItemsPerPage) + 1} hingga {Math.min(adminCurrentPage * adminItemsPerPage, sortedUsers.length)} dari {sortedUsers.length} entri
                                                                     </span>
                                                                     <div className="flex gap-2">
                                                                         <button
