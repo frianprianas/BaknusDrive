@@ -77,6 +77,9 @@ func main() {
 			publicAPI.GET("/folder/:id/download", DownloadPublicFolder)
 		}
 
+		// Integration API for Dashboard (Needs X-API-Key header or api_key query)
+		api.GET("/dashboard-stats", GetDriveDashboardStats)
+
 		// Integration API for Aplikasi Surat (Needs X-Surat-API-Key header)
 		api.POST("/surat/upload", UploadSurat)
 
