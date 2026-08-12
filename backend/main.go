@@ -79,6 +79,7 @@ func main() {
 
 		// Integration API for Dashboard (Needs X-API-Key header or api_key query)
 		api.GET("/dashboard-stats", GetDriveDashboardStats)
+		api.GET("/user-stats", GetDriveUserStats)
 
 		// Integration API for Aplikasi Surat (Needs X-Surat-API-Key header)
 		api.POST("/surat/upload", UploadSurat)
