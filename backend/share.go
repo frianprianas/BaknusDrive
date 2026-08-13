@@ -28,13 +28,8 @@ const (
 
 // sendEmailNotification sends a general HTML notification email to the target user
 func sendEmailNotification(toEmail, subject, title, bodyHTML string) {
-	htmlMessage := fmt.Sprintf(`From: %s
-To: %s
-Subject: %s
-MIME-Version: 1.0
-Content-Type: text/html; charset=UTF-8
-
-<!DOCTYPE html>
+	htmlMessage := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n"+
+		`<!DOCTYPE html>
 <html>
 <body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
     <div style="background-color: #f97316; padding: 24px; color: white; text-align: center;">
@@ -51,7 +46,7 @@ Content-Type: text/html; charset=UTF-8
     </div>
 </body>
 </html>
-`, SMTPFrom, toEmail, subject, title, bodyHTML, time.Now().Year())
+`, SMTPFrom, toEmail, subject, time.Now().Format(time.RFC1123Z), title, bodyHTML, time.Now().Year())
 
 	go func() {
 		addr := SMTPHost + ":" + SMTPPort
