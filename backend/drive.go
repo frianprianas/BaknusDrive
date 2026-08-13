@@ -60,6 +60,13 @@ func CreateFolder(c *gin.Context) {
 		return
 	}
 
+	// Send email notification (non-blocking)
+	var user models.User
+	if err := DB.Where("id = ?", userID).First(&user).Error; err == nil {
+		bodyHTML := fmt.Sprintf("<p>Halo <b>%s</b>,</p><p>Folder baru Anda dengan nama <b>%s</b> telah berhasil dibuat di BaknusDrive.</p><p>Terima kasih.</p>", user.FullName, folder.Name)
+		sendEmailNotification(user.Email, "[BaknusDrive] Folder Baru Berhasil Dibuat", "Folder Dibuat", bodyHTML)
+	}
+
 	c.JSON(http.StatusOK, folder)
 }
 
@@ -364,6 +371,11 @@ func UploadComplete(c *gin.Context) {
 			return
 		}
 		DB.Model(&currentUser).Update("used_space", totalSize+sizeDiff)
+
+		// Send email notification (non-blocking)
+		bodyHTML := fmt.Sprintf("<p>Halo <b>%s</b>,</p><p>Berkas Anda dengan nama <b>%s</b> (%d bytes) telah berhasil diupload ke BaknusDrive.</p><p>Terima kasih.</p>", currentUser.FullName, req.FileName, req.TotalSize)
+		sendEmailNotification(currentUser.Email, "[BaknusDrive] Berkas Berhasil Diupload", "Berkas Diupload", bodyHTML)
+
 		c.JSON(http.StatusOK, oldFile)
 	} else {
 		fileRecord := models.File{
@@ -381,6 +393,11 @@ func UploadComplete(c *gin.Context) {
 			return
 		}
 		DB.Model(&currentUser).Update("used_space", totalSize+req.TotalSize)
+
+		// Send email notification (non-blocking)
+		bodyHTML := fmt.Sprintf("<p>Halo <b>%s</b>,</p><p>Berkas Anda dengan nama <b>%s</b> (%d bytes) telah berhasil diupload ke BaknusDrive.</p><p>Terima kasih.</p>", currentUser.FullName, req.FileName, req.TotalSize)
+		sendEmailNotification(currentUser.Email, "[BaknusDrive] Berkas Berhasil Diupload", "Berkas Diupload", bodyHTML)
+
 		c.JSON(http.StatusOK, fileRecord)
 	}
 }
@@ -491,6 +508,11 @@ func UploadFile(c *gin.Context) {
 		}
 		// Update UsedSpace
 		DB.Model(&currentUser).Update("used_space", totalSize+sizeDiff)
+		
+		// Send email notification (non-blocking)
+		bodyHTML := fmt.Sprintf("<p>Halo <b>%s</b>,</p><p>Berkas Anda dengan nama <b>%s</b> (%d bytes) telah berhasil diupload ke BaknusDrive.</p><p>Terima kasih.</p>", currentUser.FullName, fileHeader.Filename, fileHeader.Size)
+		sendEmailNotification(currentUser.Email, "[BaknusDrive] Berkas Berhasil Diupload", "Berkas Diupload", bodyHTML)
+
 		c.JSON(http.StatusOK, oldFile)
 	} else {
 		fileRecord := models.File{
@@ -509,6 +531,11 @@ func UploadFile(c *gin.Context) {
 		}
 		// Update UsedSpace
 		DB.Model(&currentUser).Update("used_space", totalSize+fileHeader.Size)
+
+		// Send email notification (non-blocking)
+		bodyHTML := fmt.Sprintf("<p>Halo <b>%s</b>,</p><p>Berkas Anda dengan nama <b>%s</b> (%d bytes) telah berhasil diupload ke BaknusDrive.</p><p>Terima kasih.</p>", currentUser.FullName, fileHeader.Filename, fileHeader.Size)
+		sendEmailNotification(currentUser.Email, "[BaknusDrive] Berkas Berhasil Diupload", "Berkas Diupload", bodyHTML)
+
 		c.JSON(http.StatusOK, fileRecord)
 	}
 }

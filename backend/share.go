@@ -20,39 +20,42 @@ import (
 const (
 	SMTPHost   = "mail.smk.baktinusantara666.sch.id"
 	SMTPPort   = "587" // STARTTLS
-	SMTPUser   = "noreply@smk.baktinusantara666.sch.id"
-	SMTPPass   = "925B68-0FF6BB-36B760-F6C051-AAF343" // same as Mailcow API key — change if separate
-	SMTPFrom   = "BaknusDrive <noreply@smk.baktinusantara666.sch.id>"
+	SMTPUser   = "admin@smk.baktinusantara666.sch.id"
+	SMTPPass   = "Buhun666"
+	SMTPFrom   = "BaknusDrive <admin@smk.baktinusantara666.sch.id>"
 	AppBaseURL = "https://baknusdrive.smkbn666.sch.id"
 )
 
-// sendShareNotification sends a Mailcow SMTP email to the target user
-// notifying them that a file/folder was shared with them.
-func sendShareNotification(toEmail, senderName, itemType, itemName string) {
-	subject := fmt.Sprintf("[BaknusDrive] %s berbagi %s dengan Anda", senderName, itemType)
-	body := fmt.Sprintf(`Halo,
+// sendEmailNotification sends a general HTML notification email to the target user
+func sendEmailNotification(toEmail, subject, title, bodyHTML string) {
+	htmlMessage := fmt.Sprintf(`From: %s
+To: %s
+Subject: %s
+MIME-Version: 1.0
+Content-Type: text/html; charset=UTF-8
 
-%s telah berbagi %s "%s" dengan Anda di BaknusDrive.
-
-Anda dapat membuka dan mengedit dokumen tersebut secara langsung di:
-%s
-
-Salam,
-Tim BaknusDrive - SMK Bakti Nusantara 666
-`, senderName, itemType, itemName, AppBaseURL)
-
-	msg := "From: " + SMTPFrom + "\r\n" +
-		"To: " + toEmail + "\r\n" +
-		"Subject: " + subject + "\r\n" +
-		"MIME-Version: 1.0\r\n" +
-		"Content-Type: text/plain; charset=UTF-8\r\n" +
-		"\r\n" +
-		body
+<!DOCTYPE html>
+<html>
+<body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+    <div style="background-color: #f97316; padding: 24px; color: white; text-align: center;">
+        <h2 style="margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 0.5px;">[BaknusDrive Notifikasi]</h2>
+    </div>
+    <div style="padding: 24px; color: #333; line-height: 1.6; background-color: #ffffff;">
+        <h3 style="margin-top: 0; color: #7c2d12; font-size: 18px; border-bottom: 2px solid #fff7ed; padding-bottom: 10px;">%s</h3>
+        <div style="margin-top: 15px;">
+            %s
+        </div>
+    </div>
+    <div style="background-color: #f9fafb; padding: 15px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb;">
+        &copy; %d SMK Bhakti Nusantara 666. All rights reserved.
+    </div>
+</body>
+</html>
+`, SMTPFrom, toEmail, subject, title, bodyHTML, time.Now().Year())
 
 	go func() {
 		addr := SMTPHost + ":" + SMTPPort
 
-		// Try STARTTLS first (port 587)
 		tlsConfig := &tls.Config{
 			InsecureSkipVerify: true,
 			ServerName:         SMTPHost,
@@ -94,13 +97,28 @@ Tim BaknusDrive - SMK Bakti Nusantara 666
 		}
 		defer wc.Close()
 
-		if _, err = fmt.Fprint(wc, msg); err != nil {
+		if _, err = fmt.Fprint(wc, htmlMessage); err != nil {
 			log.Printf("[SMTP] Write failed: %v", err)
 			return
 		}
 
-		log.Printf("[SMTP] Share notification sent to %s", toEmail)
+		log.Printf("[SMTP] Notification email sent successfully to %s", toEmail)
 	}()
+}
+
+// sendShareNotification sends a Mailcow SMTP email to the target user
+// notifying them that a file/folder was shared with them.
+func sendShareNotification(toEmail, senderName, itemType, itemName string) {
+	subject := fmt.Sprintf("[BaknusDrive] %s berbagi %s dengan Anda", senderName, itemType)
+	bodyHTML := fmt.Sprintf(`
+		<p>Halo,</p>
+		<p><b>%s</b> telah berbagi %s <b>"%s"</b> dengan Anda di BaknusDrive.</p>
+		<p>Anda dapat membuka dan mengedit dokumen tersebut secara langsung di:</p>
+		<p><a href="%s" style="display: inline-block; padding: 10px 20px; background-color: #f97316; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Buka BaknusDrive</a></p>
+		<p style="margin-top: 15px;">Salam,<br>Tim BaknusDrive - SMK Bakti Nusantara 666</p>
+	`, senderName, itemType, itemName, AppBaseURL)
+
+	sendEmailNotification(toEmail, subject, "Berkas/Folder Dibagikan dengan Anda", bodyHTML)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
