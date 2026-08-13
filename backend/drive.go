@@ -717,6 +717,10 @@ func DeleteFile(c *gin.Context) {
 		return
 	}
 
+	// Send email notification (non-blocking)
+	bodyHTML := fmt.Sprintf("<p>Halo <b>%s</b>,</p><p>Berkas Anda dengan nama <b>%s</b> telah dihapus dari BaknusDrive.</p><p>Terima kasih.</p>", currentUser.FullName, file.Name)
+	sendEmailNotification(currentUser.Email, "[BaknusDrive] Berkas Dihapus", "Berkas Dihapus", bodyHTML)
+
 	c.JSON(http.StatusOK, gin.H{"message": "File deleted successfully"})
 }
 
@@ -964,6 +968,10 @@ func DeleteFolder(c *gin.Context) {
 	}
 
 	softDeleteFolderRecursive(folder.ID)
+
+	// Send email notification (non-blocking)
+	bodyHTML := fmt.Sprintf("<p>Halo <b>%s</b>,</p><p>Folder Anda dengan nama <b>%s</b> telah dihapus dari BaknusDrive.</p><p>Terima kasih.</p>", currentUser.FullName, folder.Name)
+	sendEmailNotification(currentUser.Email, "[BaknusDrive] Folder Dihapus", "Folder Dihapus", bodyHTML)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Folder deleted successfully"})
 }
