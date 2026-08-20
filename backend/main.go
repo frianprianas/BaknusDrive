@@ -99,6 +99,10 @@ func main() {
 		api.POST("/meet/setup", SetupMeetFolders)
 		api.POST("/meet/upload", UploadMeetFile)
 
+		// Integration API for Aplikasi Chat / BaknusChat (Needs X-Chat-API-Key header)
+		api.POST("/chat/setup", SetupChatFolder)
+		api.POST("/chat/upload", UploadChatFile)
+
 		// Protected Drive APIs
 		driveAPI := api.Group("/drive")
 		driveAPI.Use(AuthMiddleware())
