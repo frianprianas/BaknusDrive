@@ -103,6 +103,12 @@ func main() {
 		api.POST("/chat/setup", SetupChatFolder)
 		api.POST("/chat/upload", UploadChatFile)
 
+		// Integration API for BaknusID / BaknusChat Backup & Restore (Needs X-API-KEY header / api_key query)
+		api.POST("/backup/upload", UploadBackupChat)
+		api.GET("/backup/list", ListBackupChat)
+		api.GET("/backup/download/:backup_id", DownloadBackupChat)
+		api.DELETE("/backup/:backup_id", DeleteBackupChat)
+
 		// Protected Drive APIs
 		driveAPI := api.Group("/drive")
 		driveAPI.Use(AuthMiddleware())
