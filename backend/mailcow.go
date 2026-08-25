@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	MailcowURL    = "http://mail.smk.baktinusantara666.sch.id"
+	MailcowURL    = "https://mail.smk.baktinusantara666.sch.id"
 	MailcowAPIKey = "925B68-0FF6BB-36B760-F6C051-AAF343"
 )
 
