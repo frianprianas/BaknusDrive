@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -28,39 +29,93 @@ func generateRandomHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
-// verifyBackupAPIKeyAndUser checks X-API-KEY header / api_key query and verifies user existence
-func verifyBackupAPIKeyAndUser(c *gin.Context, rawEmail string) (*models.User, bool) {
-	apiKey := c.GetHeader("X-API-KEY")
-	if apiKey == "" {
-		apiKey = c.GetHeader("X-API-Key")
-	}
-	if apiKey == "" {
-		apiKey = c.Query("api_key")
+// helper: send standardized error response with both "message" and "error" keys
+func sendBackupError(c *gin.Context, status int, msg string) {
+	c.JSON(status, gin.H{
+		"success": false,
+		"message": msg,
+		"error":   msg,
+	})
+}
+
+// extractBackupAPIKey retrieves API Key from Headers, Query, Form Data, Authorization Bearer, or JSON Body
+func extractBackupAPIKey(c *gin.Context) string {
+	// 1. Headers
+	for _, headerName := range []string{"X-API-KEY", "X-API-Key", "x-api-key", "api_key", "X-Api-Key"} {
+		if val := strings.TrimSpace(c.GetHeader(headerName)); val != "" {
+			return val
+		}
 	}
 
+	// 2. Authorization Header (Bearer token or raw)
+	if authHeader := strings.TrimSpace(c.GetHeader("Authorization")); authHeader != "" {
+		if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+			return strings.TrimSpace(authHeader[7:])
+		}
+		return authHeader
+	}
+
+	// 3. Query params
+	for _, queryName := range []string{"api_key", "apiKey", "key", "X-API-KEY"} {
+		if val := strings.TrimSpace(c.Query(queryName)); val != "" {
+			return val
+		}
+	}
+
+	// 4. PostForm params
+	for _, formName := range []string{"api_key", "apiKey", "key"} {
+		if val := strings.TrimSpace(c.PostForm(formName)); val != "" {
+			return val
+		}
+	}
+
+	return ""
+}
+
+// extractBackupEmail retrieves email from Query, Form Data, Headers, or JSON Body
+func extractBackupEmail(c *gin.Context) string {
+	// 1. PostForm params
+	for _, formName := range []string{"email", "user_email", "userEmail", "user"} {
+		if val := strings.TrimSpace(c.PostForm(formName)); val != "" {
+			return val
+		}
+	}
+
+	// 2. Query params
+	for _, queryName := range []string{"email", "user_email", "userEmail", "user"} {
+		if val := strings.TrimSpace(c.Query(queryName)); val != "" {
+			return val
+		}
+	}
+
+	// 3. Headers
+	for _, headerName := range []string{"X-User-Email", "X-Email", "email"} {
+		if val := strings.TrimSpace(c.GetHeader(headerName)); val != "" {
+			return val
+		}
+	}
+
+	return ""
+}
+
+// verifyBackupAPIKeyAndUser checks API Key and verifies user existence
+func verifyBackupAPIKeyAndUser(c *gin.Context, rawEmail string) (*models.User, bool) {
+	apiKey := extractBackupAPIKey(c)
+
 	if apiKey != ExpectedBackupAPIKey {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"message": "Unauthorized: Invalid or missing API Key",
-		})
+		sendBackupError(c, http.StatusUnauthorized, "Unauthorized: Invalid or missing API Key")
 		return nil, false
 	}
 
 	email := strings.TrimSpace(rawEmail)
 	if email == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "Parameter 'email' is required",
-		})
+		sendBackupError(c, http.StatusBadRequest, "Parameter 'email' is required")
 		return nil, false
 	}
 
 	var user models.User
 	if err := DB.Where("email = ? OR id = ?", email, email).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"message": fmt.Sprintf("User with email '%s' not found", email),
-		})
+		sendBackupError(c, http.StatusNotFound, fmt.Sprintf("User with email '%s' not found", email))
 		return nil, false
 	}
 
@@ -81,22 +136,25 @@ func updateCalculatedUserSpace(user *models.User) {
 
 // UploadBackupChat (POST /api/backup/upload)
 func UploadBackupChat(c *gin.Context) {
-	email := strings.TrimSpace(c.PostForm("email"))
-	if email == "" {
-		email = strings.TrimSpace(c.Query("email"))
-	}
+	email := extractBackupEmail(c)
 
 	user, ok := verifyBackupAPIKeyAndUser(c, email)
 	if !ok {
 		return
 	}
 
-	fileHeader, err := c.FormFile("backup_file")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "File backup ('backup_file') is required",
-		})
+	// Multi-field fallback for backup file field
+	var fileHeader *multipart.FileHeader
+	var err error
+	for _, fieldName := range []string{"backup_file", "file", "backup", "archive"} {
+		fileHeader, err = c.FormFile(fieldName)
+		if err == nil && fileHeader != nil {
+			break
+		}
+	}
+
+	if fileHeader == nil || err != nil {
+		sendBackupError(c, http.StatusBadRequest, "File backup ('backup_file' or 'file') is required")
 		return
 	}
 
@@ -117,20 +175,14 @@ func UploadBackupChat(c *gin.Context) {
 
 	currentUsed := totalFiles + totalBackups
 	if currentUsed+fileSize > user.Quota {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "Storage quota exceeded",
-		})
+		sendBackupError(c, http.StatusBadRequest, "Storage quota exceeded")
 		return
 	}
 
 	// 2. Prepare user storage folder /storage/backups/{user_email}/
 	backupDir := filepath.Join("storage", "backups", user.Email)
 	if err := os.MkdirAll(backupDir, os.ModePerm); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to create backup storage directory: " + err.Error(),
-		})
+		sendBackupError(c, http.StatusInternalServerError, "Failed to create backup storage directory: "+err.Error())
 		return
 	}
 
@@ -145,20 +197,24 @@ func UploadBackupChat(c *gin.Context) {
 	savePath := filepath.Join(backupDir, diskFilename)
 
 	if err := c.SaveUploadedFile(fileHeader, savePath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to save backup file to disk: " + err.Error(),
-		})
+		sendBackupError(c, http.StatusInternalServerError, "Failed to save backup file to disk: "+err.Error())
 		return
 	}
 
 	backupType := strings.TrimSpace(c.PostForm("backup_type"))
 	if backupType == "" {
+		backupType = strings.TrimSpace(c.Query("backup_type"))
+	}
+	if backupType == "" {
 		backupType = "auto"
 	}
 
 	messageCount := 0
-	if msgCountParam := c.PostForm("message_count"); msgCountParam != "" {
+	msgCountParam := c.PostForm("message_count")
+	if msgCountParam == "" {
+		msgCountParam = c.Query("message_count")
+	}
+	if msgCountParam != "" {
 		if parsedCount, parseErr := strconv.Atoi(msgCountParam); parseErr == nil {
 			messageCount = parsedCount
 		}
@@ -178,10 +234,7 @@ func UploadBackupChat(c *gin.Context) {
 
 	if err := DB.Create(&newBackup).Error; err != nil {
 		os.Remove(savePath)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to create backup database record: " + err.Error(),
-		})
+		sendBackupError(c, http.StatusInternalServerError, "Failed to create backup database record: "+err.Error())
 		return
 	}
 
@@ -214,7 +267,7 @@ func UploadBackupChat(c *gin.Context) {
 
 // ListBackupChat (GET /api/backup/list)
 func ListBackupChat(c *gin.Context) {
-	email := strings.TrimSpace(c.Query("email"))
+	email := extractBackupEmail(c)
 
 	user, ok := verifyBackupAPIKeyAndUser(c, email)
 	if !ok {
@@ -235,7 +288,8 @@ func ListBackupChat(c *gin.Context) {
 
 	data := make([]gin.H, 0)
 	for _, bkp := range backups {
-		downloadURL := fmt.Sprintf("%s://%s/api/backup/download/%s?email=%s", scheme, host, bkp.ID, user.Email)
+		// Include api_key in download_url so 3rd party clients can directly call http.get(download_url)
+		downloadURL := fmt.Sprintf("%s://%s/api/backup/download/%s?email=%s&api_key=%s", scheme, host, bkp.ID, user.Email, ExpectedBackupAPIKey)
 		data = append(data, gin.H{
 			"backup_id":     bkp.ID,
 			"filename":      bkp.Filename,
@@ -255,7 +309,7 @@ func ListBackupChat(c *gin.Context) {
 
 // DownloadBackupChat (GET /api/backup/download/:backup_id)
 func DownloadBackupChat(c *gin.Context) {
-	email := strings.TrimSpace(c.Query("email"))
+	email := extractBackupEmail(c)
 	backupID := c.Param("backup_id")
 
 	user, ok := verifyBackupAPIKeyAndUser(c, email)
@@ -264,27 +318,18 @@ func DownloadBackupChat(c *gin.Context) {
 	}
 
 	if backupID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "backup_id is required",
-		})
+		sendBackupError(c, http.StatusBadRequest, "backup_id is required")
 		return
 	}
 
 	var backup models.ChatBackup
 	if err := DB.Where("id = ? AND user_id = ?", backupID, user.ID).First(&backup).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"message": "File backup tidak ditemukan",
-		})
+		sendBackupError(c, http.StatusNotFound, "File backup tidak ditemukan")
 		return
 	}
 
 	if _, err := os.Stat(backup.FilePath); os.IsNotExist(err) {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"message": "File backup fisik tidak ditemukan di server",
-		})
+		sendBackupError(c, http.StatusNotFound, "File backup fisik tidak ditemukan di server")
 		return
 	}
 
@@ -293,10 +338,7 @@ func DownloadBackupChat(c *gin.Context) {
 
 // DeleteBackupChat (DELETE /api/backup/:backup_id)
 func DeleteBackupChat(c *gin.Context) {
-	email := strings.TrimSpace(c.Query("email"))
-	if email == "" {
-		email = strings.TrimSpace(c.PostForm("email"))
-	}
+	email := extractBackupEmail(c)
 	backupID := c.Param("backup_id")
 
 	user, ok := verifyBackupAPIKeyAndUser(c, email)
@@ -305,19 +347,13 @@ func DeleteBackupChat(c *gin.Context) {
 	}
 
 	if backupID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "backup_id is required",
-		})
+		sendBackupError(c, http.StatusBadRequest, "backup_id is required")
 		return
 	}
 
 	var backup models.ChatBackup
 	if err := DB.Where("id = ? AND user_id = ?", backupID, user.ID).First(&backup).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"message": "File backup tidak ditemukan",
-		})
+		sendBackupError(c, http.StatusNotFound, "File backup tidak ditemukan")
 		return
 	}
 

@@ -29,7 +29,7 @@ func main() {
 			return true
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With", "X-API-KEY", "X-API-Key", "x-api-key", "api_key", "apiKey", "X-Chat-API-Key", "X-Surat-API-Key", "X-Attend-API-Key", "X-Class-API-Key", "X-Meet-API-Key", "*"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
