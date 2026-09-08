@@ -21,7 +21,7 @@ const (
 	SMTPHost   = "mail.smk.baktinusantara666.sch.id"
 	SMTPPort   = "587" // STARTTLS
 	SMTPUser   = "admin@smk.baktinusantara666.sch.id"
-	SMTPPass   = "Buhun666"
+	SMTPPass   = "buhun666"
 	SMTPFrom   = "BaknusDrive <admin@smk.baktinusantara666.sch.id>"
 	AppBaseURL = "https://baknusdrive.smkbn666.sch.id"
 )
