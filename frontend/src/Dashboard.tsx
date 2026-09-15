@@ -4,7 +4,7 @@ import logo from './assets/logo.png';
 import FormBuilder from './FormBuilder';
 import {
     Search, Menu, X, Filter, LayoutGrid, Clock, Users, Database,
-    Settings, LogOut, ChevronRight, Bell,
+    Settings, LogOut, ChevronRight, Bell, ArrowLeft, ArrowUp,
     Grid, List, AlertCircle, HardDrive, MonitorSmartphone,
     Star, Trash2, Folder as FolderIcon, File as FileIcon, Image as ImageIcon, FileText, FileSpreadsheet, Presentation,
     FileAudio, FileVideo, FileArchive, FileCode,
@@ -1380,8 +1380,17 @@ export default function Dashboard() {
     };
 
     const navigateToFolder = (id: number, name: string) => {
+        const nextBreadcrumb = [...breadcrumb, { id, name }];
         setCurrentFolderId(id);
-        setBreadcrumb([...breadcrumb, { id, name }]);
+        setBreadcrumb(nextBreadcrumb);
+
+        const url = new URL(window.location.href);
+        url.searchParams.set('folder', id.toString());
+        window.history.pushState(
+            { folderId: id, breadcrumb: nextBreadcrumb, view: currentView },
+            '',
+            url.pathname + url.search
+        );
     };
     // const navigateToDevice = (device: any) => {
     //     setSelectedDevice(device);
@@ -1392,18 +1401,108 @@ export default function Dashboard() {
     const navigateToBreadcrumb = (index: number) => {
         if (index === breadcrumb.length - 1) return;
         const target = breadcrumb[index];
+        const nextBreadcrumb = breadcrumb.slice(0, index + 1);
 
+        let targetId: number | null = null;
         if (target.name === 'Computers' && target.id === null) {
             setSelectedDevice(null);
             setCurrentFolderId(null);
         } else if (target.id === 'device') {
             setCurrentFolderId(null);
         } else {
-            setCurrentFolderId(target.id as number | null);
+            targetId = target.id as number | null;
+            setCurrentFolderId(targetId);
         }
 
-        setBreadcrumb(breadcrumb.slice(0, index + 1));
+        setBreadcrumb(nextBreadcrumb);
+
+        const url = new URL(window.location.href);
+        if (targetId !== null) {
+            url.searchParams.set('folder', targetId.toString());
+        } else {
+            url.searchParams.delete('folder');
+        }
+        window.history.pushState(
+            { folderId: targetId, breadcrumb: nextBreadcrumb, view: currentView },
+            '',
+            url.pathname + (url.search ? url.search : '')
+        );
     };
+
+    const handleNavigateBack = () => {
+        if (breadcrumb.length > 1) {
+            navigateToBreadcrumb(breadcrumb.length - 2);
+        }
+    };
+
+    const handleNavigateUp = () => {
+        if (breadcrumb.length > 1) {
+            navigateToBreadcrumb(breadcrumb.length - 2);
+        }
+    };
+
+    // Synchronize browser history and popstate for folder navigation
+    useEffect(() => {
+        if (!window.history.state) {
+            window.history.replaceState(
+                { folderId: currentFolderId, breadcrumb, view: currentView },
+                ''
+            );
+        }
+
+        const handlePopState = (event: PopStateEvent) => {
+            if (event.state && (event.state.breadcrumb || event.state.folderId !== undefined)) {
+                setCurrentFolderId(event.state.folderId ?? null);
+                if (event.state.breadcrumb && Array.isArray(event.state.breadcrumb)) {
+                    setBreadcrumb(event.state.breadcrumb);
+                }
+                if (event.state.view) {
+                    setCurrentView(event.state.view);
+                }
+            } else {
+                const params = new URLSearchParams(window.location.search);
+                const folderParam = params.get('folder');
+                if (folderParam) {
+                    const fid = parseInt(folderParam);
+                    if (!isNaN(fid)) {
+                        setCurrentFolderId(fid);
+                    }
+                } else {
+                    setCurrentFolderId(null);
+                    setBreadcrumb([{ id: null, name: 'My Drive' }]);
+                }
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    // Explorer-like keyboard navigation: Alt+Left or Backspace to go back/up
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement;
+            if (
+                target &&
+                (target.tagName === 'INPUT' ||
+                 target.tagName === 'TEXTAREA' ||
+                 target.isContentEditable ||
+                 target.closest('input, textarea, [contenteditable="true"]'))
+            ) {
+                return;
+            }
+
+            if ((e.altKey && e.key === 'ArrowLeft') || e.key === 'Backspace') {
+                if (breadcrumb.length > 1) {
+                    e.preventDefault();
+                    handleNavigateBack();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [breadcrumb]);
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -1612,20 +1711,32 @@ export default function Dashboard() {
                                 key={idx}
                                 onClick={() => {
                                     setCurrentView(item.id);
+                                    let nextCrumbs = [{ id: null, name: 'My Drive' }];
                                     if (item.id === 'drive') {
                                         setCurrentFolderId(null);
-                                        setBreadcrumb([{ id: null, name: 'My Drive' }]);
+                                        nextCrumbs = [{ id: null, name: 'My Drive' }];
                                     } else if (item.id === 'computers') {
                                         setCurrentFolderId(null);
                                         setSelectedDevice(null);
-                                        setBreadcrumb([{ id: null, name: 'Computers' }]);
+                                        nextCrumbs = [{ id: null, name: 'Computers' }];
                                     } else if (item.id === 'trash') {
-                                        setBreadcrumb([{ id: null, name: 'Trash' }]);
+                                        setCurrentFolderId(null);
+                                        nextCrumbs = [{ id: null, name: 'Trash' }];
                                     } else if (item.id === 'shared') {
-                                        setBreadcrumb([{ id: null, name: 'Shared with me' }]);
+                                        setCurrentFolderId(null);
+                                        nextCrumbs = [{ id: null, name: 'Shared with me' }];
                                     } else if (item.id === 'forms') {
-                                        setBreadcrumb([{ id: null, name: 'Baknus Form' }]);
+                                        setCurrentFolderId(null);
+                                        nextCrumbs = [{ id: null, name: 'Baknus Form' }];
                                     }
+                                    setBreadcrumb(nextCrumbs);
+                                    const url = new URL(window.location.href);
+                                    url.searchParams.delete('folder');
+                                    window.history.pushState(
+                                        { folderId: null, breadcrumb: nextCrumbs, view: item.id },
+                                        '',
+                                        url.pathname + (url.search ? url.search : '')
+                                    );
                                 }}
                                 className={`w-full flex items-center gap-4 px-6 py-2 rounded-r-full text-[14px] transition-colors ${isActive
                                     ? 'bg-[#c2e7ff] dark:bg-slate-800 text-[#001d35] dark:text-blue-400 font-semibold'
@@ -1818,19 +1929,60 @@ export default function Dashboard() {
                 </header>
 
                 {/* Subheader / Breadcrumbs */}
-                <div className="px-5 py-2 flex items-center justify-between">
-                    <div className="flex items-center text-sm md:text-[15px] text-slate-500 dark:text-slate-400 font-medium tracking-tight">
-                        {breadcrumb.map((crumb: any, idx: number) => (
-                            <React.Fragment key={idx}>
-                                <button
-                                    onClick={() => navigateToBreadcrumb(idx)}
-                                    className="hover:text-indigo-600 hover:underline transition-all"
-                                >
-                                    {crumb.name === 'My Drive' ? 'Beranda' : crumb.name}
-                                </button>
-                                {idx < breadcrumb.length - 1 && <ChevronRight size={16} className="mx-1.5 opacity-50" />}
-                            </React.Fragment>
-                        ))}
+                <div className="px-5 py-2 flex items-center justify-between border-b border-slate-100/80 dark:border-slate-700/60 bg-[#f8fafd] dark:bg-slate-900/40">
+                    <div className="flex items-center gap-2 min-w-0">
+                        {/* Explorer Navigation Buttons (Back & Up) */}
+                        <div className="flex items-center gap-0.5 bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
+                            <button
+                                onClick={handleNavigateBack}
+                                disabled={breadcrumb.length <= 1}
+                                title={breadcrumb.length > 1 ? `Kembali ke ${breadcrumb[breadcrumb.length - 2]?.name === 'My Drive' ? 'Beranda' : breadcrumb[breadcrumb.length - 2]?.name}` : "Kembali (tidak ada folder sebelumnya)"}
+                                className={`p-1.5 rounded-md transition-all flex items-center justify-center ${
+                                    breadcrumb.length > 1
+                                        ? 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer active:scale-95'
+                                        : 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-50'
+                                }`}
+                                aria-label="Kembali"
+                            >
+                                <ArrowLeft size={16} strokeWidth={2.2} />
+                            </button>
+                            <button
+                                onClick={handleNavigateUp}
+                                disabled={breadcrumb.length <= 1}
+                                title={breadcrumb.length > 1 ? `Ke folder sebelumnya (${breadcrumb[breadcrumb.length - 2]?.name === 'My Drive' ? 'Beranda' : breadcrumb[breadcrumb.length - 2]?.name})` : "Folder induk"}
+                                className={`p-1.5 rounded-md transition-all flex items-center justify-center ${
+                                    breadcrumb.length > 1
+                                        ? 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer active:scale-95'
+                                        : 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-50'
+                                }`}
+                                aria-label="Folder Induk"
+                            >
+                                <ArrowUp size={16} strokeWidth={2.2} />
+                            </button>
+                        </div>
+
+                        {/* Breadcrumbs Trail */}
+                        <div className="flex items-center text-sm md:text-[15px] text-slate-500 dark:text-slate-400 font-medium tracking-tight overflow-x-auto no-scrollbar py-0.5">
+                            {breadcrumb.map((crumb: any, idx: number) => {
+                                const isLast = idx === breadcrumb.length - 1;
+                                return (
+                                    <React.Fragment key={idx}>
+                                        <button
+                                            onClick={() => navigateToBreadcrumb(idx)}
+                                            disabled={isLast}
+                                            className={`transition-all whitespace-nowrap px-1.5 py-0.5 rounded-md ${
+                                                isLast
+                                                    ? 'text-slate-900 dark:text-white font-semibold cursor-default'
+                                                    : 'hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                            }`}
+                                        >
+                                            {crumb.name === 'My Drive' ? 'Beranda' : crumb.name}
+                                        </button>
+                                        {!isLast && <ChevronRight size={15} className="mx-1 text-slate-400 dark:text-slate-500 shrink-0" />}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </div>
                     </div>
                     <div className="flex items-center gap-1 md:gap-2">
                         {(folders.length + files.length) > 0 && (
